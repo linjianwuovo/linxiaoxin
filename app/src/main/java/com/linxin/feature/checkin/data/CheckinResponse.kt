@@ -8,6 +8,7 @@ import com.google.gson.JsonElement
  */
 data class SignInPageResponse(
     val code: String?,
+    val flag: Boolean?,
     val msg: String?,
     val data: SignInPageData?,
     val rows: List<SignInTaskRow>?,
@@ -47,6 +48,7 @@ data class SignInTaskRow(
  */
 data class TaskInfoResponse(
     val code: String?,
+    val flag: Boolean?,
     val msg: String?,
     val data: TaskInfoData?,
 )
@@ -95,6 +97,7 @@ data class FileUploadResponse(
  */
 data class SignInSubmitResponse(
     val code: String?,
+    val flag: Boolean?,
     val msg: String?,
     val data: Any?,
 )
