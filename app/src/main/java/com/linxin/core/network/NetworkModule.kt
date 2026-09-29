@@ -51,6 +51,9 @@ object NetworkModule {
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
+            // readTimeout 只管"单次读"，服务器每隔 29 秒挤一个字节就能把请求挂几分钟
+            // （真机实测 getWorkingCourseRecord 挂了 214 秒）。callTimeout 是整条调用的绝对上限。
+            .callTimeout(45, TimeUnit.SECONDS)
             .build()
     }
 
@@ -132,6 +135,7 @@ object NetworkModule {
             .addInterceptor(logging)
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(45, TimeUnit.SECONDS)
             .build()
     }
 
