@@ -65,7 +65,7 @@ fun AboutScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "关于轻小信", onBack = onBack) },
+        topBar = { LxTopBar(title = "关于林小信", onBack = onBack) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -141,7 +141,7 @@ private fun BrandCard(versionName: String) {
             }
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "轻小信",
+                text = "林小信",
                 fontFamily = NewsreaderDisplay,
                 fontWeight = FontWeight.Medium,
                 fontSize = 26.sp,

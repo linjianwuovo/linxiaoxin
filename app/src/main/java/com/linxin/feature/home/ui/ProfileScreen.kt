@@ -180,7 +180,7 @@ fun ProfileScreen(
             MenuDivider()
             ProfileMenuRow(
                 icon = Icons.Outlined.Info,
-                title = "关于轻小信",
+                title = "关于林小信",
                 hint = versionName.takeIf { it.isNotBlank() }?.let { "v$it" },
                 onClick = onNavigateAbout,
             )
