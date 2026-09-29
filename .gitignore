@@ -22,3 +22,10 @@ reasonix.toml
 # 本 fork 不公开上游的内部文档（含校方接口鉴权细节）
 /codestable
 
+
+# beta 分支：抓包产物绝不进仓（HAR 与响应体里全是 token 和个人信息）
+/captures
+*.har
+frida-server*
+*.xz
+*.apk
