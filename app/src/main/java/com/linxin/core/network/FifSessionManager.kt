@@ -106,8 +106,14 @@ class FifSessionManager @Inject constructor(
             }
 
             // Step 1: SSO 跳转，提取 FIF token
+            // 注意：?token=&app=axx 这种"参数在但值为空"的跳转，queryParameter 返回的是空串
+            // 而不是 null，只判 null 会把空 token 当登录成功存下来，之后每个接口都回
+            // "鉴权失败，Token为空"，再触发重登，形成几十次往返的慢循环。
             val fifToken = performSsoRedirect(accessToken, userCode, userName, userType)
-                ?: return@withContext Result.failure(Exception("FIF 单点登录失败"))
+                ?.takeIf { it.isNotBlank() }
+                ?: return@withContext Result.failure(
+                    Exception("AI 课堂登录失败：单点登录没有返回 token，通常是校内登录已过期。请到「我的 → 退出登录」重新登录一次。")
+                )
 
             // Step 2: 用 token 访问 FIF 首页建立 Cookie
             establishSession(fifToken)

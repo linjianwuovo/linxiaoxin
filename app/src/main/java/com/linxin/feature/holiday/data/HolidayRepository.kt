@@ -177,15 +177,17 @@ class HolidayRepository @Inject constructor(
         }
     }
 
-    private fun RegistrationPageResponse.isSuccess(): Boolean = code == "0"
+    // 这套接口 code=="0" 只表示"请求被处理"，业务成败看 flag；
+    // 鉴权失败时回的是 code:"0" + flag:false + msg:"非法访问"，只看 code 会把失败渲染成空列表。
+    private fun RegistrationPageResponse.isSuccess(): Boolean = code == "0" && flag != false
 
-    private fun HolidayDetailResponse.isSuccess(): Boolean = code == "0"
+    private fun HolidayDetailResponse.isSuccess(): Boolean = code == "0" && flag != false
 
-    private fun DictResponse.isSuccess(): Boolean = code == "0"
+    private fun DictResponse.isSuccess(): Boolean = code == "0" && flag != false
 
-    private fun HolidayRegisterResponse.isSuccess(): Boolean = code == "0"
+    private fun HolidayRegisterResponse.isSuccess(): Boolean = code == "0" && flag != false
 
-    private fun SaveResponse.isSuccess(): Boolean = code == "0"
+    private fun SaveResponse.isSuccess(): Boolean = code == "0" && flag != false
 
     private fun HolidayRow.toDomain(isRegistered: Boolean): HolidayTask = HolidayTask(
         holidayId = id.orEmpty(),
