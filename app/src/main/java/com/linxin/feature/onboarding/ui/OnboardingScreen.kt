@@ -67,7 +67,7 @@ fun OnboardingScreen(
 
             StaggerItem(index = 1) {
                 Text(
-                    text = "林小信基于安小信重新设计，去掉繁琐，保留核心。整合课程、运动与宿舍提醒，让校园日常更自然、更从容地流动。",
+                    text = "林小信基于轻小信重新设计，去掉繁琐，保留核心。整合课程、运动与宿舍提醒，让校园日常更自然、更从容地流动。",
                     fontSize = 13.5.sp,
                     lineHeight = 24.sp,
                     color = LxInkMuted,

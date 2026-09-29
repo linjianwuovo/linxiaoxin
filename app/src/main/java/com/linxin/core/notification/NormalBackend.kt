@@ -67,11 +67,11 @@ class NormalBackend : LiveActivityBackend {
 
     private fun ensureChannel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
-        if (manager.getNotificationChannel(CHANNEL_ID) != null) return
+        // 不写"存在即跳过"：渠道名可随版本刷新，否则改过的文案在老用户手机上永远刷不掉
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "LinXin 通知",
+                "林小信 通知",
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
                 description = "跑步、签到等正在进行的活动"

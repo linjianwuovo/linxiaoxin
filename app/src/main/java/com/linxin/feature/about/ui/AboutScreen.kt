@@ -201,7 +201,7 @@ private fun GitHubRow() {
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Relianttt/linxin"))
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/linjianwuovo/linxiaoxin"))
                 context.startActivity(intent)
             }
             .padding(horizontal = 18.dp, vertical = 14.dp),
