@@ -1,0 +1,88 @@
+package com.linxin.feature.credit.ui
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.linxin.feature.credit.data.CreditRepository
+import com.linxin.feature.credit.domain.CreditOverview
+import com.linxin.feature.credit.domain.CreditRecord
+import com.linxin.feature.credit.domain.CreditRecordDetail
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class CreditUiState(
+    val overview: CreditOverview? = null,
+    val records: List<CreditRecord> = emptyList(),
+    val selectedDetail: CreditRecordDetail? = null,
+    val isLoading: Boolean = true,
+    val isDetailLoading: Boolean = false,
+    val showDetailSheet: Boolean = false,
+    val error: String? = null,
+    val detailError: String? = null,
+)
+
+@HiltViewModel
+class CreditViewModel @Inject constructor(
+    private val repository: CreditRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(CreditUiState())
+    val uiState: StateFlow<CreditUiState> = _uiState
+
+    private var detailJob: Job? = null
+
+    init {
+        load()
+    }
+
+    private fun load() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            val overviewDeferred = async { repository.getOverview() }
+            val recordsDeferred = async { repository.getRecords() }
+
+            val overviewResult = overviewDeferred.await()
+            val recordsResult = recordsDeferred.await()
+
+            _uiState.update {
+                it.copy(
+                    overview = overviewResult.getOrNull(),
+                    records = recordsResult.getOrDefault(emptyList()),
+                    isLoading = false,
+                    error = overviewResult.exceptionOrNull()?.message
+                        ?: recordsResult.exceptionOrNull()?.message,
+                )
+            }
+        }
+    }
+
+    fun onRecordClick(record: CreditRecord) {
+        detailJob?.cancel()
+        detailJob = viewModelScope.launch {
+            _uiState.update { it.copy(isDetailLoading = true, detailError = null) }
+            val result = repository.getRecordDetail(record.id)
+            _uiState.update {
+                it.copy(
+                    showDetailSheet = true,
+                    selectedDetail = result.getOrNull(),
+                    isDetailLoading = false,
+                    detailError = result.exceptionOrNull()?.message,
+                )
+            }
+        }
+    }
+
+    fun dismissDetail() {
+        _uiState.update { it.copy(showDetailSheet = false, selectedDetail = null, detailError = null) }
+    }
+
+    fun retry() {
+        load()
+    }
+}

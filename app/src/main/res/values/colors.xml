@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Splash 背景：冷调近白底（与 LxParchmentRaw 一致） -->
+    <color name="splash_background">#FFF4F6F9</color>
+    <!-- 深色模式下 splash 背景：与 LxDarkBackgroundRaw 一致 -->
+    <color name="splash_background_dark">#FF0E1116</color>
+</resources>
