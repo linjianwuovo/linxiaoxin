@@ -170,7 +170,7 @@ object SubtitleLibrary {
             "夜晚属于自己，好好享受吧",
         )
         SubtitleBucket.Fallback -> listOf(
-            "轻小信，陪你度过每一天",
+            "林小信，陪你度过每一天",
         )
     }
 }
