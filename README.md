@@ -25,6 +25,19 @@
 
 下方保留上游原 README 正文；**上游原版的 7 张截图不在本 fork 保留**（界面已全量重做，见上）。
 
+## 安装
+
+> 本 fork 的安装包在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.2.1)：
+> `linxin-v1.2.1.apk`（debug 签名，minSdk 26 / Android 8.0+）。装过其它签名的版本需先卸载再装。
+
+```bash
+git clone https://github.com/linjianwuovo/linxiaoxin.git
+cd linxiaoxin
+./gradlew assembleDebug
+```
+
+需要 **Android Studio** 和 **JDK 17**。
+
 ---
 
 <!-- 以下为上游 轻小信 的原 README -->
