@@ -1,0 +1,418 @@
+package com.linxin.feature.checkin.ui
+
+import android.Manifest
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MyLocation
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
+import androidx.hilt.navigation.compose.hiltViewModel
+import coil3.compose.AsyncImage
+import com.linxin.core.designsystem.component.LxButton
+import com.linxin.core.designsystem.component.LxCard
+import com.linxin.core.designsystem.component.LxDetailRow
+import com.linxin.core.designsystem.component.LxError
+import com.linxin.core.designsystem.component.LxLoading
+import com.linxin.core.designsystem.component.LxOutlinedButton
+import com.linxin.core.designsystem.component.LxTopBar
+import com.linxin.core.designsystem.theme.LxSuccess
+import com.linxin.feature.checkin.domain.TaskDetail
+import java.io.File
+
+@Composable
+fun CheckinDetailScreen(
+    onBack: () -> Unit,
+    onSubmitSuccess: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: CheckinDetailViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val error = uiState.error
+
+    // 签到成功后返回
+    LaunchedEffect(uiState.submitSuccess) {
+        if (uiState.submitSuccess) {
+            snackbarHostState.showSnackbar("签到成功！")
+            onSubmitSuccess()
+            onBack()
+        }
+    }
+
+    // 签到失败提示
+    LaunchedEffect(uiState.submitError) {
+        uiState.submitError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSubmitError()
+        }
+    }
+
+    Scaffold(
+        modifier = modifier,
+        containerColor = MiuixTheme.colorScheme.background,
+        topBar = { LxTopBar(title = "签到", onBack = onBack) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        when {
+            uiState.isLoading -> LxLoading(modifier = Modifier.padding(padding))
+            error != null -> LxError(
+                message = error,
+                onRetry = viewModel::retry,
+                modifier = Modifier.padding(padding),
+            )
+            else -> uiState.detail?.let { detail ->
+                DetailContent(
+                    detail = detail,
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    modifier = Modifier.padding(padding),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailContent(
+    detail: TaskDetail,
+    uiState: CheckinDetailUiState,
+    viewModel: CheckinDetailViewModel,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+
+    // 相机拍照文件
+    var photoFile by remember { mutableStateOf<File?>(null) }
+    var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+    ) { success ->
+        if (success && tempPhotoUri != null) {
+            viewModel.onPhotoTaken(tempPhotoUri)
+        }
+    }
+
+    // 相机权限
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            tempPhotoUri?.let { uri -> cameraLauncher.launch(uri) }
+        }
+    }
+
+    // 定位权限
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { permissions ->
+        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        if (fineGranted) {
+            viewModel.requestLocation()
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+    ) {
+        // 任务信息
+        TaskInfoCard(detail = detail)
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 已签到提示
+        if (detail.isSigned) {
+            LxCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = LxSuccess,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "已完成签到",
+                        style = MiuixTheme.textStyles.title3,
+                        fontWeight = FontWeight.SemiBold,
+                        color = LxSuccess,
+                    )
+                }
+            }
+            return
+        }
+
+        // 拍照区域
+        if (detail.needPhoto) {
+            PhotoSection(
+                photoUri = uiState.photoUri,
+                onTakePhoto = {
+                    val file = File(context.cacheDir, "images").also { it.mkdirs() }
+                        .let { File(it, "checkin_${System.currentTimeMillis()}.jpg") }
+                    photoFile = file
+                    val uri = FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        file,
+                    )
+                    tempPhotoUri = uri
+                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                },
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // 定位区域
+        LocationSection(
+            uiState = uiState,
+            onRequestLocation = {
+                locationPermissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                    )
+                )
+            },
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 签到按钮
+        val canSubmit = uiState.locationStatus == LocationStatus.SUCCESS
+                && (!detail.needPhoto || uiState.photoUri != null)
+                && !uiState.isSubmitting
+
+        LxButton(
+            text = if (uiState.isSubmitting) "签到中..." else "一键签到",
+            onClick = { viewModel.submitSignIn(photoFile) },
+            enabled = canSubmit,
+        )
+    }
+}
+
+@Composable
+private fun TaskInfoCard(detail: TaskDetail) {
+    LxCard {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = detail.taskName.ifBlank { "查寝签到" },
+                style = MiuixTheme.textStyles.title3,
+                fontWeight = FontWeight.Bold,
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            LxDetailRow(label = "签到时间", value = "${detail.startTime} ~ ${detail.endTime}")
+            if (detail.address.isNotBlank()) {
+                LxDetailRow(label = "签到地点", value = detail.address)
+            }
+            if (detail.locationRange > 0) {
+                LxDetailRow(label = "签到范围", value = "${detail.locationRange.toInt()}米")
+            }
+            LxDetailRow(
+                label = "需要拍照",
+                value = if (detail.needPhoto) "是" else "否",
+                showDivider = false,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PhotoSection(
+    photoUri: Uri?,
+    onTakePhoto: () -> Unit,
+) {
+    LxCard {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = "签到照片",
+                style = MiuixTheme.textStyles.title4,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (photoUri != null) {
+                AsyncImage(
+                    model = photoUri,
+                    contentDescription = "签到照片",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(4f / 3f)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                LxOutlinedButton(text = "重新拍照", onClick = onTakePhoto)
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(4f / 3f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MiuixTheme.colorScheme.surfaceVariant)
+                        .border(
+                            width = 1.dp,
+                            color = MiuixTheme.colorScheme.dividerLine,
+                            shape = RoundedCornerShape(12.dp),
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.CameraAlt,
+                            contentDescription = null,
+                            modifier = Modifier.size(40.dp),
+                            tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "点击拍照",
+                            style = MiuixTheme.textStyles.footnote1,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                LxOutlinedButton(text = "拍照", onClick = onTakePhoto)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocationSection(
+    uiState: CheckinDetailUiState,
+    onRequestLocation: () -> Unit,
+) {
+    LxCard {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "当前定位",
+                    style = MiuixTheme.textStyles.title4,
+                    fontWeight = FontWeight.Bold,
+                )
+
+                when (uiState.locationStatus) {
+                    LocationStatus.SUCCESS -> Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = LxSuccess,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    LocationStatus.LOCATING -> CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    else -> {}
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            when (uiState.locationStatus) {
+                LocationStatus.SUCCESS -> {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = MiuixTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "%.6f, %.6f".format(uiState.bdLng, uiState.bdLat),
+                            style = MiuixTheme.textStyles.footnote1,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LxOutlinedButton(text = "重新定位", onClick = onRequestLocation)
+                }
+
+                LocationStatus.FAILED -> {
+                    Text(
+                        text = "定位失败，请检查权限和GPS开关",
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.error,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LxOutlinedButton(text = "重试定位", onClick = onRequestLocation)
+                }
+
+                LocationStatus.LOCATING -> {
+                    Text(
+                        text = "正在获取位置...",
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
+                }
+
+                LocationStatus.IDLE -> {
+                    LxOutlinedButton(
+                        text = "获取定位",
+                        onClick = onRequestLocation,
+                    )
+                }
+            }
+        }
+    }
+}

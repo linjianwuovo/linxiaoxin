@@ -1,0 +1,12 @@
+<resources>
+    <style name="Theme.LinXin" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- StatusBar 图标明暗由 MainActivity 的 SystemBarStyle 在运行时决定，此处不再硬编码 -->
+        <!-- 窗口兜底背景 = 应用表面色（light #F4F6F9 / night #0E1116，随 -night 变体切换）。
+             切勿指向 splash 蓝底：二级界面进出时 NavHost 淡入淡出会透出此背景，蓝色会造成闪屏。 -->
+        <item name="android:windowBackground">@color/splash_background</item>
+        <!-- API 26-30 的启动画面；31+ 由 values-v31 的 windowSplashScreen* 接管，此项被系统忽略 -->
+        <item name="android:windowSplashscreenContent">@drawable/splash_content</item>
+    </style>
+</resources>
