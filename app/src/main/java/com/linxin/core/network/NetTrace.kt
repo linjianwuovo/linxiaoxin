@@ -100,7 +100,9 @@ class NetTraceInterceptor @Inject constructor(
 
         val start = SystemClock.elapsedRealtime()
         val reqHeaders = request.headers.names().sorted().map { "$it: ${brief(it, request.header(it))}" }
-        val reqBody = requestBody(request)
+        // 登录接口带加密后的密码，不进记录，免得被一键复制出去
+        val isLogin = request.url.encodedPath.let { it.contains("getToken.do") || it.contains("refresh.do") }
+        val reqBody = if (isLogin) "<登录凭据，已省略>" else requestBody(request)
         val response = runCatching { chain.proceed(request) }
         val ms = SystemClock.elapsedRealtime() - start
 
