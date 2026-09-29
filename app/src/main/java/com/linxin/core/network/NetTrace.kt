@@ -33,6 +33,8 @@ class NetTrace @Inject constructor(
         val request: String?,
         val response: String?,
         val failure: String?,
+        val requestHeaders: List<String> = emptyList(),
+        val responseHeaders: List<String> = emptyList(),
     )
 
     @Volatile
@@ -72,7 +74,9 @@ class NetTrace @Inject constructor(
                 appendLine("#${i + 1} ${fmt.format(Date(e.timeMs))} ${e.method} ${e.url}")
                 appendLine("    ${e.code} · ${e.ms}ms")
                 e.failure?.let { appendLine("    失败: $it") }
+                if (e.requestHeaders.isNotEmpty()) appendLine("    请求头: ${e.requestHeaders.joinToString("; ")}")
                 e.request?.let { appendLine("    请求: ${it.take(REQ_MAX)}") }
+                if (e.responseHeaders.isNotEmpty()) appendLine("    响应头: ${e.responseHeaders.joinToString("; ")}")
                 e.response?.let { appendLine("    响应: ${it.take(RES_MAX)}") }
             }
         }.trimEnd()
@@ -81,7 +85,7 @@ class NetTrace @Inject constructor(
     private companion object {
         const val MAX = 40
         const val REQ_MAX = 1000
-        const val RES_MAX = 4000
+        const val RES_MAX = 1500
     }
 }
 
@@ -95,6 +99,8 @@ class NetTraceInterceptor @Inject constructor(
         if (!trace.enabled) return chain.proceed(request)
 
         val start = SystemClock.elapsedRealtime()
+        val reqHeaders = request.headers.names().sorted().map { "$it: ${brief(it, request.header(it))}" }
+        val reqBody = requestBody(request)
         val response = runCatching { chain.proceed(request) }
         val ms = SystemClock.elapsedRealtime() - start
 
@@ -106,15 +112,17 @@ class NetTraceInterceptor @Inject constructor(
                     url = request.url.toString(),
                     code = -1,
                     ms = ms,
-                    request = requestBody(request),
+                    request = reqBody,
                     response = null,
                     failure = "${err.javaClass.simpleName}: ${err.message}",
+                    requestHeaders = reqHeaders,
                 ),
             )
             throw err
         }
 
         val resp = response.getOrThrow()
+        val isHtml = resp.header("Content-Type").orEmpty().contains("html", ignoreCase = true)
         trace.record(
             NetTrace.Entry(
                 timeMs = System.currentTimeMillis(),
@@ -122,12 +130,22 @@ class NetTraceInterceptor @Inject constructor(
                 url = request.url.toString(),
                 code = resp.code,
                 ms = ms,
-                request = requestBody(request),
-                response = runCatching { resp.peekBody(RES_PEEK).string() }.getOrNull(),
+                request = reqBody,
+                response = if (isHtml) "<html 已省略>"
+                    else runCatching { resp.peekBody(RES_PEEK).string() }.getOrNull(),
                 failure = null,
+                requestHeaders = reqHeaders,
+                responseHeaders = resp.headers.names().sorted()
+                    .map { "$it: ${brief(it, resp.header(it))}" },
             ),
         )
         return resp
+    }
+
+    /** 长值只留头尾，够比对两次请求的 token 是否同一个；空值原样显示成空，方便看出"没带上"。 */
+    private fun brief(name: String, value: String?): String {
+        val v = value.orEmpty()
+        return if (v.length > 36) "${v.take(18)}…${v.takeLast(8)}" else v
     }
 
     private fun requestBody(request: okhttp3.Request): String? = runCatching {

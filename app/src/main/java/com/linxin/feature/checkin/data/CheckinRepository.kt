@@ -127,7 +127,7 @@ class CheckinRepository @Inject constructor(
                 "outSigninDesc" to "",
             )
             val response = api.signIn(body)
-            if (response.code == "200" || response.code == "0") {
+            if ((response.code == "200" || response.code == "0") && response.flag != false) {
                 Result.success(Unit)
             } else {
                 Result.failure(Exception(response.msg ?: "签到失败"))
@@ -149,9 +149,12 @@ class CheckinRepository @Inject constructor(
         }
     }
 
-    private fun SignInPageResponse.isSuccess(): Boolean = code == "0" || code == "200"
+    // code=="0" 只代表"请求被处理"，业务成败看 flag。鉴权失败回的是
+    // code:"0" + flag:false + msg:"非法访问"，不读 flag 就会把失败渲染成空列表、
+    // 甚至把提交失败报成"签到成功"。
+    private fun SignInPageResponse.isSuccess(): Boolean = (code == "0" || code == "200") && flag != false
 
-    private fun TaskInfoResponse.isSuccess(): Boolean = code == "0" || code == "200"
+    private fun TaskInfoResponse.isSuccess(): Boolean = (code == "0" || code == "200") && flag != false
 
     private fun JsonElement?.extractUploadUrl(): String? {
         val element = this ?: return null
