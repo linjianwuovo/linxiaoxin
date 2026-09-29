@@ -36,16 +36,19 @@ object NetworkModule {
     fun provideOkHttpClient(
         authInterceptor: AuthInterceptor,
         tokenRefreshInterceptor: TokenRefreshInterceptor,
+        netTraceInterceptor: NetTraceInterceptor,
     ): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BASIC
         }
 
         return OkHttpClient.Builder()
+            // 放最外层：耗时里要把 TokenRefreshInterceptor 自己触发的重登也算进去
+            .addInterceptor(netTraceInterceptor)
             .addInterceptor(authInterceptor)
             .addInterceptor(tokenRefreshInterceptor)
             .addInterceptor(logging)
-            .connectTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .build()
@@ -119,14 +122,15 @@ object NetworkModule {
     }
 
     @Provides @Singleton @FifOkHttpClient
-    fun provideFifOkHttpClient(cookieJar: CookieJar): OkHttpClient {
+    fun provideFifOkHttpClient(cookieJar: CookieJar, netTraceInterceptor: NetTraceInterceptor): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BASIC
         }
         return OkHttpClient.Builder()
             .cookieJar(cookieJar)
+            .addInterceptor(netTraceInterceptor)
             .addInterceptor(logging)
-            .connectTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
     }
