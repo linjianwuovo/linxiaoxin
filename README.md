@@ -25,7 +25,7 @@
 
 ![License](https://img.shields.io/badge/license-MIT-green) ![Min SDK](https://img.shields.io/badge/minSdk-26%20(Android%208.0)-blue)
 
-每天看个课表都要点三四次，等进度条慢慢走完；想签到、看成绩，总得翻上好几页再点进去，又是一轮加载。用安小信的你，有过这样的烦恼吧？轻小信去繁就简，基于安小信重新设计，保留核心功能，功能一目了然，没有 WebView，没有加载等待，点了就有，滑了就跟。
+
 
 
 
