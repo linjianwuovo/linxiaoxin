@@ -1,0 +1,56 @@
+package com.linxin.feature.home.ui
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.linxin.core.auth.SessionManager
+import com.linxin.core.auth.TokenManager
+import com.linxin.core.settings.DeveloperPrefs
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class ProfileUiState(
+    val userCode: String = "",
+    val userName: String = "",
+    val isLoggingOut: Boolean = false,
+    val advancedEnabled: Boolean = false,
+)
+
+@HiltViewModel
+class ProfileViewModel @Inject constructor(
+    private val tokenManager: TokenManager,
+    private val sessionManager: SessionManager,
+    private val developerPrefs: DeveloperPrefs,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(ProfileUiState())
+    val uiState: StateFlow<ProfileUiState> = _uiState
+
+    init {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    userCode = tokenManager.getUserCode().orEmpty(),
+                    userName = tokenManager.getUserName().orEmpty(),
+                )
+            }
+        }
+        viewModelScope.launch {
+            developerPrefs.isAdvancedEnabled.collectLatest { enabled ->
+                _uiState.update { it.copy(advancedEnabled = enabled) }
+            }
+        }
+    }
+
+    fun logout(onDone: () -> Unit) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoggingOut = true) }
+            sessionManager.logout()
+            onDone()
+        }
+    }
+}

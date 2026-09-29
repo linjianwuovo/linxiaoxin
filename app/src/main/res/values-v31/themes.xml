@@ -1,0 +1,13 @@
+<resources>
+    <!-- Android 12+ 原生 SplashScreen：普通主题直接携带 splash 属性（仿 LibChecker），
+         无专用 splash 主题、无 installSplashScreen()、无运行时主题切换。 -->
+    <style name="Theme.LinXin" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- 窗口兜底背景用应用表面色，避免 NavHost 淡入淡出透出蓝底闪屏；蓝底只留给冷启动 splash -->
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenBackground">@color/ic_launcher_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>
+        <item name="android:windowSplashScreenAnimationDuration">500</item>
+    </style>
+</resources>

@@ -1,0 +1,9 @@
+<resources>
+    <!-- 深色模式下使用非 Light 的 Material 父主题，让系统组件（如 DatePicker、TimePicker）默认走深色适配 -->
+    <style name="Theme.LinXin" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- 深色窗口兜底背景 = 应用深色表面色（values-night/colors.xml 的 splash_background #0E1116） -->
+        <item name="android:windowBackground">@color/splash_background</item>
+    </style>
+</resources>

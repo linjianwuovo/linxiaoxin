@@ -1,0 +1,24 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+/build
+/app/build
+/app/release
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+.ace-tool/
+/.claude/
+.gradle-user/
+/HAR
+/prototype
+/docs
+.reasonix
+.codegraph
+/tmp
+reasonix.toml
+# 本 fork 不公开上游的内部文档（含校方接口鉴权细节）
+/codestable
+

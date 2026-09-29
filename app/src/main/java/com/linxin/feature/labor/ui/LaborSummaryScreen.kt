@@ -1,0 +1,370 @@
+package com.linxin.feature.labor.ui
+import com.linxin.core.designsystem.theme.LxShapes
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.linxin.core.designsystem.component.LxCard
+import com.linxin.core.designsystem.component.LxDetailRow
+import com.linxin.core.designsystem.component.LxError
+import com.linxin.core.designsystem.component.LxLoading
+import com.linxin.core.designsystem.component.LxTopBar
+import com.linxin.core.designsystem.theme.LxCategoryColors
+import com.linxin.feature.labor.domain.ActivityDetail
+import com.linxin.feature.labor.domain.ActivityRecord
+import com.linxin.feature.labor.domain.HoursSummary
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LaborSummaryScreen(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: LaborViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val error = uiState.error
+
+    Scaffold(
+        modifier = modifier,
+        containerColor = MiuixTheme.colorScheme.background,
+        topBar = { LxTopBar(title = "劳动教育", onBack = onBack) },
+    ) { padding ->
+        when {
+            uiState.isLoading -> LxLoading(modifier = Modifier.padding(padding))
+            error != null -> LxError(
+                message = error,
+                onRetry = viewModel::retry,
+                modifier = Modifier.padding(padding),
+            )
+            else -> LaborContent(
+                uiState = uiState,
+                onActivityClick = viewModel::onRecordClick,
+                onLoadMore = viewModel::loadMore,
+                modifier = Modifier.padding(padding),
+            )
+        }
+    }
+
+    if (uiState.showDetailSheet) {
+        ModalBottomSheet(
+            onDismissRequest = viewModel::dismissDetail,
+            sheetState = rememberModalBottomSheetState(),
+            containerColor = MiuixTheme.colorScheme.surface,
+            shape = LxShapes.medium,
+        ) {
+            DetailSheetContent(
+                detail = uiState.selectedDetail,
+                isLoading = uiState.isDetailLoading,
+                error = uiState.detailError,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LaborContent(
+    uiState: LaborUiState,
+    onActivityClick: (ActivityRecord) -> Unit,
+    onLoadMore: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val listState = rememberLazyListState()
+
+    // 触底加载更多
+    val reachedBottom by remember {
+        derivedStateOf {
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            val totalItems = listState.layoutInfo.totalItemsCount
+            lastVisible >= totalItems - 3
+        }
+    }
+
+    LaunchedEffect(reachedBottom, uiState.hasMore, uiState.isLoadingMore) {
+        if (reachedBottom && uiState.hasMore && !uiState.isLoadingMore) onLoadMore()
+    }
+
+    LazyColumn(
+        state = listState,
+        modifier = modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            horizontal = 20.dp,
+            vertical = 16.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // 志愿时长总览卡片
+        uiState.hoursSummary?.let { summary ->
+            item(key = "hours_summary") {
+                HoursSummaryCard(summary = summary)
+            }
+        }
+
+        // 活动记录标题
+        if (uiState.activities.isNotEmpty()) {
+            item(key = "section_title") {
+                Text(
+                    text = "活动记录",
+                    style = MiuixTheme.textStyles.title3,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                )
+            }
+        }
+
+        // 活动列表
+        items(uiState.activities, key = { it.id }) { record ->
+            ActivityCard(
+                record = record,
+                onClick = { onActivityClick(record) },
+                modifier = Modifier.animateItem(),
+            )
+        }
+
+        // 加载更多指示器
+        if (uiState.isLoadingMore) {
+            item(key = "loading_more") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HoursSummaryCard(summary: HoursSummary) {
+    val items = listOf(
+        Triple("志愿服务", summary.voluntaryTimes, LxCategoryColors[0]),
+        Triple("暑期实践", summary.summerTimes, LxCategoryColors[1]),
+        Triple("劳动实践", summary.laborTimes, LxCategoryColors[2]),
+        Triple("社区服务", summary.socialTimes, LxCategoryColors[3]),
+        Triple("其他", summary.otherTimes, LxCategoryColors[4]),
+    )
+    val maxHours = items.maxOf { it.second }.coerceAtLeast(1.0)
+
+    LxCard {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "志愿时长总览",
+                    style = MiuixTheme.textStyles.title4,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "共 ${"%.1f".format(summary.totalTimes)} 志愿时长",
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            items.forEach { (label, hours, color) ->
+                HoursBarRow(label = label, hours = hours, maxHours = maxHours, color = color)
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun HoursBarRow(
+    label: String,
+    hours: Double,
+    maxHours: Double,
+    color: Color,
+) {
+    val fraction = (hours / maxHours).toFloat().coerceIn(0f, 1f)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // 色点
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(color),
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // 标签
+        Text(
+            text = label,
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            modifier = Modifier.width(64.dp),
+        )
+
+        // 进度条
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(MiuixTheme.colorScheme.surfaceVariant),
+        ) {
+            if (fraction > 0f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(fraction)
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(color),
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // 数值
+        Text(
+            text = "%.1f".format(hours),
+            style = MiuixTheme.textStyles.footnote2,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.width(36.dp),
+        )
+    }
+}
+
+@Composable
+private fun ActivityCard(
+    record: ActivityRecord,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LxCard(onClick = onClick, modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = record.activityName,
+                    style = MiuixTheme.textStyles.body2,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = record.projectTypeName,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = record.createDate,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // 志愿时长徽章
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "%.1f".format(record.serviceTimes),
+                    style = MiuixTheme.textStyles.title3,
+                    fontWeight = FontWeight.Bold,
+                    color = MiuixTheme.colorScheme.primary,
+                )
+                Text(
+                    text = "志愿时长",
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailSheetContent(
+    detail: ActivityDetail?,
+    isLoading: Boolean,
+    error: String? = null,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 16.dp)
+            .padding(bottom = 32.dp),
+    ) {
+        if (isLoading) {
+            LxLoading()
+        } else if (error != null) {
+            Text(
+                text = error,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.error,
+            )
+        } else if (detail != null) {
+            Text(
+                text = detail.activityName,
+                style = MiuixTheme.textStyles.title3,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            LxDetailRow(label = "活动类型", value = detail.activityType)
+            LxDetailRow(label = "活动级别", value = detail.activityLevel)
+            LxDetailRow(label = "主办方", value = detail.organizer)
+            LxDetailRow(label = "志愿时长", value = "%.1f".format(detail.serviceTimes))
+            LxDetailRow(label = "日期", value = detail.createDate, showDivider = false)
+        }
+    }
+}
