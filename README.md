@@ -15,7 +15,15 @@
 - 移除"检测更新"功能（GitHub Release 轮询、APK 下载与安装权限整体删除）
 - 上游的内部设计文档目录 `codestable/` 不在本 fork 公开（其中含校方接口的鉴权细节）
 
-下方保留上游原 README。**截图来自上游原版界面，尚未替换为本 fork 的截图。**
+## 截图
+
+真机（ColorOS 17）实拍，个人信息已打码。
+
+| ![](screenshots/首页.png) | ![](screenshots/课程表.png) | ![](screenshots/我的.png) | ![](screenshots/ai课堂.png) |
+|:--:|:--:|:--:|:--:|
+| 首页 | 课程表 | 我的 | AI 课堂 |
+
+下方保留上游原 README 正文；**上游原版的 7 张截图不在本 fork 保留**（界面已全量重做，见上）。
 
 ---
 
@@ -36,17 +44,8 @@
 
 ## 截图
 
-| ![](screenshots/首页.png) | ![](screenshots/课表.png) | ![](screenshots/查寝签到.png) |
-|:--:|:--:|:--:|
-| 首页 | 课表 | 查寝签到 |
-
-| ![](screenshots/ai课堂.png) | ![](screenshots/我的.png) | ![](screenshots/更多功能.png) |
-|:--:|:--:|:--:|
-| AI 课堂 | 我的 | 更多功能 |
-
-| ![](screenshots/shortcut.png) | | |
-|:--:|:--:|:--:|
-| shortcut快捷入口 | | |
+> 上游原版的截图（含 Material3 界面与"更多功能 / shortcut"页）不在本 fork 保留，
+> 想看原版界面请去 [Relianttt/lightxin](https://github.com/Relianttt/lightxin)。本 fork 的界面见文首。
 
 
 ## 安装
