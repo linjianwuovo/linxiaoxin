@@ -23,7 +23,7 @@
 |:--:|:--:|:--:|:--:|
 | 首页 | 课程表 | 我的 | AI 课堂 |
 
-下方保留上游原 README 正文；**上游原版的 7 张截图不在本 fork 保留**（界面已全量重做，见上）。
+下方保留上游原 README 正文（**截图与安装两处已按本 fork 更新**：上游原版 7 张截图不再保留，安装不再指向上游）。
 
 ## 安装
 
@@ -46,10 +46,6 @@ cd linxiaoxin
 
 ![License](https://img.shields.io/badge/license-MIT-green) ![Min SDK](https://img.shields.io/badge/minSdk-26%20(Android%208.0)-blue)
 
-
-
-
-
 ## 功能
 
 覆盖安小信绝大部分常用功能：课程表、查寝签到、节假日登记、跑步、劳动教育、AI 课堂、考试成绩、素质学分。
@@ -63,19 +59,7 @@ cd linxiaoxin
 
 ## 安装
 
-### 方式一：下载 APK
-
-> 请前往 [GitHub Releases](https://github.com/Relianttt/lightxin/releases) 下载最新的 APK 手动安装。
-
-### 方式二：源码编译
-
-```bash
-git clone https://github.com/lightxin/lightxin.git
-cd lightxin
-./gradlew assembleDebug
-```
-
-需要 **Android Studio** 和 **JDK 17**，最低支持 **Android 8.0**。
+> 见文首「安装」一节 —— 本 fork 的 APK 与源码编译方式都在那里，此处不再重复。
 
 
 
