@@ -3,6 +3,7 @@ package com.linxin.feature.about.ui
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.linxin.core.network.NetTrace
 import com.linxin.core.settings.DeveloperPrefs
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,6 +23,7 @@ data class AboutUiState(
 class AboutViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val developerPrefs: DeveloperPrefs,
+    private val netTrace: NetTrace,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AboutUiState(versionName = readVersionName()))
@@ -40,6 +42,12 @@ class AboutViewModel @Inject constructor(
             developerPrefs.setAdvancedEnabled(enabled)
         }
     }
+
+    fun traceCount(): Int = netTrace.count()
+
+    fun traceText(): String = netTrace.asText()
+
+    fun clearTrace() = netTrace.clear()
 
     private fun readVersionName(): String {
         return try {
