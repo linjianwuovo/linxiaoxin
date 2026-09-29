@@ -358,7 +358,10 @@ fun LinXinNavHost(
         // Route Simulation (Phase 1)
         composable(Routes.RUNNING_ROUTE_SETTINGS) { backStackEntry ->
             val settingsEntry = remember(backStackEntry) {
-                navController.getBackStackEntry(Routes.RUNNING_ROUTE_SETTINGS)
+                // 离开本页的过渡动画里，SETTINGS 可能已经被弹出；直接 getBackStackEntry 会抛
+                // IllegalArgumentException 把整个应用带崩，取不到时退回用本页自己的 entry。
+                runCatching { navController.getBackStackEntry(Routes.RUNNING_ROUTE_SETTINGS) }
+                    .getOrDefault(backStackEntry)
             }
             val routeVm: RouteTemplateViewModel = hiltViewModel(settingsEntry)
             RouteSimulationSettingsScreen(
@@ -374,7 +377,10 @@ fun LinXinNavHost(
         }
         composable(Routes.RUNNING_ROUTE_RECORD) { backStackEntry ->
             val settingsEntry = remember(backStackEntry) {
-                navController.getBackStackEntry(Routes.RUNNING_ROUTE_SETTINGS)
+                // 离开本页的过渡动画里，SETTINGS 可能已经被弹出；直接 getBackStackEntry 会抛
+                // IllegalArgumentException 把整个应用带崩，取不到时退回用本页自己的 entry。
+                runCatching { navController.getBackStackEntry(Routes.RUNNING_ROUTE_SETTINGS) }
+                    .getOrDefault(backStackEntry)
             }
             val routeVm: RouteTemplateViewModel = hiltViewModel(settingsEntry)
             RouteTemplateRecordScreen(
@@ -384,7 +390,10 @@ fun LinXinNavHost(
         }
         composable(Routes.RUNNING_ROUTE_LIST) { backStackEntry ->
             val settingsEntry = remember(backStackEntry) {
-                navController.getBackStackEntry(Routes.RUNNING_ROUTE_SETTINGS)
+                // 离开本页的过渡动画里，SETTINGS 可能已经被弹出；直接 getBackStackEntry 会抛
+                // IllegalArgumentException 把整个应用带崩，取不到时退回用本页自己的 entry。
+                runCatching { navController.getBackStackEntry(Routes.RUNNING_ROUTE_SETTINGS) }
+                    .getOrDefault(backStackEntry)
             }
             val routeVm: RouteTemplateViewModel = hiltViewModel(settingsEntry)
             RouteTemplateListScreen(
@@ -400,7 +409,10 @@ fun LinXinNavHost(
             arguments = listOf(navArgument("templateId") { type = NavType.StringType }),
         ) { backStackEntry ->
             val settingsEntry = remember(backStackEntry) {
-                navController.getBackStackEntry(Routes.RUNNING_ROUTE_SETTINGS)
+                // 离开本页的过渡动画里，SETTINGS 可能已经被弹出；直接 getBackStackEntry 会抛
+                // IllegalArgumentException 把整个应用带崩，取不到时退回用本页自己的 entry。
+                runCatching { navController.getBackStackEntry(Routes.RUNNING_ROUTE_SETTINGS) }
+                    .getOrDefault(backStackEntry)
             }
             val routeVm: RouteTemplateViewModel = hiltViewModel(settingsEntry)
             RouteTemplateDetailScreen(
