@@ -27,8 +27,8 @@
 
 ## 安装
 
-> 本 fork 的安装包在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.2.1)：
-> `linxin-v1.2.1.apk`（debug 签名，minSdk 26 / Android 8.0+）。装过其它签名的版本需先卸载再装。
+> 本 fork 的安装包在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.2.5)：
+> `linxin-v1.2.5.apk`（debug 签名，minSdk 26 / Android 8.0+）。装过其它签名的版本需先卸载再装。
 
 ```bash
 git clone https://github.com/linjianwuovo/linxiaoxin.git
