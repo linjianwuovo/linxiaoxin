@@ -96,6 +96,13 @@ class FifSessionManager @Inject constructor(
     suspend fun performSso(): Result<Unit> = ssoMutex.withLock {
         withContext(Dispatchers.IO) {
         try {
+            // 锁只保证不并发，不保证不重复：等锁期间前一个调用可能已经把会话建好了。
+            // 不复查就会出现"同一秒跑两遍完整 SSO"（首页预热与进页面并发，实测多花 ~800ms）。
+            if (isSessionValid()) {
+                android.util.Log.i("FifSession", "会话已由并发的另一次调用建好，跳过本次 SSO")
+                return@withContext Result.success(Unit)
+            }
+
             val accessToken = tokenManager.getAccessToken().orEmpty()
             val userCode = tokenManager.getUserCode().orEmpty()
             val userName = tokenManager.getUserName().orEmpty()
