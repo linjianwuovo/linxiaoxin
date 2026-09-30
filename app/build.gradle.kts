@@ -10,12 +10,12 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.linxin"
         minSdk = 26
         targetSdk = 35
-        versionCode = 100
-        // 1.2.0 与上游同号，装机后无法从"关于"页分辨是不是本 fork 的包，fork 版从此另起
-        versionName = "1.3.0-beta1"
+        // 与装机版 林小信(com.linxin) 并排共存：换包名后两台互不覆盖，DataStore 各自独立
+        applicationId = "com.linxin.beta"
+        versionCode = 9
+        versionName = "0.1-beta9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

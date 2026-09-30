@@ -14,6 +14,7 @@ object Routes {
     fun checkinDetail(taskDateId: String) = "checkin/detail/$taskDateId"
 
     // Holiday
+    const val HOLIDAY_LIST = "holiday/list"
     const val HOLIDAY_REGISTER = "holiday/register/{holidayId}"
     fun holidayRegister(holidayId: String) = "holiday/register/$holidayId"
 

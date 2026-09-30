@@ -232,7 +232,7 @@ fun HomeDashboard(
                             HolidayCard(
                                 task = task,
                                 onClick = {
-                                    navController.navigate(Routes.CHECKIN_LIST) { launchSingleTop = true }
+                                    navController.navigate(Routes.HOLIDAY_LIST) { launchSingleTop = true }
                                 },
                             )
                         }

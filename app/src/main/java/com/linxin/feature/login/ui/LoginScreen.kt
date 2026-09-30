@@ -7,9 +7,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,7 +20,9 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -26,6 +30,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Checkbox
+import top.yukonga.miuix.kmp.basic.CheckboxDefaults
+import androidx.compose.ui.state.ToggleableState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
@@ -40,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -54,6 +62,10 @@ import com.linxin.core.designsystem.component.LxProgressIndicator
 import com.linxin.core.designsystem.component.LxTextField
 import com.linxin.core.designsystem.theme.LxCardBorder
 import com.linxin.core.designsystem.theme.LxCream
+import com.linxin.core.designsystem.theme.LxInk
+import com.linxin.core.designsystem.theme.LxInkMuted
+import com.linxin.core.designsystem.theme.LxSandDeep
+import com.linxin.core.designsystem.theme.LxTerra
 
 @Composable
 fun LoginScreen(
@@ -150,6 +162,45 @@ fun LoginScreen(
                         ),
                         enabled = !uiState.isLoading,
                     )
+
+                    // 记住密码：勾选后密码用 Android Keystore 里那把不可导出的密钥加密保存，
+                    // 明文不落盘；取消勾选立刻删。
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable(enabled = !uiState.isLoading) {
+                                viewModel.onRememberPasswordChange(!uiState.rememberPassword)
+                            }
+                            .padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(
+                            state = if (uiState.rememberPassword) {
+                                ToggleableState.On
+                            } else {
+                                ToggleableState.Off
+                            },
+                            onClick = {
+                                viewModel.onRememberPasswordChange(!uiState.rememberPassword)
+                            },
+                            modifier = Modifier.size(28.dp),
+                            // Miuix 默认未勾选底色吃 colorScheme.secondary（ teal 实心圆），
+                            // 未勾选看着像已勾选；换成和主题页灰色 OFF 档同一套 LxSandDeep
+                            colors = CheckboxDefaults.checkboxColors(
+                                checkedBackgroundColor = LxTerra,
+                                checkedForegroundColor = Color.White,
+                                uncheckedBackgroundColor = LxSandDeep,
+                                uncheckedForegroundColor = LxInkMuted,
+                            ),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "记住密码",
+                            style = MiuixTheme.textStyles.body2,
+                            color = LxInk,
+                        )
+                    }
 
                     AnimatedVisibility(
                         visible = uiState.error != null,

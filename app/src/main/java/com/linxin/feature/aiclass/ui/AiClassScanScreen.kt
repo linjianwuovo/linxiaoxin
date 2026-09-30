@@ -45,6 +45,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cancel
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
@@ -68,6 +69,7 @@ fun AiClassScanScreen(
     onScanResult: (AiClassQrPayload) -> Unit,
     modifier: Modifier = Modifier,
     signResult: String? = null,
+    signSucceeded: Boolean = false,
     onConsumeSignResult: () -> Unit = {},
 ) {
     var permissionGranted by remember { mutableStateOf(false) }
@@ -91,12 +93,17 @@ fun AiClassScanScreen(
 
     // 扫码签到结果弹窗（首页直达扫码时没有 AI课堂 页承接结果，就地在扫码页展示）
     if (signResult != null) {
+        // 签成了就退出：停在扫码页会一直显示"正在签到"，明明已经签上却像没完成
+        val finish: () -> Unit = {
+            onConsumeSignResult()
+            if (signSucceeded) onBack() else scanState = ScanState.Scanning
+        }
         LxDialog(
             title = "签到结果",
             message = signResult,
             confirmText = "确定",
-            onConfirm = onConsumeSignResult,
-            onDismissRequest = onConsumeSignResult,
+            onConfirm = finish,
+            onDismissRequest = finish,
         )
     }
 
@@ -181,19 +188,27 @@ fun AiClassScanScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        // 请求还在飞的时候不能显示成失败
+                        val failed = signResult != null && !signSucceeded
                         Icon(
-                            imageVector = Icons.Default.CheckCircle,
+                            imageVector = if (failed) Icons.Default.Cancel else Icons.Default.CheckCircle,
                             contentDescription = null,
-                            tint = MiuixTheme.colorScheme.primary,
+                            tint = if (failed) MiuixTheme.colorScheme.error else MiuixTheme.colorScheme.primary,
                             modifier = Modifier.size(48.dp),
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "扫码成功，正在签到...",
+                            text = when {
+                                signResult == null -> "扫码成功，正在签到..."
+                                signSucceeded -> "签到成功"
+                                else -> "签到失败"
+                            },
                             style = MiuixTheme.textStyles.body2,
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        LxProgressIndicator(modifier = Modifier.size(24.dp))
+                        if (signResult == null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            LxProgressIndicator(modifier = Modifier.size(24.dp))
+                        }
                     }
                 }
             }

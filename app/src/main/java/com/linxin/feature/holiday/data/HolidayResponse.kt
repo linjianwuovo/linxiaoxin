@@ -122,3 +122,22 @@ data class SaveResponse(
     val msg: String?,
     val data: Any?,
 )
+
+/**
+ * POST /app/holiday/historicalRegistrationPage 响应：已结束的节假日登记记录
+ */
+data class HistoricalPageResponse(
+    val code: String?,
+    val flag: Boolean?,
+    val msg: String?,
+    val rows: List<HistoricalRow>?,
+    val total: Int?,
+)
+
+/** 注意：原始响应里还带 studentId，属于身份信息，故意不声明、不映射 */
+data class HistoricalRow(
+    val holidayId: String?,
+    val holidayName: String?,
+    val startDate: String?,
+    val returnStartDate: String?,
+)
