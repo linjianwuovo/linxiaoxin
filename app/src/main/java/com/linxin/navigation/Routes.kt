@@ -18,6 +18,10 @@ object Routes {
     const val HOLIDAY_REGISTER = "holiday/register/{holidayId}"
     fun holidayRegister(holidayId: String) = "holiday/register/$holidayId"
 
+    // News 公告
+    const val NEWS_DETAIL = "news/detail/{newsId}"
+    fun newsDetail(newsId: String) = "news/detail/${Uri.encode(newsId)}"
+
     // Running
     const val RUNNING_HOME = "running/home"
     const val RUNNING_ACTIVE = "running/active"
