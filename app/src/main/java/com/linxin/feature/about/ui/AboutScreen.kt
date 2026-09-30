@@ -92,10 +92,6 @@ fun AboutScreen(
                         },
                     )
                     CardDivider()
-                    if (uiState.advancedEnabled) {
-                        NetworkTraceRow(viewModel = viewModel)
-                        CardDivider()
-                    }
                     GitHubRow()
                 }
             }
@@ -194,45 +190,6 @@ private fun DeveloperToggleRow(
             colors = SwitchDefaults.switchColors(
                 uncheckedTrackColor = LxSandDeep,
             ),
-        )
-    }
-}
-
-@Composable
-private fun NetworkTraceRow(viewModel: AboutViewModel) {
-    val context = LocalContext.current
-    val count = viewModel.traceCount()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                val text = viewModel.traceText()
-                val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE)
-                    as android.content.ClipboardManager
-                cm.setPrimaryClip(android.content.ClipData.newPlainText("linxin_nettrace", text))
-                viewModel.clearTrace()
-                android.widget.Toast.makeText(context, "已复制并清空（$count 条）", android.widget.Toast.LENGTH_SHORT).show()
-            }
-            .padding(horizontal = 18.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "复制最近网络请求",
-                fontSize = 15.sp,
-                color = LxInk,
-            )
-            Text(
-                text = "记录最近 40 条 URL / 耗时 / 响应内容，只在内存里，复制后清空",
-                fontSize = 11.sp,
-                color = LxInkMuted,
-            )
-        }
-        Text(
-            text = if (count > 0) "$count 条 ›" else "›",
-            fontSize = 14.sp,
-            color = LxInkMuted,
         )
     }
 }
