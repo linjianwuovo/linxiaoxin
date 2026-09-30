@@ -54,8 +54,8 @@ data class LxTab(val label: String, val icon: ImageVector)
 
 val LxHomeTabs = listOf(
     LxTab("首页", Icons.Outlined.Home),
-    LxTab("公告", Icons.Outlined.Campaign),
     LxTab("课程表", Icons.Outlined.CalendarMonth),
+    LxTab("公告", Icons.Outlined.Campaign),
     LxTab("我的", Icons.Outlined.Person),
 )
 

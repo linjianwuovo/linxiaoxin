@@ -45,8 +45,8 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private val tabs = listOf(
     LxTab("首页", Icons.Outlined.Home),
-    LxTab("公告", Icons.Outlined.Campaign),
     LxTab("课程表", Icons.Outlined.CalendarMonth),
+    LxTab("公告", Icons.Outlined.Campaign),
     LxTab("我的", Icons.Outlined.Person),
 )
 
@@ -100,12 +100,12 @@ fun HomeScreen(
                         navController = navController,
                         onTabSelected = { goToTab(it) },
                     )
-                    1 -> NewsScreen(
+                    1 -> ScheduleScreen()
+                    2 -> NewsScreen(
                         onNewsClick = { newsId ->
                             navController.navigate(Routes.newsDetail(newsId))
                         },
                     )
-                    2 -> ScheduleScreen()
                     3 -> ProfileScreen(
                         onNavigateCheckin = {
                             navController.navigate(Routes.CHECKIN_LIST) {
