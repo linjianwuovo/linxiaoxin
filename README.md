@@ -15,6 +15,7 @@
 - 查寝页补齐：本月签到统计卡 + 签到月历 + 主题签到分组，接口按校方真实返回核对
 - 节假日离返校独立成页（去登记 / 历史登记双标签），不再塞在查寝列表里
 - 登录页「记住密码」：明文绝不落盘，密钥在 Android Keystore 里且不可导出
+- 底栏新增「公告」页：校方门户资讯里的通知公告，分页列表 + 富文本详情
 - 移除"检测更新"功能（GitHub Release 轮询、APK 下载与安装权限整体删除）
 - 上游的内部设计文档目录 `codestable/` 不在本 fork 公开（其中含校方接口的鉴权细节）
 
@@ -30,8 +31,8 @@
 
 ## 安装
 
-> 本 fork 的安装包在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.3.2)：
-> `linxin-v1.3.2.apk`（debug 签名，minSdk 26 / Android 8.0+）。装过其它签名的版本需先卸载再装。
+> 本 fork 的安装包在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.3.3)：
+> `linxin-v1.3.3.apk`（debug 签名，minSdk 26 / Android 8.0+）。装过其它签名的版本需先卸载再装。
 
 ```bash
 git clone https://github.com/linjianwuovo/linxiaoxin.git

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import top.yukonga.miuix.kmp.basic.Icon
@@ -53,6 +54,7 @@ data class LxTab(val label: String, val icon: ImageVector)
 
 val LxHomeTabs = listOf(
     LxTab("首页", Icons.Outlined.Home),
+    LxTab("公告", Icons.Outlined.Campaign),
     LxTab("课程表", Icons.Outlined.CalendarMonth),
     LxTab("我的", Icons.Outlined.Person),
 )
