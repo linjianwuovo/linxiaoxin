@@ -1,6 +1,7 @@
 package com.linxin
 
 import android.app.Application
+import com.linxin.core.network.NetTrace
 import com.linxin.navigation.ShortcutRegistrar
 import dagger.hilt.android.HiltAndroidApp
 import java.io.File
@@ -14,6 +15,8 @@ import javax.inject.Inject
 @HiltAndroidApp
 class LinXinApp : Application() {
 
+    // 提前实例化，让"启用调试功能"的开关从启动就跟 DataStore 对齐
+    @Inject lateinit var netTrace: NetTrace
 
     override fun onCreate() {
         super.onCreate()
