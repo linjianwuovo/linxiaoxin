@@ -18,6 +18,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults
 
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
@@ -103,7 +104,7 @@ private fun ExamContent(
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = yearExpanded) },
                         modifier = Modifier.menuAnchor(),
                         singleLine = true,
-                        backgroundColor = MiuixTheme.colorScheme.surface,
+                        colors = TextFieldDefaults.textFieldColors(backgroundColor = MiuixTheme.colorScheme.surface),
                     )
                     ExposedDropdownMenu(
                         expanded = yearExpanded,
@@ -138,7 +139,7 @@ private fun ExamContent(
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = semesterExpanded) },
                         modifier = Modifier.menuAnchor(),
                         singleLine = true,
-                        backgroundColor = MiuixTheme.colorScheme.surface,
+                        colors = TextFieldDefaults.textFieldColors(backgroundColor = MiuixTheme.colorScheme.surface),
                     )
                     ExposedDropdownMenu(
                         expanded = semesterExpanded,
