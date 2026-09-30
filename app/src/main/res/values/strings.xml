@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">林小信Beta</string>
+    <string name="app_name">林小信</string>
     <string name="shortcut_scan_checkin">扫码签到</string>
     <string name="shortcut_scan_checkin_long">扫码签到</string>
     <string name="shortcut_dorm_checkin">查寝签到</string>
