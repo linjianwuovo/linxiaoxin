@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
 import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults
 
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHost
@@ -292,7 +293,7 @@ private fun SubmitBottomSheet(
                 label = "请输入作业内容...",
                 useLabelAsPlaceholder = true,
                 enabled = !isSubmitting,
-                backgroundColor = LxCream,
+                colors = TextFieldDefaults.textFieldColors(backgroundColor = LxCream),
             )
             Spacer(modifier = Modifier.height(16.dp))
             LxButton(
