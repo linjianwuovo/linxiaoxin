@@ -8,7 +8,7 @@
         android:shortcutLongLabel="@string/shortcut_scan_checkin_long">
         <intent
             android:action="com.linxin.action.SCAN_CHECKIN"
-            android:targetPackage="com.linxin.beta"
+            android:targetPackage="com.linxin"
             android:targetClass="com.linxin.MainActivity" />
     </shortcut>
 
@@ -20,7 +20,7 @@
         android:shortcutLongLabel="@string/shortcut_dorm_checkin_long">
         <intent
             android:action="com.linxin.action.DORM_CHECKIN"
-            android:targetPackage="com.linxin.beta"
+            android:targetPackage="com.linxin"
             android:targetClass="com.linxin.MainActivity" />
     </shortcut>
 </shortcuts>
