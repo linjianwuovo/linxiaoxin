@@ -3,15 +3,13 @@ package com.linxin.feature.holiday.data
 import com.linxin.core.auth.TokenManager
 import com.linxin.core.network.CheckinRetrofit
 import com.linxin.feature.holiday.domain.HolidayFormData
+import com.linxin.feature.holiday.domain.HolidayHistory
 import com.linxin.feature.holiday.domain.HolidayTask
 import com.linxin.feature.holiday.domain.StrokeOption
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import retrofit2.HttpException
 import retrofit2.Retrofit
 import java.io.IOException
@@ -36,22 +34,20 @@ class HolidayRepository @Inject constructor(
                 return Result.failure(Exception(response.msg ?: "获取节假日列表失败"))
             }
             val rows = response.rows.orEmpty()
-            // 列表接口不返回个人登记状态，对每个 holiday 并发查 getHolidayRegister 补齐
-            val tasks = coroutineScope {
-                rows.map { row ->
-                    async {
-                        val holidayId = row.id.orEmpty()
-                        val registered = if (holidayId.isBlank()) {
-                            false
-                        } else {
-                            runCatching { api.getHolidayRegister(holidayId, studentId) }
-                                .getOrNull()
-                                ?.let { it.isSuccess() && it.data != null }
-                                ?: false
-                        }
-                        row.toDomain(isRegistered = registered)
-                    }
-                }.awaitAll()
+            // 列表接口不返回个人登记状态，要逐个 holiday 查 getHolidayRegister 补齐。
+            // 这里必须串行：真机抓到的响应每条都带 Connection: close，服务器不复用连接，
+            // 并发 N 个就是同时做 N 次全新 TLS 握手，正是进页面偶发"网络异常"的来源。
+            val tasks = rows.map { row ->
+                val holidayId = row.id.orEmpty()
+                val registered = if (holidayId.isBlank()) {
+                    false
+                } else {
+                    runCatching { api.getHolidayRegister(holidayId, studentId) }
+                        .getOrNull()
+                        ?.let { it.isSuccess() && it.data != null }
+                        ?: false
+                }
+                row.toDomain(isRegistered = registered)
             }
             Result.success(tasks)
         } catch (e: Exception) {
@@ -156,6 +152,30 @@ class HolidayRepository @Inject constructor(
         }
     }
 
+    /** 历史登记记录：已结束的节假日（当前列表接口不返回这些） */
+    suspend fun getHistoryList(page: Int = 1): Result<List<HolidayHistory>> {
+        return try {
+            val response = api.getHistoricalPage(
+                mapOf("studentId" to getStudentId(), "pageNum" to page),
+            )
+            if (!response.isSuccess()) {
+                return Result.failure(Exception(response.msg ?: "获取节假日历史失败"))
+            }
+            Result.success(
+                response.rows.orEmpty().map { row ->
+                    HolidayHistory(
+                        holidayId = row.holidayId.orEmpty(),
+                        name = row.holidayName.orEmpty(),
+                        startDate = row.startDate.orEmpty(),
+                        returnStartDate = row.returnStartDate.orEmpty(),
+                    )
+                },
+            )
+        } catch (e: Exception) {
+            Result.failure(Exception(mapError("获取节假日历史", e), e))
+        }
+    }
+
     /** 获取第一个未登记的节假日（给首页用） */
     suspend fun getFirstUnregistered(): Result<HolidayTask?> {
         val result = getRegistrationList(page = 1)
@@ -180,6 +200,8 @@ class HolidayRepository @Inject constructor(
     // 这套接口 code=="0" 只表示"请求被处理"，业务成败看 flag；
     // 鉴权失败时回的是 code:"0" + flag:false + msg:"非法访问"，只看 code 会把失败渲染成空列表。
     private fun RegistrationPageResponse.isSuccess(): Boolean = code == "0" && flag != false
+
+    private fun HistoricalPageResponse.isSuccess(): Boolean = code == "0" && flag != false
 
     private fun HolidayDetailResponse.isSuccess(): Boolean = code == "0" && flag != false
 

@@ -30,6 +30,8 @@ data class SignInTaskRow(
     val signinStatus: String?,       // "0"=未签到, "1"=已签到
     @SerializedName("executionedStatus")
     val executionedStatus: String?,
+    val executionedStatusTxt: String?,   // 服务端给的状态原文：未开始 / 未签到 / 已签到
+    val taskDate: String?,               // 任务所属日期 yyyy-MM-dd
     val startTime: String?,
     val endTime: String?,
     val timedStartTime: String?,
@@ -100,4 +102,40 @@ data class SignInSubmitResponse(
     val flag: Boolean?,
     val msg: String?,
     val data: Any?,
+)
+
+/**
+ * POST /app/dorm/listDateCheck 响应：区间内每天的签到任务数（用来画月历）
+ */
+data class DateCheckResponse(
+    val code: String?,
+    val flag: Boolean?,
+    val msg: String?,
+    val data: List<DateCheckItem>?,
+)
+
+data class DateCheckItem(
+    val taskDate: String?,
+    val taskNum: Int?,
+)
+
+/**
+ * POST /app/dorm/collectionStudentStatics 响应：本月签到统计
+ * 字段含义按安小信实测：signined=已签, notSignined=未签, signining=进行中,
+ * leave=请假, leaveSchool=离校, qrCode=扫码签到。
+ */
+data class StudentStaticsResponse(
+    val code: String?,
+    val flag: Boolean?,
+    val msg: String?,
+    val data: StudentStaticsData?,
+)
+
+data class StudentStaticsData(
+    val signinedNum: Int?,
+    val notSigninedNum: Int?,
+    val signiningNum: Int?,
+    val leaveNum: Int?,
+    val leaveSchoolNum: Int?,
+    val qrCodeNum: Int?,
 )

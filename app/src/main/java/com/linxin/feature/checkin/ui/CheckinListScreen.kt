@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
@@ -29,7 +31,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -39,17 +43,24 @@ import com.linxin.core.designsystem.component.LxError
 import com.linxin.core.designsystem.component.LxInlineErrorCard
 import com.linxin.core.designsystem.component.LxLoading
 import com.linxin.core.designsystem.component.LxTopBar
+import com.linxin.core.designsystem.theme.LxCardBorder
+import com.linxin.core.designsystem.theme.LxInk
+import com.linxin.core.designsystem.theme.LxInkGhost
 import com.linxin.core.designsystem.theme.LxInkMuted
 import com.linxin.core.designsystem.theme.LxSuccess
 import com.linxin.core.designsystem.theme.LxTerra
+import com.linxin.core.designsystem.theme.LxWarning
+import com.linxin.feature.checkin.domain.CheckinDay
 import com.linxin.feature.checkin.domain.CheckinTask
-import com.linxin.feature.holiday.domain.HolidayTask
+import com.linxin.feature.checkin.domain.MonthStatics
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.YearMonth
 
 @Composable
 fun CheckinListScreen(
     onBack: () -> Unit,
     onTaskClick: (taskDateId: String) -> Unit,
-    onHolidayClick: (holidayId: String) -> Unit = {},
     shouldRefresh: Boolean,
     onRefreshConsumed: () -> Unit,
     modifier: Modifier = Modifier,
@@ -70,23 +81,26 @@ fun CheckinListScreen(
         containerColor = MiuixTheme.colorScheme.background,
         topBar = { LxTopBar(title = "查寝签到", onBack = onBack) },
     ) { padding ->
+        val tasksDead = error != null &&
+            uiState.subjectTasks.isEmpty() && uiState.statics == null && uiState.days.isEmpty()
         when {
-            uiState.isLoading -> LxLoading(modifier = Modifier.padding(padding))
-            error != null -> LxError(
-                message = error,
+            uiState.isPreparing -> LxLoading(modifier = Modifier.padding(padding))
+            tasksDead -> LxError(
+                message = error!!,
                 onRetry = viewModel::retry,
                 modifier = Modifier.padding(padding),
             )
-            uiState.tasks.isEmpty() && uiState.holidayTasks.isEmpty() && uiState.holidayError == null -> LxEmpty(
-                message = "暂无签到与节假日任务",
+            uiState.hasNothing -> LxEmpty(
+                message = "暂无签到任务",
                 modifier = Modifier.padding(padding),
             )
             else -> TaskList(
                 uiState = uiState,
                 onTaskClick = onTaskClick,
-                onHolidayClick = onHolidayClick,
                 onLoadMore = viewModel::loadMore,
-                onRetryHoliday = viewModel::retryHoliday,
+                onRetryTasks = viewModel::retry,
+                onRetrySubject = viewModel::retrySubject,
+                onRetrySummary = viewModel::retrySummary,
                 modifier = Modifier.padding(padding),
             )
         }
@@ -97,9 +111,10 @@ fun CheckinListScreen(
 private fun TaskList(
     uiState: CheckinUiState,
     onTaskClick: (String) -> Unit,
-    onHolidayClick: (String) -> Unit,
     onLoadMore: () -> Unit,
-    onRetryHoliday: () -> Unit,
+    onRetryTasks: () -> Unit,
+    onRetrySubject: () -> Unit,
+    onRetrySummary: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -125,10 +140,27 @@ private fun TaskList(
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        // 本月概览：统计 + 签到日历
+        val summaryError = uiState.summaryError
+        if (summaryError != null) {
+            item(key = "overview_error") {
+                LxInlineErrorCard(message = summaryError, onRetry = onRetrySummary)
+            }
+        } else if (uiState.statics != null || uiState.days.isNotEmpty()) {
+            item(key = "overview") {
+                MonthOverviewCard(statics = uiState.statics, days = uiState.days, monthLabel = uiState.monthLabel)
+            }
+        }
+
         // 查寝签到 section
-        if (uiState.tasks.isNotEmpty()) {
+        if (uiState.tasks.isNotEmpty() || uiState.error != null) {
             item(key = "section_checkin") {
                 SectionHeader("查寝签到")
+            }
+            uiState.error?.let { tasksError ->
+                item(key = "checkin_error") {
+                    LxInlineErrorCard(message = tasksError, onRetry = onRetryTasks)
+                }
             }
             items(uiState.tasks, key = { "c_${it.taskDateId}" }) { task ->
                 TaskCard(
@@ -139,24 +171,27 @@ private fun TaskList(
             }
         }
 
-        // 节假日登记 section
-        if (uiState.holidayTasks.isNotEmpty() || uiState.holidayError != null) {
-            item(key = "section_holiday") {
-                SectionHeader("节假日登记")
+        // 主题签到 section
+        if (uiState.subjectTasks.isNotEmpty() || uiState.subjectError != null) {
+            item(key = "section_subject") {
+                SectionHeader("主题签到")
             }
-            uiState.holidayError?.let { holidayError ->
-                item(key = "holiday_error") {
-                    LxInlineErrorCard(message = holidayError, onRetry = onRetryHoliday)
+            uiState.subjectError?.let { subjectError ->
+                item(key = "subject_error") {
+                    LxInlineErrorCard(message = subjectError, onRetry = onRetrySubject)
                 }
             }
-            items(uiState.holidayTasks, key = { "h_${it.holidayId}" }) { task ->
-                HolidayTaskCard(
+            items(uiState.subjectTasks, key = { "s_${it.taskDateId}" }) { task ->
+                TaskCard(
                     task = task,
-                    onClick = { onHolidayClick(task.holidayId) },
+                    onClick = { if (!task.isSigned) onTaskClick(task.taskDateId) },
                     modifier = Modifier.animateItem(),
                 )
             }
         }
+
+        // 节假日登记与历史登记已挪到独立的「节假日离返校」页（Routes.HOLIDAY_LIST），
+        // 和安小信一致：查寝和节假日是学工应用里两个互不相干的入口。
 
         if (uiState.isLoadingMore) {
             item(key = "loading_more") {
@@ -213,7 +248,7 @@ private fun TaskCard(
             Spacer(modifier = Modifier.width(12.dp))
 
             // 签到状态标记
-            StatusBadge(isSigned = task.isSigned)
+            StatusBadge(isSigned = task.isSigned, statusText = task.statusText)
         }
     }
 }
@@ -230,52 +265,14 @@ private fun SectionHeader(title: String) {
 }
 
 @Composable
-private fun HolidayTaskCard(
-    task: HolidayTask,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    LxCard(onClick = onClick, modifier = modifier) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = task.name.ifBlank { "节假日登记" },
-                    style = MiuixTheme.textStyles.body2,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = task.registerStartDate,
-                        style = MiuixTheme.textStyles.footnote2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    )
-                    if (task.registerEndDate.isNotBlank()) {
-                        Text(
-                            text = "~ ${task.registerEndDate}",
-                            style = MiuixTheme.textStyles.footnote2,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            HolidayStatusBadge(isRegistered = task.isRegistered)
-        }
+private fun StatusBadge(isSigned: Boolean, statusText: String = "") {
+    // 服务端原文优先：未开始 ≠ 未签到，混成一档会误导
+    val text = statusText.ifBlank { if (isSigned) "已签到" else "未签到" }
+    val color = when {
+        isSigned || text == "已签到" -> LxSuccess
+        text == "未开始" || text == "签到中" -> LxWarning
+        else -> MiuixTheme.colorScheme.secondary
     }
-}
-
-@Composable
-private fun HolidayStatusBadge(isRegistered: Boolean) {
-    val color = if (isRegistered) LxSuccess else LxTerra
-    val text = if (isRegistered) "已登记" else "待登记"
 
     Box(
         modifier = Modifier
@@ -293,21 +290,151 @@ private fun HolidayStatusBadge(isRegistered: Boolean) {
 }
 
 @Composable
-private fun StatusBadge(isSigned: Boolean) {
-    val color = if (isSigned) LxSuccess else MiuixTheme.colorScheme.secondary
-    val text = if (isSigned) "已签到" else "未签到"
+private fun MonthOverviewCard(
+    statics: MonthStatics?,
+    days: List<CheckinDay>,
+    monthLabel: String,
+    modifier: Modifier = Modifier,
+) {
+    val month = remember(monthLabel) {
+        runCatching { YearMonth.parse(monthLabel) }.getOrNull()
+    }
+    val today = remember { LocalDate.now() }
+    val markedDays = remember(days, month) {
+        if (month == null) emptySet()
+        else days.mapNotNull { day ->
+            val date = runCatching { LocalDate.parse(day.date) }.getOrNull()
+            if (day.taskNum > 0 && date != null && YearMonth.from(date) == month) date.dayOfMonth else null
+        }.toSet()
+    }
 
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(color.copy(alpha = 0.12f))
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-    ) {
+    LxCard(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+        ) {
+            Text(
+                text = month?.let { "${it.year} 年 ${it.monthValue} 月签到概览" } ?: "本月签到概览",
+                style = MiuixTheme.textStyles.body2,
+                fontWeight = FontWeight.SemiBold,
+                color = LxInk,
+            )
+
+            statics?.let { data ->
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    StatCell("已签", data.signed, LxSuccess, Modifier.weight(1f))
+                    StatCell("未签", data.notSigned, LxTerra, Modifier.weight(1f))
+                    StatCell("签到中", data.inProgress, LxWarning, Modifier.weight(1f))
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    StatCell("请假", data.leave, LxInkMuted, Modifier.weight(1f))
+                    StatCell("离校", data.offCampus, LxInkMuted, Modifier.weight(1f))
+                    StatCell("扫码", data.qrCode, LxInkMuted, Modifier.weight(1f))
+                }
+            }
+
+            if (month != null) {
+                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = LxCardBorder)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    listOf("一", "二", "三", "四", "五", "六", "日").forEach { label ->
+                        Text(
+                            text = label,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center,
+                            style = MiuixTheme.textStyles.footnote2,
+                            color = LxInkMuted,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // 与节假日选择器一致：周一起排
+                val startOffset = (month.atDay(1).dayOfWeek.value - DayOfWeek.MONDAY.value + 7) % 7
+                val daysInMonth = month.lengthOfMonth()
+                val totalCells = startOffset + daysInMonth
+                val rows = (totalCells + 6) / 7
+
+                for (row in 0 until rows) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        for (col in 0..6) {
+                            val dayNum = row * 7 + col - startOffset + 1
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(vertical = 2.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (dayNum in 1..daysInMonth) {
+                                    TaskDayCell(
+                                        day = dayNum,
+                                        hasTask = dayNum in markedDays,
+                                        isToday = month.atDay(dayNum) == today,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatCell(label: String, value: Int, color: Color, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            text = text,
+            text = value.toString(),
+            style = MiuixTheme.textStyles.title1,
+            fontWeight = FontWeight.Bold,
+            color = if (value > 0) color else LxInkGhost,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = label,
             style = MiuixTheme.textStyles.footnote2,
-            fontWeight = FontWeight.SemiBold,
-            color = color,
+            color = LxInkMuted,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun TaskDayCell(day: Int, hasTask: Boolean, isToday: Boolean) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(contentAlignment = Alignment.Center) {
+            if (isToday) {
+                Box(
+                    modifier = Modifier
+                        .size(22.dp)
+                        .clip(CircleShape)
+                        .background(MiuixTheme.colorScheme.primary.copy(alpha = 0.16f)),
+                )
+            }
+            Text(
+                text = day.toString(),
+                style = MiuixTheme.textStyles.footnote2,
+                fontWeight = if (isToday || hasTask) FontWeight.SemiBold else FontWeight.Normal,
+                color = when {
+                    hasTask -> LxInk
+                    else -> LxInkMuted
+                },
+                textAlign = TextAlign.Center,
+            )
+        }
+        Spacer(modifier = Modifier.height(2.dp))
+        Box(
+            modifier = Modifier
+                .size(4.dp)
+                .clip(CircleShape)
+                .background(if (hasTask) LxTerra else Color.Transparent),
         )
     }
 }

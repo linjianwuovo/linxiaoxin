@@ -39,6 +39,8 @@ data class AiClassUiState(
     val quizError: String? = null,
     val homeworkError: String? = null,
     val signResult: String? = null,
+    /** signResult 是成功还是失败；扫码页据此决定「确定」是退出还是继续扫 */
+    val signSucceeded: Boolean = false,
 )
 
 @HiltViewModel
@@ -139,6 +141,7 @@ class AiClassViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isSigningIn = false,
+                        signSucceeded = false,
                         signResult = signInfoResult.exceptionOrNull()?.message ?: "当前没有进行中的签到",
                     )
                 }
@@ -150,6 +153,7 @@ class AiClassViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     isSigningIn = false,
+                    signSucceeded = result.isSuccess,
                     signResult = result.getOrElse { e -> e.message ?: "签到失败" },
                 )
             }
@@ -164,6 +168,7 @@ class AiClassViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     isSigningIn = false,
+                    signSucceeded = result.isSuccess,
                     signResult = result.getOrElse { e -> e.message ?: "签到失败" },
                 )
             }
@@ -171,7 +176,7 @@ class AiClassViewModel @Inject constructor(
     }
 
     fun consumeSignResult() {
-        _uiState.update { it.copy(signResult = null) }
+        _uiState.update { it.copy(signResult = null, signSucceeded = false) }
     }
 
     /** 扫码签到 */
@@ -190,6 +195,7 @@ class AiClassViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     isSigningIn = false,
+                    signSucceeded = result.isSuccess,
                     signResult = result.getOrElse { e -> e.message ?: "扫码签到失败" },
                 )
             }

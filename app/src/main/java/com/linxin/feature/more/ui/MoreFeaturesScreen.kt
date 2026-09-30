@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.BatterySaver
 import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.outlined.EventNote
 import androidx.compose.material.icons.outlined.Grading
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.WorkHistory
@@ -66,6 +67,7 @@ fun MoreFeaturesScreen(
     onNavigateLabor: () -> Unit,
     onNavigateExam: () -> Unit,
     onNavigateCredit: () -> Unit,
+    onNavigateHoliday: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -97,6 +99,12 @@ fun MoreFeaturesScreen(
         Column(modifier = Modifier.padding(padding).padding(horizontal = 20.dp, vertical = 16.dp)) {
             LxCard {
                 Column {
+                    MoreMenuRow(
+                        icon = Icons.Outlined.EventNote,
+                        title = "节假日离返校",
+                        onClick = onNavigateHoliday,
+                    )
+                    MoreMenuDivider()
                     MoreMenuRow(
                         icon = Icons.Outlined.WorkHistory,
                         title = "劳动教育",

@@ -1,7 +1,10 @@
 package com.linxin.feature.checkin.data
 
+import com.linxin.core.auth.TokenManager
 import com.linxin.core.network.CheckinRetrofit
+import com.linxin.feature.checkin.domain.CheckinDay
 import com.linxin.feature.checkin.domain.CheckinTask
+import com.linxin.feature.checkin.domain.MonthStatics
 import com.linxin.feature.checkin.domain.TaskDetail
 import dagger.Module
 import dagger.Provides
@@ -22,6 +25,7 @@ import javax.inject.Singleton
 class CheckinRepository @Inject constructor(
     private val api: CheckinApi,
     private val fileApi: FileUploadApi,
+    private val tokenManager: TokenManager,
 ) {
     suspend fun getTasks(page: Int, pageSize: Int = 10): Result<List<CheckinTask>> {
         return try {
@@ -35,24 +39,99 @@ class CheckinRepository @Inject constructor(
             if (!response.isSuccess()) {
                 return Result.failure(Exception(response.msg ?: "获取签到任务失败"))
             }
-            val list = response.rows ?: response.data?.list.orEmpty()
-
-            Result.success(
-                list.map { row ->
-                    CheckinTask(
-                        id = row.id ?: "",
-                        taskName = row.title ?: row.taskName ?: "",
-                        taskDateId = row.taskDateId ?: row.id ?: row.userTaskId ?: row.taskId ?: "",
-                        isSigned = row.executionedStatus == "1" || row.signinStatus == "1",
-                        startTime = row.timedStartTime ?: row.startTime ?: row.collectionStartTime ?: "",
-                        endTime = row.timedEndTime ?: row.endTime ?: row.collectionEndTime ?: "",
-                    )
-                }
-            )
+            Result.success(response.toTasks())
         } catch (e: Exception) {
             Result.failure(Exception(mapError("获取签到任务", e), e))
         }
     }
+
+    /** 主题签到（taskMajorType=2），与查寝并行的一套任务 */
+    suspend fun getSubjectTasks(page: Int, pageSize: Int = 10): Result<List<CheckinTask>> {
+        return try {
+            val body = mapOf<String, Any>(
+                "pageNum" to page,
+                "pageSize" to pageSize,
+                "type" to "1",
+                "taskMajorType" to "2",
+            )
+            val response = api.pageSubjectSignIn(body)
+            if (!response.isSuccess()) {
+                return Result.failure(Exception(response.msg ?: "获取主题签到任务失败"))
+            }
+            Result.success(response.toTasks())
+        } catch (e: Exception) {
+            Result.failure(Exception(mapError("获取主题签到", e), e))
+        }
+    }
+
+    /**
+     * 本月签到统计。staticDate 形如 2026-09。
+     * createBy 是学号，从 TokenManager 取，绝不写死。
+     */
+    suspend fun getMonthStatics(staticDate: String): Result<MonthStatics> {
+        return try {
+            val userCode = tokenManager.getUserCode().orEmpty()
+            if (userCode.isBlank()) {
+                return Result.failure(Exception("学号信息缺失，请重新登录"))
+            }
+            val response = api.collectionStudentStatics(
+                mapOf("staticDate" to staticDate, "createBy" to userCode, "taskMajorType" to "3"),
+            )
+            if (!response.isSuccess()) {
+                return Result.failure(Exception(response.msg ?: "获取签到统计失败"))
+            }
+            val d = response.data
+                // data 为 null 时全渲染成 0，会把"没拿到"伪装成"这个月一次没签"，
+                // 而月历明显有任务——所以这里当失败处理，让页面出重试条。
+                ?: return Result.failure(Exception("签到统计接口没有返回数据"))
+            Result.success(
+                MonthStatics(
+                    signed = d?.signinedNum ?: 0,
+                    notSigned = d?.notSigninedNum ?: 0,
+                    inProgress = d?.signiningNum ?: 0,
+                    leave = d?.leaveNum ?: 0,
+                    offCampus = d?.leaveSchoolNum ?: 0,
+                    qrCode = d?.qrCodeNum ?: 0,
+                ),
+            )
+        } catch (e: Exception) {
+            Result.failure(Exception(mapError("获取签到统计", e), e))
+        }
+    }
+
+    /** 区间内每天的签到任务数，用于月历标记 */
+    suspend fun getDateCheck(startTime: String, endTime: String): Result<List<CheckinDay>> {
+        return try {
+            val response = api.listDateCheck(mapOf("startTime" to startTime, "endTime" to endTime))
+            if (!response.isSuccess()) {
+                return Result.failure(Exception(response.msg ?: "获取签到日历失败"))
+            }
+            Result.success(
+                response.data.orEmpty().map { CheckinDay(date = it.taskDate.orEmpty(), taskNum = it.taskNum ?: 0) }
+                    .filter { it.date.isNotBlank() },
+            )
+        } catch (e: Exception) {
+            Result.failure(Exception(mapError("获取签到日历", e), e))
+        }
+    }
+
+    private fun SignInPageResponse.toTasks(): List<CheckinTask> =
+        (rows ?: data?.list).orEmpty().map { row ->
+            CheckinTask(
+                id = row.id ?: "",
+                taskName = row.title ?: row.taskName ?: "",
+                taskDateId = row.taskDateId ?: row.id ?: row.userTaskId ?: row.taskId ?: "",
+                isSigned = row.executionedStatus == "1" || row.signinStatus == "1",
+                startTime = row.timedStartTime ?: row.startTime ?: row.collectionStartTime ?: "",
+                endTime = row.timedEndTime ?: row.endTime ?: row.collectionEndTime ?: "",
+                statusText = row.executionedStatusTxt.orEmpty(),
+            )
+        }
+
+    // 与 dorm 一致：code 只代表"请求被处理"，业务成败看 flag
+    private fun DateCheckResponse.isSuccess(): Boolean = (code == "0" || code == "200") && flag != false
+
+    private fun StudentStaticsResponse.isSuccess(): Boolean = (code == "0" || code == "200") && flag != false
 
     suspend fun getTaskDetail(dateId: String): Result<TaskDetail> {
         return try {

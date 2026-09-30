@@ -42,6 +42,7 @@ import com.linxin.feature.checkin.ui.CheckinDetailScreen
 import com.linxin.feature.checkin.ui.CheckinListScreen
 import com.linxin.feature.credit.ui.CreditScreen
 import com.linxin.feature.exam.ui.ExamScreen
+import com.linxin.feature.holiday.ui.HolidayListScreen
 import com.linxin.feature.holiday.ui.HolidayRegisterScreen
 import com.linxin.feature.home.ui.HomeScreen
 import com.linxin.feature.labor.ui.LaborSummaryScreen
@@ -221,12 +222,24 @@ fun LinXinNavHost(
                 onTaskClick = { taskDateId ->
                     navController.navigate(Routes.checkinDetail(taskDateId))
                 },
+                shouldRefresh = shouldRefresh,
+                onRefreshConsumed = {
+                    backStackEntry.savedStateHandle["checkin_refresh"] = false
+                },
+            )
+        }
+        composable(Routes.HOLIDAY_LIST) { backStackEntry ->
+            val shouldRefresh by backStackEntry.savedStateHandle
+                .getStateFlow("holiday_refresh", false)
+                .collectAsState()
+            HolidayListScreen(
+                onBack = { navController.popBackStack() },
                 onHolidayClick = { holidayId ->
                     navController.navigate(Routes.holidayRegister(holidayId))
                 },
                 shouldRefresh = shouldRefresh,
                 onRefreshConsumed = {
-                    backStackEntry.savedStateHandle["checkin_refresh"] = false
+                    backStackEntry.savedStateHandle["holiday_refresh"] = false
                 },
             )
         }
@@ -239,7 +252,7 @@ fun LinXinNavHost(
                 onSubmitSuccess = {
                     navController.previousBackStackEntry
                         ?.savedStateHandle
-                        ?.set("checkin_refresh", true)
+                        ?.set("holiday_refresh", true)
                     navController.popBackStack()
                 },
                 onBack = { navController.popBackStack() },
@@ -469,6 +482,7 @@ fun LinXinNavHost(
             AiClassScanScreen(
                 onBack = { navController.popBackStack() },
                 signResult = scanUiState.signResult,
+                signSucceeded = scanUiState.signSucceeded,
                 onConsumeSignResult = aiClassViewModel::consumeSignResult,
                 onScanResult = { payload ->
                     aiClassViewModel.submitQrCode(payload)
@@ -527,6 +541,9 @@ fun LinXinNavHost(
                 },
                 onNavigateCredit = {
                     navController.navigate(Routes.CREDIT_OVERVIEW) { launchSingleTop = true }
+                },
+                onNavigateHoliday = {
+                    navController.navigate(Routes.HOLIDAY_LIST) { launchSingleTop = true }
                 },
             )
         }
