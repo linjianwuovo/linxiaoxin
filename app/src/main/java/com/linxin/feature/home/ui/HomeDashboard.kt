@@ -35,8 +35,8 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Text
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import top.yukonga.miuix.kmp.basic.PullToRefresh
+import top.yukonga.miuix.kmp.basic.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -89,7 +89,6 @@ private const val CHECKIN_VISIBLE_HOURS_BEFORE = 4
 // 副标题 / 场景每分钟重算一次，驱动「还有 12 分钟上课」等分钟级文案
 private const val SUBTITLE_TICK_MS = 60_000L
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeDashboard(
     viewModel: HomeViewModel,
@@ -111,7 +110,7 @@ fun HomeDashboard(
         }
     }
 
-    PullToRefreshBox(
+    PullToRefresh(
         isRefreshing = uiState.isRefreshing,
         onRefresh = viewModel::refresh,
         modifier = modifier.fillMaxSize(),
@@ -144,7 +143,7 @@ fun HomeDashboard(
                         },
                     contentAlignment = Alignment.Center,
                 ) {
-                    androidx.compose.material3.Icon(
+                    Icon(
                         imageVector = Icons.Filled.QrCodeScanner,
                         contentDescription = "扫码",
                         tint = LxTerra,

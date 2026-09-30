@@ -14,8 +14,8 @@ android {
         targetSdk = 35
         // 与装机版 林小信(com.linxin) 并排共存：换包名后两台互不覆盖，DataStore 各自独立
         applicationId = "com.linxin.beta"
-        versionCode = 9
-        versionName = "0.1-beta9"
+        versionCode = 10
+        versionName = "0.1-beta10"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

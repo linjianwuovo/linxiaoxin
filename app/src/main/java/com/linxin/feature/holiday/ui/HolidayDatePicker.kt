@@ -21,10 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
+import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
 import top.yukonga.miuix.kmp.basic.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -140,35 +138,19 @@ fun rememberHolidayDatePickerState(): HolidayDatePickerState =
 
 // ═══════════════ 日历 BottomSheet ═══════════════
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HolidayCalendarSheet(
     state: HolidayDatePickerState,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     if (!state.showCalendar) return
 
-    ModalBottomSheet(
+    OverlayBottomSheet(
+        show = true,
         onDismissRequest = { state.dismissAll() },
-        sheetState = sheetState,
-        containerColor = LxSand,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-        dragHandle = {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .padding(top = 12.dp, bottom = 8.dp)
-                        .width(40.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(LxTerra.copy(alpha = 0.25f)),
-                )
-            }
-        },
+        backgroundColor = LxSand,
+        cornerRadius = 20.dp,
+        dragHandleColor = LxTerra.copy(alpha = 0.25f),
     ) {
         CalendarContent(state = state)
     }
@@ -313,35 +295,19 @@ private fun DayCell(
 
 // ═══════════════ 时间 BottomSheet ═══════════════
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HolidayTimeSheet(
     state: HolidayDatePickerState,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     if (!state.showTime || state.pendingDate == null) return
 
-    ModalBottomSheet(
+    OverlayBottomSheet(
+        show = true,
         onDismissRequest = { state.dismissAll() },
-        sheetState = sheetState,
-        containerColor = LxSand,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-        dragHandle = {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .padding(top = 12.dp, bottom = 8.dp)
-                        .width(40.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(LxTerra.copy(alpha = 0.25f)),
-                )
-            }
-        },
+        backgroundColor = LxSand,
+        cornerRadius = 20.dp,
+        dragHandleColor = LxTerra.copy(alpha = 0.25f),
     ) {
         TimeContent(state = state)
     }
