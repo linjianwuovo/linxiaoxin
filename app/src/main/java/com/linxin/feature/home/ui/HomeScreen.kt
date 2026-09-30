@@ -12,6 +12,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.runtime.Composable
@@ -33,6 +34,7 @@ import androidx.navigation.NavHostController
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.linxin.core.designsystem.theme.LxTerra
+import com.linxin.feature.news.ui.NewsScreen
 import com.linxin.feature.schedule.ui.ScheduleScreen
 import com.linxin.feature.theme.ui.ThemeViewModel
 import com.linxin.navigation.Routes
@@ -43,6 +45,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private val tabs = listOf(
     LxTab("首页", Icons.Outlined.Home),
+    LxTab("公告", Icons.Outlined.Campaign),
     LxTab("课程表", Icons.Outlined.CalendarMonth),
     LxTab("我的", Icons.Outlined.Person),
 )
@@ -97,8 +100,13 @@ fun HomeScreen(
                         navController = navController,
                         onTabSelected = { goToTab(it) },
                     )
-                    1 -> ScheduleScreen()
-                    2 -> ProfileScreen(
+                    1 -> NewsScreen(
+                        onNewsClick = { newsId ->
+                            navController.navigate(Routes.newsDetail(newsId))
+                        },
+                    )
+                    2 -> ScheduleScreen()
+                    3 -> ProfileScreen(
                         onNavigateCheckin = {
                             navController.navigate(Routes.CHECKIN_LIST) {
                                 launchSingleTop = true
