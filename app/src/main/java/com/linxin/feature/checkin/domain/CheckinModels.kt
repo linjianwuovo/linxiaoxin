@@ -15,6 +15,8 @@ data class CheckinTask(
     val isSigned: Boolean,
     val startTime: String,
     val endTime: String,
+    /** 服务端给的状态原文（未开始 / 未签到 / 已签到），空则按 isSigned 推断 */
+    val statusText: String = "",
 ) {
     /** 当前时间是否在任务的开放时间窗口内 */
     val isInOpenWindow: Boolean
@@ -72,4 +74,24 @@ data class TaskDetail(
     val centerLng: Double,       // 签到中心经度
     val centerLat: Double,       // 签到中心纬度
     val address: String,
+)
+
+/**
+ * 本月签到统计
+ */
+data class MonthStatics(
+    val signed: Int = 0,
+    val notSigned: Int = 0,
+    val inProgress: Int = 0,
+    val leave: Int = 0,
+    val offCampus: Int = 0,
+    val qrCode: Int = 0,
+)
+
+/**
+ * 月历上的一天：taskNum>0 表示那天有签到任务
+ */
+data class CheckinDay(
+    val date: String,   // yyyy-MM-dd
+    val taskNum: Int,
 )

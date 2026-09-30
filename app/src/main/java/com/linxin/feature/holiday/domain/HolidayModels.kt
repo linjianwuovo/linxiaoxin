@@ -15,6 +15,16 @@ data class HolidayTask(
 )
 
 /**
+ * 已结束的节假日登记记录（历史）
+ */
+data class HolidayHistory(
+    val holidayId: String,
+    val name: String,
+    val startDate: String,
+    val returnStartDate: String,
+)
+
+/**
  * 登记表单数据
  */
 data class HolidayFormData(

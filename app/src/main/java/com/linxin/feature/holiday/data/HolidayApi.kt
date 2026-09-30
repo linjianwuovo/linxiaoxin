@@ -17,6 +17,12 @@ interface HolidayApi {
         @Body body: Map<String, @JvmSuppressWildcards Any>,
     ): RegistrationPageResponse
 
+    /** 历史登记记录（已结束的节假日） */
+    @POST("app/holiday/historicalRegistrationPage")
+    suspend fun getHistoricalPage(
+        @Body body: Map<String, @JvmSuppressWildcards Any>,
+    ): HistoricalPageResponse
+
     /** 获取节假日详细配置 */
     @GET("app/holiday/getHolidaySetById")
     suspend fun getHolidaySetById(
