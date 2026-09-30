@@ -1,5 +1,6 @@
 package com.linxin.feature.aiclass.ui
 import com.linxin.core.designsystem.theme.LxShapes
+import com.linxin.core.designsystem.theme.RLg
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,15 +16,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
+import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
 import top.yukonga.miuix.kmp.basic.TextField
 
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -258,7 +257,6 @@ private fun StudentWorkCard(work: AiStudentWork) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SubmitBottomSheet(
     isSubmitting: Boolean,
@@ -267,11 +265,11 @@ private fun SubmitBottomSheet(
 ) {
     var text by remember { mutableStateOf("") }
 
-    ModalBottomSheet(
+    OverlayBottomSheet(
+        show = true,
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MiuixTheme.colorScheme.surface,
-        shape = LxShapes.medium,
+        backgroundColor = MiuixTheme.colorScheme.surface,
+        cornerRadius = RLg,
     ) {
         Column(
             modifier = Modifier
