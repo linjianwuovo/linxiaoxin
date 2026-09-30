@@ -12,10 +12,9 @@ android {
     defaultConfig {
         minSdk = 26
         targetSdk = 35
-        // 与装机版 林小信(com.linxin) 并排共存：换包名后两台互不覆盖，DataStore 各自独立
-        applicationId = "com.linxin.beta"
+        applicationId = "com.linxin"
         versionCode = 10
-        versionName = "0.1-beta10"
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
