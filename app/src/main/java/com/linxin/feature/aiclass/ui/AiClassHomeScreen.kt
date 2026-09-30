@@ -1,5 +1,6 @@
 package com.linxin.feature.aiclass.ui
 import com.linxin.core.designsystem.theme.LxShapes
+import com.linxin.core.designsystem.theme.RLg
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -26,14 +27,12 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Class
 import androidx.compose.material.icons.automirrored.filled.Login
 import top.yukonga.miuix.kmp.basic.Icon
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -63,7 +62,6 @@ import com.linxin.feature.aiclass.domain.AiCourse
 import com.linxin.feature.aiclass.domain.displayName
 import com.linxin.feature.aiclass.domain.studentCountText
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiClassHomeScreen(
     onBack: () -> Unit,
@@ -141,14 +139,14 @@ fun AiClassHomeScreen(
     }
 
     if (showSignResultSheet && signResult != null) {
-        ModalBottomSheet(
+        OverlayBottomSheet(
+            show = true,
             onDismissRequest = {
                 showSignResultSheet = false
                 viewModel.consumeSignResult()
             },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = MiuixTheme.colorScheme.surface,
-            shape = LxShapes.medium,
+            backgroundColor = MiuixTheme.colorScheme.surface,
+            cornerRadius = RLg,
         ) {
             SignResultSheet(
                 message = signResult,

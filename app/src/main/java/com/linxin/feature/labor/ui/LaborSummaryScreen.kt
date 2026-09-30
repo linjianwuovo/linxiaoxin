@@ -1,5 +1,6 @@
 package com.linxin.feature.labor.ui
 import com.linxin.core.designsystem.theme.LxShapes
+import com.linxin.core.designsystem.theme.RLg
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -20,11 +21,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
+import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,7 +48,6 @@ import com.linxin.feature.labor.domain.ActivityDetail
 import com.linxin.feature.labor.domain.ActivityRecord
 import com.linxin.feature.labor.domain.HoursSummary
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LaborSummaryScreen(
     onBack: () -> Unit,
@@ -81,11 +79,11 @@ fun LaborSummaryScreen(
     }
 
     if (uiState.showDetailSheet) {
-        ModalBottomSheet(
+        OverlayBottomSheet(
+            show = true,
             onDismissRequest = viewModel::dismissDetail,
-            sheetState = rememberModalBottomSheetState(),
-            containerColor = MiuixTheme.colorScheme.surface,
-            shape = LxShapes.medium,
+            backgroundColor = MiuixTheme.colorScheme.surface,
+            cornerRadius = RLg,
         ) {
             DetailSheetContent(
                 detail = uiState.selectedDetail,
