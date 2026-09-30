@@ -201,7 +201,7 @@ fun HomeDashboard(
                             courses = data.todayCourses,
                             currentWeek = data.currentWeek,
                             error = errors["schedule"],
-                            onClick = { onTabSelected(1) },
+                            onClick = { onTabSelected(2) },
                         )
                     }
 

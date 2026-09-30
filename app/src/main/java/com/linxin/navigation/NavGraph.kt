@@ -42,6 +42,7 @@ import com.linxin.feature.checkin.ui.CheckinDetailScreen
 import com.linxin.feature.checkin.ui.CheckinListScreen
 import com.linxin.feature.credit.ui.CreditScreen
 import com.linxin.feature.exam.ui.ExamScreen
+import com.linxin.feature.news.ui.NewsDetailScreen
 import com.linxin.feature.holiday.ui.HolidayListScreen
 import com.linxin.feature.holiday.ui.HolidayRegisterScreen
 import com.linxin.feature.home.ui.HomeScreen
@@ -255,6 +256,15 @@ fun LinXinNavHost(
                         ?.set("holiday_refresh", true)
                     navController.popBackStack()
                 },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = Routes.NEWS_DETAIL,
+            arguments = listOf(navArgument("newsId") { type = NavType.StringType }),
+        ) {
+            // newsId 由 NewsDetailViewModel 通过 SavedStateHandle 自己取
+            NewsDetailScreen(
                 onBack = { navController.popBackStack() },
             )
         }
