@@ -42,7 +42,6 @@ import com.linxin.core.designsystem.theme.LxInkMuted
 import com.linxin.core.designsystem.theme.LxSand
 import com.linxin.core.designsystem.theme.LxTerra
 import com.linxin.core.designsystem.theme.LxTerraSoft
-import com.linxin.core.designsystem.theme.NewsreaderLarge
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -184,7 +183,6 @@ private fun CalendarContent(state: HolidayDatePickerState) {
             )
             Text(
                 text = "${month.year}年${month.monthValue}月",
-                fontFamily = NewsreaderLarge,
                 fontWeight = FontWeight.Medium,
                 fontSize = 20.sp,
                 color = LxInk,
@@ -328,7 +326,6 @@ private fun TimeContent(state: HolidayDatePickerState) {
         // ── 已选日期 ──
         Text(
             text = dateLabel,
-            fontFamily = NewsreaderLarge,
             fontWeight = FontWeight.Medium,
             fontSize = 18.sp,
             color = LxInk,

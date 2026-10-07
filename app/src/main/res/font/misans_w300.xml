@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MiSans VF 的 Light 实例：同一份 misans_vf.ttf，靠 fontVariationSettings 锁 wght 轴。
+  Compose 1.12 的 TextStyle 没有 fontVariationSettings 参数，只能在字体资源这一层做。
+  misans_vf.ttf 本身不入仓（MiSans 协议禁止单独分发字体副本），见 MISANS-NOTICE.txt。
+-->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android">
+    <font
+        android:font="@font/misans_vf"
+        android:fontStyle="normal"
+        android:fontWeight="300"
+        android:fontVariationSettings="'wght' 300" />
+</font-family>

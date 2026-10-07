@@ -29,7 +29,6 @@ import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxSecondaryButton
 import com.linxin.core.designsystem.theme.LxCream
 import com.linxin.core.designsystem.theme.LxInkMuted
-import com.linxin.core.designsystem.theme.NewsreaderLarge
 import kotlinx.coroutines.delay
 
 @Composable
@@ -54,7 +53,6 @@ fun OnboardingScreen(
             StaggerItem(index = 0) {
                 Text(
                     text = "更轻量，更舒适的校园体验",
-                    fontFamily = NewsreaderLarge,
                     fontWeight = FontWeight.Medium,
                     fontSize = 22.sp,
                     lineHeight = 29.sp,

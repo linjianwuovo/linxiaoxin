@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -51,7 +52,6 @@ import com.linxin.core.designsystem.theme.LxInkMuted
 import com.linxin.core.designsystem.theme.LxSand
 import com.linxin.core.designsystem.theme.LxSandDeep
 import com.linxin.core.designsystem.theme.LxTerra
-import com.linxin.core.designsystem.theme.NewsreaderDisplay
 
 @Composable
 fun AboutScreen(
@@ -142,7 +142,6 @@ private fun BrandCard(versionName: String) {
             Spacer(modifier = Modifier.height(10.dp))
             Text(
                 text = "林小信",
-                fontFamily = NewsreaderDisplay,
                 fontWeight = FontWeight.Medium,
                 fontSize = 26.sp,
                 lineHeight = 32.sp,
@@ -162,6 +161,15 @@ private fun BrandCard(versionName: String) {
                     color = LxInkMuted,
                 )
             }
+            // MiSans 许可协议第 1 条要求"在软件中特别注明使用了 MiSans 字体"。
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(
+                text = "本应用使用 MiSans 字体\nCopyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.",
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                color = LxInkMuted,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
