@@ -27,7 +27,9 @@ fun LinXinTheme(
         LocalLxIsDark provides darkTheme,
         LocalLxAccent provides accent,
     ) {
-        MiuixTheme(colors = colors) {
+        // textStyles 全量注入 MiSans：Miuix 的 Text 默认取 LocalTextStyles.current.main
+        // （basic/Text.kt:108），14 个 style 都换上就等于全站生效。
+        MiuixTheme(colors = colors, textStyles = LxTextStyles) {
             content()
         }
     }
