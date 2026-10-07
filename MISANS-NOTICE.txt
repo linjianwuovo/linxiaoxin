@@ -1,0 +1,58 @@
+# MiSans 字体使用说明与合规记录
+
+本应用（林小信）界面全站使用 **MiSans VF** 字体。按《MiSans 字体知识产权许可协议》
+第 1 条「您应在软件中特别注明使用了 MiSans 字体」，App 内「关于 → 林小信」卡片已署名。
+
+MiSans 版权归 **北京小米移动软件有限公司**（Copyright © 2020-2023 Beijing Xiaomi Mobile
+Software Co., Ltd.），字体由小米与汉仪字库（Hanyi Fonts）等共同制作。
+
+## 字体文件为什么不进这个仓库
+
+协议第 3 条：
+
+> 您不得单独将 MiSans 字体或其组件对外租赁、再许可、给予、出借或进一步分发字体软件
+> 或其任何副本以及重新分发或售卖。**此限制不适用于您使用 MiSans 字体创作的任何其他
+> 作品**。如您使用 MiSans 字体创作宣传素材、logo、**应用 App** 等，您有权分发或出售
+> 该作品。
+
+因此：
+
+- ✅ 打进 APK 一起分发 —— 属于「使用 MiSans 创作的应用」，明确允许。
+- ❌ 把裸 `.ttf` 提交进这个公开仓库 —— 属于「单独分发字体软件或其任何副本」，不允许。
+
+所以 `app/src/main/res/font/misans_vf.ttf` 已写进 `.gitignore`。**克隆本仓库后需要自己
+补上这个文件才能编译**，位置与文件名：
+
+    app/src/main/res/font/misans_vf.ttf
+
+同目录下的 `misans_w300.xml` ~ `misans_w700.xml` 是五个字体家族资源，各自用
+`android:fontVariationSettings` 把可变轴的 `wght` 锁到 300/400/500/600/700，它们只引用
+上面那个文件，本身不含字体数据，可以正常提交。
+
+## 协议第 2 条：不得改编
+
+协议第 2 条「您不得对 MiSans 字体或其任何单独组件进行改编或二次开发」。
+因此本项目**不做子集化（subset）、不裁剪字形、不改字重、不合并字体**，
+原样使用完整 VF 文件。
+
+## 用的到底是哪一个文件
+
+    文件    MiSans VF（单一 wght 可变轴）
+    内部版本 Version 4.003
+    字形数  29,608（与小米字体官网下载页标注的「MiSans 29608 个字符」一致）
+    轴范围  wght min 150 / default 330 / max 700，8 个命名实例
+    体积    20,000,736 字节（19.07 MiB）
+    SHA-256 5daf8d5447bfd423cfdec94a0e07c53b205892223ccc6ea21b7b8a37248b44d9
+
+App 里实际用到的字重只有 Light(300) / Normal(400) / Medium(500) / SemiBold(600) /
+Bold(700)，全部落在轴的 150–700 区间内，所以一个 VF 文件即可覆盖，不需要多字重静态版。
+
+## 已知限制
+
+- `android:fontVariationSettings` 在 `res/font` 里需要较新的平台支持；在不支持的设备上
+  会退化成轴的默认值 330（表现为全站一个粗细），不会崩溃。目标验证机为 API 36。
+- 小米字体官网的「一键下载全部」指向的对象（`mi-font-homepage/MiSans_Global_ALL.zip`）
+  在本项目记录此文件的当天已 404，官方渠道暂时取不到原始包。上述 SHA-256 仅用于在不同
+  机器间核对同一份文件，**不代表它与小米官方发布包逐字节一致**。
+
+官方协议与下载页：<https://hyperos.mi.com/font/download>

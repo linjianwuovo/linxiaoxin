@@ -407,7 +407,7 @@ private fun CourseDetail(course: Course) {
     ) {
         Text(
             text = course.name,
-            style = MiuixTheme.textStyles.title2, // Newsreader 24pt
+            style = MiuixTheme.textStyles.title2, // 24sp，全站 MiSans
             color = LxInk,
         )
 

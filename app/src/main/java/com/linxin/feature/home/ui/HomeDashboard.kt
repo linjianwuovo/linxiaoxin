@@ -66,7 +66,6 @@ import com.linxin.core.designsystem.theme.LxInk
 import com.linxin.core.designsystem.theme.LxInkMuted
 import com.linxin.core.designsystem.theme.LxSage
 import com.linxin.core.designsystem.theme.LxTerra
-import com.linxin.core.designsystem.theme.NewsreaderLarge
 import com.linxin.feature.checkin.domain.CheckinTask
 import com.linxin.feature.holiday.domain.HolidayTask
 import com.linxin.core.domain.SectionSchedule
@@ -164,7 +163,6 @@ fun HomeDashboard(
                 Box(modifier = Modifier.padding(horizontal = 24.dp)) {
                     Text(
                         text = "正在加载…",
-                        fontFamily = NewsreaderLarge,
                         fontWeight = FontWeight.Medium,
                         fontSize = 22.sp,
                         color = LxInkMuted,
@@ -285,7 +283,6 @@ private fun GreetingSection(
         ) { text ->
             Text(
                 text = text,
-                fontFamily = NewsreaderLarge,
                 fontStyle = FontStyle.Italic,
                 fontWeight = FontWeight.Normal,
                 fontSize = 15.sp,
@@ -325,7 +322,6 @@ private fun NextClassHeadline(
     Text(
         text = headline,
         modifier = modifier,
-        fontFamily = NewsreaderLarge,
         fontWeight = FontWeight.Medium,
         fontSize = 22.sp,
         lineHeight = 30.sp,

@@ -58,8 +58,6 @@ import com.linxin.core.designsystem.theme.LxInkSoft
 import com.linxin.core.designsystem.theme.LxRose
 import com.linxin.core.designsystem.theme.LxSand
 import com.linxin.core.designsystem.theme.LxTerra
-import com.linxin.core.designsystem.theme.NewsreaderDisplay
-import com.linxin.core.designsystem.theme.NewsreaderLarge
 
 @Composable
 fun ProfileScreen(
@@ -94,7 +92,6 @@ fun ProfileScreen(
         // ── 顶部标题（陶土衬线；本屏陶土色用法 1/2，头像字色用法 2/2）──
         Text(
             text = "我的",
-            fontFamily = NewsreaderDisplay,
             fontWeight = FontWeight.Medium,
             fontSize = 28.sp,
             lineHeight = 34.sp,
@@ -118,7 +115,6 @@ fun ProfileScreen(
                 Column {
                     Text(
                         text = uiState.userName.ifBlank { "未知用户" },
-                        fontFamily = NewsreaderLarge,
                         fontWeight = FontWeight.Medium,
                         fontSize = 20.sp,
                         lineHeight = 24.sp,
@@ -226,7 +222,6 @@ private fun AvatarRing(userName: String) {
     ) {
         Text(
             text = char,
-            fontFamily = NewsreaderLarge,
             fontWeight = FontWeight.Medium,
             fontSize = 24.sp,
             color = LxTerra,
