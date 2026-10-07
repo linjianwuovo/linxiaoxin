@@ -1,6 +1,8 @@
 package com.linxin.feature.exam.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -9,19 +11,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.ExpandMore
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.basic.TextFieldDefaults
 
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -30,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -38,7 +44,7 @@ import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxError
 import com.linxin.core.designsystem.component.LxLoading
 import com.linxin.core.designsystem.component.LxTopBar
-import com.linxin.core.designsystem.theme.LxCream
+import com.linxin.core.designsystem.theme.RLg
 import com.linxin.feature.exam.domain.ExamScore
 
 @Composable
@@ -71,7 +77,6 @@ fun ExamScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ExamContent(
     uiState: ExamUiState,
@@ -79,109 +84,149 @@ private fun ExamContent(
     onSemesterSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item(key = "selectors") {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                // 学年下拉
-                var yearExpanded by remember { mutableStateOf(false) }
-                ExposedDropdownMenuBox(
-                    expanded = yearExpanded,
-                    onExpandedChange = { yearExpanded = it },
-                    modifier = Modifier.weight(1f),
+    val semesters = remember { listOf("1" to "第一学期", "2" to "第二学期") }
+    val yearOptions = uiState.schoolYears.map { it.value to it.display }
+    // null = 没弹；"year"/"semester" = 正在选哪个
+    var picking by remember { mutableStateOf<String?>(null) }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item(key = "selectors") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    TextField(
-                        value = uiState.schoolYears.find { it.value == uiState.selectedYear }?.display
+                    SelectorField(
+                        value = yearOptions.firstOrNull { it.first == uiState.selectedYear }?.second
                             ?: uiState.selectedYear,
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = yearExpanded) },
-                        modifier = Modifier.menuAnchor(),
-                        singleLine = true,
-                        colors = TextFieldDefaults.textFieldColors(backgroundColor = MiuixTheme.colorScheme.surface),
+                        onClick = { picking = PICK_YEAR },
+                        modifier = Modifier.weight(1f),
                     )
-                    ExposedDropdownMenu(
-                        expanded = yearExpanded,
-                        onDismissRequest = { yearExpanded = false },
-                        containerColor = LxCream,
-                    ) {
-                        uiState.schoolYears.forEach { year ->
-                            DropdownMenuItem(
-                                text = { Text(year.display) },
-                                onClick = {
-                                    onYearSelected(year.value)
-                                    yearExpanded = false
-                                },
-                            )
-                        }
-                    }
-                }
-
-                // 学期下拉
-                var semesterExpanded by remember { mutableStateOf(false) }
-                val semesters = listOf("1" to "第一学期", "2" to "第二学期")
-                ExposedDropdownMenuBox(
-                    expanded = semesterExpanded,
-                    onExpandedChange = { semesterExpanded = it },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    TextField(
-                        value = semesters.find { it.first == uiState.selectedSemester }?.second
+                    SelectorField(
+                        value = semesters.firstOrNull { it.first == uiState.selectedSemester }?.second
                             ?: "第${uiState.selectedSemester}学期",
-                        onValueChange = {},
-                        readOnly = true,
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = semesterExpanded) },
-                        modifier = Modifier.menuAnchor(),
-                        singleLine = true,
-                        colors = TextFieldDefaults.textFieldColors(backgroundColor = MiuixTheme.colorScheme.surface),
+                        onClick = { picking = PICK_SEMESTER },
+                        modifier = Modifier.weight(1f),
                     )
-                    ExposedDropdownMenu(
-                        expanded = semesterExpanded,
-                        onDismissRequest = { semesterExpanded = false },
-                        containerColor = LxCream,
+                }
+            }
+
+            if (uiState.isScoresLoading) {
+                item(key = "loading") { LxLoading() }
+            } else if (uiState.scores.isEmpty()) {
+                item(key = "empty") {
+                    LxCard {
+                        Text(
+                            text = "该学期暂无成绩记录",
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            modifier = Modifier.padding(20.dp),
+                        )
+                    }
+                }
+            } else {
+                items(uiState.scores, key = { it.courseCode + it.courseName }) { score ->
+                    ScoreCard(score)
+                }
+
+                item(key = "summary") {
+                    SummaryCard(scores = uiState.scores)
+                }
+            }
+        }
+
+        picking?.let { which ->
+            val isYear = which == PICK_YEAR
+            val options = if (isYear) yearOptions else semesters
+            if (options.isNotEmpty()) {
+                OverlayBottomSheet(
+                    show = true,
+                    title = if (isYear) "选择学年" else "选择学期",
+                    onDismissRequest = { picking = null },
+                    backgroundColor = MiuixTheme.colorScheme.surface,
+                    cornerRadius = RLg,
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp),
                     ) {
-                        semesters.forEach { (value, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    onSemesterSelected(value)
-                                    semesterExpanded = false
-                                },
-                            )
+                        val current = if (isYear) uiState.selectedYear else uiState.selectedSemester
+                        options.forEach { (value, label) ->
+                            val selected = value == current
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(RLg))
+                                    .clickable {
+                                        picking = null
+                                        if (isYear) onYearSelected(value) else onSemesterSelected(value)
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = MiuixTheme.textStyles.body1,
+                                    color = if (selected) {
+                                        MiuixTheme.colorScheme.primary
+                                    } else {
+                                        MiuixTheme.colorScheme.onSurface
+                                    },
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                if (selected) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Check,
+                                        contentDescription = null,
+                                        tint = MiuixTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
+    }
+}
 
-        if (uiState.isScoresLoading) {
-            item(key = "loading") { LxLoading() }
-        } else if (uiState.scores.isEmpty()) {
-            item(key = "empty") {
-                LxCard {
-                    Text(
-                        text = "该学期暂无成绩记录",
-                        style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.padding(20.dp),
-                    )
-                }
-            }
-        } else {
-            items(uiState.scores, key = { it.courseCode + it.courseName }) { score ->
-                ScoreCard(score)
-            }
+private const val PICK_YEAR = "year"
+private const val PICK_SEMESTER = "semester"
 
-            item(key = "summary") {
-                SummaryCard(scores = uiState.scores)
-            }
-        }
+/** 只读展示框：外观沿用 Miuix TextField，点它交给覆盖层，避免 TextField 抢焦点 */
+@Composable
+private fun SelectorField(
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier) {
+        TextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            trailingIcon = {
+                Icon(
+                    imageVector = Icons.Outlined.ExpandMore,
+                    contentDescription = null,
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+            },
+            colors = TextFieldDefaults.textFieldColors(backgroundColor = MiuixTheme.colorScheme.surface),
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable(onClick = onClick),
+        )
     }
 }
 
