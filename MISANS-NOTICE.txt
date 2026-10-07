@@ -50,9 +50,18 @@ Bold(700)，全部落在轴的 150–700 区间内，所以一个 VF 文件即�
 ## 已知限制
 
 - `android:fontVariationSettings` 在 `res/font` 里需要较新的平台支持；在不支持的设备上
-  会退化成轴的默认值 330（表现为全站一个粗细），不会崩溃。目标验证机为 API 36。
-- 小米字体官网的「一键下载全部」指向的对象（`mi-font-homepage/MiSans_Global_ALL.zip`）
-  在本项目记录此文件的当天已 404，官方渠道暂时取不到原始包。上述 SHA-256 仅用于在不同
-  机器间核对同一份文件，**不代表它与小米官方发布包逐字节一致**。
+  会退化成轴的默认值 330（表现为全站一个粗细），不会崩溃。真机（OPPO Find X9 Ultra /
+  ColorOS 17 / API 36）已验收，字重分层正常，说明该属性在此平台生效。
+
+## 官方来源与一致性核对
+
+    官方直链  https://hyperos.mi.com/font-download/MiSans_Global_ALL.zip
+              397,995,650 字节，application/zip，2023-10-18 打包
+              注意路径是 font-download（连字符），不是页面上的 /font/download
+    包内路径  MiSans Global _ALL/MiSans.zip → MiSans/MiSans VF.ttf，20,000,736 字节
+
+本仓引用的 `misans_vf.ttf` 与该官方文件 **逐字节一致**（`cmp` 通过，sha256 同上）。
+最初这份是从 GitHub 镜像仓取的，此处记录核对结果是为了留下可复核的 provenance：
+任何人重新下载官方包、走同样的解包路径，应得到同一个 sha256。
 
 官方协议与下载页：<https://hyperos.mi.com/font/download>
