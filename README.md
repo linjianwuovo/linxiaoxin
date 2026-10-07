@@ -44,11 +44,13 @@ cd linxiaoxin
 需要 **Android Studio** 和 **JDK 17**。
 
 > **从源码编译前请先放字体文件**：`misans_vf.ttf` 依 MiSans 协议第 3 条不进本仓库
-> （公开仓放裸字体属于"单独分发字体副本"），需自己从
-> [小米字体官网](https://hyperos.mi.com/font) 取 MiSans VF 放到
-> `app/src/main/res/font/misans_vf.ttf`，否则 `res/font/misans_w*.xml` 找不到引用目标、
-> 编译会失败。协议原文、文件校验值与合规说明见 `MISANS-NOTICE.txt`。打进 APK 分发是
-> 协议明确允许的。
+> （公开仓放裸字体属于"单独分发字体副本"）。取官方包
+> <https://hyperos.mi.com/font-download/MiSans_Global_ALL.zip>（397,995,650 字节；
+> 注意路径是 `font-download` 连字符，不是页面上的 `/font/download`），解出内层
+> `MiSans.zip` 中的 `MiSans/MiSans VF.ttf`（20,000,736 字节，sha256
+> `5daf8d5447bfd423cfdec94a0e07c53b205892223ccc6ea21b7b8a37248b44d9`），重命名放到
+> `app/src/main/res/font/misans_vf.ttf`；否则 `res/font/misans_w*.xml` 找不到引用目标、
+> 编译会失败。协议原文与合规说明见 `MISANS-NOTICE.txt`。打进 APK 分发是协议明确允许的。
 
 ---
 
