@@ -16,6 +16,7 @@
 - 节假日离返校独立成页（去登记 / 历史登记双标签），不再塞在查寝列表里
 - 登录页「记住密码」：明文绝不落盘，密钥在 Android Keystore 里且不可导出
 - 底栏新增「公告」页：校方门户资讯里的通知公告，分页列表 + 富文本详情
+- 全站字体换成 [MiSans VF](https://hyperos.mi.com/font)（单个可变字体文件，`res/font/misans_w*.xml` 按字重锁 `wght` 轴），原 Newsreader 衬线大标题 / Outfit / Noto Serif SC 全部移除，详见 `MISANS-NOTICE.txt`
 - 移除"检测更新"功能（GitHub Release 轮询、APK 下载与安装权限整体删除）
 - 上游的内部设计文档目录 `codestable/` 不在本 fork 公开（其中含校方接口的鉴权细节）
 
@@ -31,8 +32,8 @@
 
 ## 安装
 
-> 本 fork 的安装包在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.3.4)：
-> `linxin-v1.3.4.apk`（debug 签名，minSdk 26 / Android 8.0+）。装过其它签名的版本需先卸载再装。
+> 本 fork 的安装包在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.3.5)：
+> `linxin-v1.3.5.apk`（debug 签名，minSdk 26 / Android 8.0+）。装过其它签名的版本需先卸载再装。
 
 ```bash
 git clone https://github.com/linjianwuovo/linxiaoxin.git
@@ -41,6 +42,13 @@ cd linxiaoxin
 ```
 
 需要 **Android Studio** 和 **JDK 17**。
+
+> **从源码编译前请先放字体文件**：`misans_vf.ttf` 依 MiSans 协议第 3 条不进本仓库
+> （公开仓放裸字体属于"单独分发字体副本"），需自己从
+> [小米字体官网](https://hyperos.mi.com/font) 取 MiSans VF 放到
+> `app/src/main/res/font/misans_vf.ttf`，否则 `res/font/misans_w*.xml` 找不到引用目标、
+> 编译会失败。协议原文、文件校验值与合规说明见 `MISANS-NOTICE.txt`。打进 APK 分发是
+> 协议明确允许的。
 
 ---
 
