@@ -65,7 +65,7 @@ fun AiClassCourseDetailScreen(
         when {
             course == null && uiState.isQuizLoading -> LxLoading(modifier = Modifier.padding(padding))
             course == null -> LxError(
-                message = uiState.quizError ?: "课程信息不存在",
+                message = uiState.quizError ?: stringResource(R.string.ai_no_course),
                 onRetry = { viewModel.openCourseDetail(classId) },
                 modifier = Modifier.padding(padding),
             )
@@ -109,7 +109,7 @@ private fun AiClassCourseDetailContent(
 
         item(key = "quiz_title") {
             Text(
-                text = "测验",
+                text = stringResource(R.string.ai_quiz),
                 style = MiuixTheme.textStyles.title3,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
@@ -148,7 +148,7 @@ private fun AiClassCourseDetailContent(
         // ── 作业 section ──
         item(key = "homework_title") {
             Text(
-                text = "作业",
+                text = stringResource(R.string.ai_homework),
                 style = MiuixTheme.textStyles.title3,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
@@ -179,7 +179,7 @@ private fun AiClassCourseDetailContent(
                 item(key = "homework_empty") {
                     LxCard {
                         Text(
-                            text = "当前课程暂无作业",
+                            text = stringResource(R.string.ai_no_homework),
                             style = MiuixTheme.textStyles.body2,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             modifier = Modifier.padding(20.dp),
@@ -208,18 +208,18 @@ private fun CourseSummaryCard(course: AiCourse) {
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "这里先展示当前版本已接通的课程基础信息与测验列表。",
+                text = stringResource(R.string.ai_detail_hint),
                 style = MiuixTheme.textStyles.footnote1,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
             Spacer(modifier = Modifier.height(12.dp))
-            LxDetailRow(label = "教师", value = course.teacherName)
-            LxDetailRow(label = "人数", value = course.studentCountText())
+            LxDetailRow(label = stringResource(R.string.ai_teacher), value = course.teacherName)
+            LxDetailRow(label = stringResource(R.string.ai_students), value = course.studentCountText())
             if (course.typeName.isNotBlank()) {
-                LxDetailRow(label = "类型", value = course.typeName)
+                LxDetailRow(label = stringResource(R.string.ai_type), value = course.typeName)
             }
-            LxDetailRow(label = "课程ID", value = course.courseId)
-            LxDetailRow(label = "教学班ID", value = course.teachClassId, showDivider = false)
+            LxDetailRow(label = stringResource(R.string.ai_course_id), value = course.courseId)
+            LxDetailRow(label = stringResource(R.string.ai_teach_class_id), value = course.teachClassId, showDivider = false)
         }
     }
 }
@@ -228,7 +228,7 @@ private fun CourseSummaryCard(course: AiCourse) {
 private fun EmptyQuizCard() {
     LxCard {
         Text(
-            text = "当前课程暂无测验",
+            text = stringResource(R.string.ai_no_quiz),
             style = MiuixTheme.textStyles.body2,
             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             modifier = Modifier.padding(20.dp),
@@ -247,7 +247,7 @@ private fun QuizCard(quiz: AiQuiz) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = quiz.title.ifBlank { "未命名测验" },
+                    text = quiz.title.ifBlank { stringResource(R.string.ai_unnamed_quiz) },
                     style = MiuixTheme.textStyles.body2,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
@@ -269,7 +269,7 @@ private fun QuizCard(quiz: AiQuiz) {
 @Composable
 private fun QuizStatusBadge(isCommitted: Boolean) {
     val color = if (isCommitted) LxSuccess else MiuixTheme.colorScheme.secondary
-    val text = if (isCommitted) "已提交" else "未提交"
+    val text = if (isCommitted) stringResource(R.string.ai_committed) else stringResource(R.string.ai_not_committed)
 
     Box(
         modifier = Modifier
@@ -286,6 +286,7 @@ private fun QuizStatusBadge(isCommitted: Boolean) {
     }
 }
 
+@Composable
 private fun buildQuizMeta(quiz: AiQuiz): String {
     val parts = buildList {
         when {
@@ -295,9 +296,9 @@ private fun buildQuizMeta(quiz: AiQuiz): String {
         if (quiz.publishWeek.isNotBlank()) {
             add(quiz.publishWeek)
         }
-        quiz.answerDurationMinutes?.takeIf { it > 0 }?.let { add("${it}分钟") }
+        quiz.answerDurationMinutes?.takeIf { it > 0 }?.let { add(stringResource(R.string.ai_minutes, it)) }
     }
-    return parts.joinToString(" · ").ifBlank { "FIF 测验" }
+    return parts.joinToString(" · ").ifBlank { stringResource(R.string.ai_fif_quiz) }
 }
 
 private fun quizItemKey(quiz: AiQuiz): String {
@@ -318,7 +319,7 @@ private fun HomeworkCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = homework.title.ifBlank { "未命名作业" },
+                    text = homework.title.ifBlank { stringResource(R.string.ai_unnamed_hw) },
                     style = MiuixTheme.textStyles.body2,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
@@ -326,7 +327,7 @@ private fun HomeworkCard(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "截止: ${homework.endTime}",
+                    text = stringResource(R.string.ai_deadline, homework.endTime),
                     style = MiuixTheme.textStyles.footnote2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
