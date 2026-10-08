@@ -2,6 +2,8 @@ package com.linxin.feature.checkin.ui
 
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +48,9 @@ import com.linxin.core.designsystem.component.LxInlineErrorCard
 import com.linxin.core.designsystem.component.LxLoading
 import com.linxin.core.designsystem.component.LxTopBar
 import com.linxin.core.designsystem.theme.LxCardBorder
+import com.linxin.core.designsystem.theme.LxCream
+import com.linxin.core.designsystem.theme.LxSandDeep
+import com.linxin.core.designsystem.theme.LxShapes
 import com.linxin.core.designsystem.theme.LxInk
 import com.linxin.core.designsystem.theme.LxInkGhost
 import com.linxin.core.designsystem.theme.LxInkMuted
@@ -55,6 +60,7 @@ import com.linxin.core.designsystem.theme.LxWarning
 import com.linxin.feature.checkin.domain.CheckinDay
 import com.linxin.feature.checkin.domain.CheckinTask
 import com.linxin.feature.checkin.domain.MonthStatics
+import com.linxin.feature.holiday.domain.HolidayHistory
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -103,6 +109,7 @@ fun CheckinListScreen(
                 onRetryTasks = viewModel::retry,
                 onRetrySubject = viewModel::retrySubject,
                 onRetrySummary = viewModel::retrySummary,
+                onSelectDate = viewModel::selectDate,
                 modifier = Modifier.padding(padding),
             )
         }
@@ -117,6 +124,7 @@ private fun TaskList(
     onRetryTasks: () -> Unit,
     onRetrySubject: () -> Unit,
     onRetrySummary: () -> Unit,
+    onSelectDate: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -133,6 +141,11 @@ private fun TaskList(
         if (shouldLoadMore) onLoadMore()
     }
 
+    val selectedDate = uiState.selectedDate
+    // 点中某天但任务还没翻到：要么正在翻页，要么已经翻过上限/翻到底了
+    val dayPending = selectedDate != null && !uiState.hasSelectedDay && uiState.isLoadingMore
+    val dayMissing = selectedDate != null && !uiState.hasSelectedDay && !uiState.isLoadingMore
+
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
@@ -142,7 +155,7 @@ private fun TaskList(
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // 本月概览：统计 + 签到日历
+        // 本月概览：统计 + 签到日历（有红点的日期可以点，点中就筛那天）
         val summaryError = uiState.summaryError
         if (summaryError != null) {
             item(key = "overview_error") {
@@ -150,12 +163,39 @@ private fun TaskList(
             }
         } else if (uiState.statics != null || uiState.days.isNotEmpty()) {
             item(key = "overview") {
-                MonthOverviewCard(statics = uiState.statics, days = uiState.days, monthLabel = uiState.monthLabel)
+                MonthOverviewCard(
+                    statics = uiState.statics,
+                    days = uiState.days,
+                    monthLabel = uiState.monthLabel,
+                    selectedDate = selectedDate,
+                    onSelectDate = onSelectDate,
+                )
+            }
+        }
+
+        if (selectedDate != null) {
+            item(key = "day_filter_bar") {
+                DayFilterBar(
+                    date = selectedDate,
+                    pending = dayPending,
+                    missing = dayMissing,
+                    onClear = { onSelectDate(null) },
+                )
+            }
+        }
+
+        // 那天的离校/返校登记：查寝列表里没有他的任务，不代表这天什么都没发生
+        if (selectedDate != null && uiState.visibleLeaves.isNotEmpty()) {
+            item(key = "section_leave") {
+                SectionHeader(stringResource(R.string.checkin_section_leave))
+            }
+            items(uiState.visibleLeaves, key = { "leave_${'$'}{it.holidayId}" }) { leaf ->
+                LeaveDayCard(leaf = leaf, modifier = Modifier.animateItem())
             }
         }
 
         // 查寝签到 section
-        if (uiState.tasks.isNotEmpty() || uiState.error != null) {
+        if (uiState.visibleTasks.isNotEmpty() || uiState.error != null) {
             item(key = "section_checkin") {
                 SectionHeader(stringResource(R.string.title_dorm_checkin))
             }
@@ -164,7 +204,7 @@ private fun TaskList(
                     LxInlineErrorCard(message = tasksError, onRetry = onRetryTasks)
                 }
             }
-            items(uiState.tasks, key = { "c_${it.taskDateId}" }) { task ->
+            items(uiState.visibleTasks, key = { "c_${it.taskDateId}" }) { task ->
                 TaskCard(
                     task = task,
                     onClick = { if (!task.isSigned) onTaskClick(task.taskDateId) },
@@ -174,7 +214,7 @@ private fun TaskList(
         }
 
         // 主题签到 section
-        if (uiState.subjectTasks.isNotEmpty() || uiState.subjectError != null) {
+        if (uiState.visibleSubjectTasks.isNotEmpty() || uiState.subjectError != null) {
             item(key = "section_subject") {
                 SectionHeader(stringResource(R.string.checkin_section_theme))
             }
@@ -183,7 +223,7 @@ private fun TaskList(
                     LxInlineErrorCard(message = subjectError, onRetry = onRetrySubject)
                 }
             }
-            items(uiState.subjectTasks, key = { "s_${it.taskDateId}" }) { task ->
+            items(uiState.visibleSubjectTasks, key = { "s_${it.taskDateId}" }) { task ->
                 TaskCard(
                     task = task,
                     onClick = { if (!task.isSigned) onTaskClick(task.taskDateId) },
@@ -300,6 +340,8 @@ private fun MonthOverviewCard(
     statics: MonthStatics?,
     days: List<CheckinDay>,
     monthLabel: String,
+    selectedDate: String?,
+    onSelectDate: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val month = remember(monthLabel) {
@@ -383,10 +425,19 @@ private fun MonthOverviewCard(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 if (dayNum in 1..daysInMonth) {
+                                    val date = month.atDay(dayNum)
+                                    val dateKey = date.toString()
                                     TaskDayCell(
                                         day = dayNum,
                                         hasTask = dayNum in markedDays,
-                                        isToday = month.atDay(dayNum) == today,
+                                        isToday = date == today,
+                                        selected = selectedDate == dateKey,
+                                        onClick = {
+                                            // 再点一次取消筛选；没任务的格子不给点，避免点了看半天空白
+                                            if (dayNum in markedDays) {
+                                                onSelectDate(if (selectedDate == dateKey) null else dateKey)
+                                            }
+                                        },
                                     )
                                 }
                             }
@@ -419,11 +470,29 @@ private fun StatCell(label: String, value: Int, color: Color, modifier: Modifier
 }
 
 @Composable
-private fun TaskDayCell(day: Int, hasTask: Boolean, isToday: Boolean) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun TaskDayCell(
+    day: Int,
+    hasTask: Boolean,
+    isToday: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .then(if (hasTask) Modifier.clickable { onClick() } else Modifier)
+            .padding(horizontal = 6.dp, vertical = 3.dp),
+    ) {
         Box(contentAlignment = Alignment.Center) {
-            if (isToday) {
-                Box(
+            when {
+                selected -> Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(LxTerra),
+                )
+                isToday -> Box(
                     modifier = Modifier
                         .size(22.dp)
                         .clip(CircleShape)
@@ -435,6 +504,7 @@ private fun TaskDayCell(day: Int, hasTask: Boolean, isToday: Boolean) {
                 style = MiuixTheme.textStyles.footnote2,
                 fontWeight = if (isToday || hasTask) FontWeight.SemiBold else FontWeight.Normal,
                 color = when {
+                    selected -> Color.White
                     hasTask -> LxInk
                     else -> LxInkMuted
                 },
@@ -442,11 +512,98 @@ private fun TaskDayCell(day: Int, hasTask: Boolean, isToday: Boolean) {
             )
         }
         Spacer(modifier = Modifier.height(2.dp))
+        // 圆点只作"这天有任务"的标记；选中时格子已经整块反色，点就省掉，但占位保留避免跳动
         Box(
             modifier = Modifier
                 .size(4.dp)
                 .clip(CircleShape)
-                .background(if (hasTask) LxTerra else Color.Transparent),
+                .background(if (hasTask && !selected) LxTerra else Color.Transparent),
         )
+    }
+}
+
+/** 点中某天后顶在列表上方的筛选条：日期 + 翻页状态 + 取消筛选 */
+@Composable
+private fun DayFilterBar(
+    date: String,
+    pending: Boolean,
+    missing: Boolean,
+    onClear: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val parsed = remember(date) { runCatching { LocalDate.parse(date) }.getOrNull() }
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(LxShapes.small)
+            .background(LxCream)
+            .border(width = 1.dp, color = LxSandDeep, shape = LxShapes.small)
+            .padding(start = 14.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = if (parsed != null) {
+                    stringResource(R.string.checkin_day_tasks, parsed.monthValue, parsed.dayOfMonth)
+                } else {
+                    date
+                },
+                style = MiuixTheme.textStyles.body2,
+                fontWeight = FontWeight.SemiBold,
+                color = LxInk,
+            )
+            when {
+                pending -> Text(
+                    text = stringResource(R.string.checkin_finding_day),
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = LxInkMuted,
+                )
+                missing -> Text(
+                    text = stringResource(R.string.checkin_day_none),
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = LxInkMuted,
+                )
+            }
+        }
+        Text(
+            text = stringResource(R.string.checkin_show_all),
+            style = MiuixTheme.textStyles.footnote2,
+            fontWeight = FontWeight.SemiBold,
+            color = LxTerra,
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { onClear() }
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+        )
+    }
+}
+
+/** 那天的离校登记卡片：只陈述区间，不提供跳转（跳转要动导航图，等需要时再加） */
+@Composable
+private fun LeaveDayCard(
+    leaf: HolidayHistory,
+    modifier: Modifier = Modifier,
+) {
+    LxCard(modifier = modifier) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.checkin_day_leave, leaf.name.ifBlank { stringResource(R.string.checkin_section_leave) }),
+                style = MiuixTheme.textStyles.body2,
+                fontWeight = FontWeight.SemiBold,
+                color = LxInk,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = stringResource(
+                    R.string.checkin_day_leave_range,
+                    leaf.startDate.trim().substringBefore(' '),
+                    leaf.returnStartDate.trim().substringBefore(' '),
+                ),
+                style = MiuixTheme.textStyles.footnote2,
+                color = LxInkMuted,
+            )
+        }
     }
 }

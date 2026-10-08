@@ -17,6 +17,8 @@ data class CheckinTask(
     val endTime: String,
     /** 服务端给的状态原文（未开始 / 未签到 / 已签到），空则按 isSigned 推断 */
     val statusText: String = "",
+    /** 任务所属日期 yyyy-MM-dd，来自 pageStudentSignIn 的 taskDate，月历点格子筛当天就靠它 */
+    val taskDate: String = "",
 ) {
     /** 当前时间是否在任务的开放时间窗口内 */
     val isInOpenWindow: Boolean
