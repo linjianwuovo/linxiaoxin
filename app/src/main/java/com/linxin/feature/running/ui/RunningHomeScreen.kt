@@ -72,12 +72,14 @@ fun RunningHomeScreen(
     var permissionError by remember { mutableStateOf<String?>(null) }
     val dashboardError = uiState.dashboardError
 
+    // 权限回调的 lambda 不是组合上下文，文案要先在外面取好
+    val permErrorText = stringResource(R.string.run_perm_error)
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
         val granted = result.values.all { it }
         if (!granted) {
-            permissionError = "需要定位权限；Android 13+ 还需要通知权限来显示前台服务状态"
+            permissionError = permErrorText
             return@rememberLauncherForActivityResult
         }
         scope.launch {
@@ -162,16 +164,16 @@ private fun RunningHomeContent(
     ) {
         item {
             Text(
-                text = if (isActive) "继续本次跑步" else "智慧运动",
+                text = if (isActive) stringResource(R.string.run_title_active) else stringResource(R.string.run_title_home),
                 style = MiuixTheme.textStyles.headline2,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = if (isActive) {
-                    "当前会话仍在保留，$trackerLabel"
+                    stringResource(R.string.run_subtitle_active, trackerLabel)
                 } else {
-                    "查看运动任务进度，开始或继续你的跑步记录"
+                    stringResource(R.string.run_subtitle_home)
                 },
                 style = MiuixTheme.textStyles.body2,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
@@ -204,9 +206,9 @@ private fun RunningHomeContent(
 
         item {
             val primaryText = when {
-                isStarting -> "正在启动..."
-                isActive -> "继续跑步"
-                else -> "开始跑步"
+                isStarting -> stringResource(R.string.run_starting)
+                isActive -> stringResource(R.string.run_resume)
+                else -> stringResource(R.string.run_start)
             }
             LxButton(
                 text = primaryText,
@@ -216,7 +218,7 @@ private fun RunningHomeContent(
             if (advancedEnabled) {
                 Spacer(modifier = Modifier.height(10.dp))
                 LxOutlinedButton(
-                    text = "模拟提交",
+                    text = stringResource(R.string.title_mock_submit),
                     onClick = onSimAction,
                     enabled = !isStarting,
                 )
@@ -239,13 +241,13 @@ private fun ClubSummaryCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = club.courseName.ifBlank { "体育课程" },
+                    text = club.courseName.ifBlank { stringResource(R.string.run_pe_course) },
                     style = MiuixTheme.textStyles.title4,
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = listOf(club.term, club.teacherName.let { if (it.isBlank()) "" else "指导老师 $it" })
+                    text = listOf(club.term, club.teacherName.let { if (it.isBlank()) "" else stringResource(R.string.run_coach, it) })
                         .filter { it.isNotBlank() }
                         .joinToString(" · "),
                     style = MiuixTheme.textStyles.footnote1,
@@ -262,7 +264,7 @@ private fun ClubSummaryCard(
             }
             Icon(
                 imageVector = Icons.Default.ChevronRight,
-                contentDescription = "俱乐部详情",
+                contentDescription = stringResource(R.string.title_club_detail),
                 tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
         }
@@ -289,7 +291,7 @@ private fun SummaryCard(
             ) {
                 Column {
                     Text(
-                        text = "今日里程",
+                        text = stringResource(R.string.run_today_km),
                         style = MiuixTheme.textStyles.footnote1,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
@@ -312,7 +314,7 @@ private fun SummaryCard(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 MetricBlock(
                     icon = Icons.Default.Flag,
-                    title = "任务进度",
+                    title = stringResource(R.string.run_task_progress),
                     value = if (targetKm > 0.0) {
                         "${formatKmValue(completedKm)} / ${formatKmValue(targetKm)} km"
                     } else {
@@ -324,7 +326,7 @@ private fun SummaryCard(
                 )
                 MetricBlock(
                     icon = Icons.Default.SsidChart,
-                    title = if (isActive) "会话状态" else "进度占比",
+                    title = if (isActive) stringResource(R.string.run_session_state) else stringResource(R.string.run_ratio),
                     value = if (isActive) trackerLabel else String.format(Locale.CHINA, "%.0f%%", progress * 100),
                     iconOnStart = true,
                     modifier = Modifier.weight(1f),
@@ -344,32 +346,32 @@ private fun InsightCard(dashboard: RunningDashboard?) {
     LxCard {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = "跑步概览",
+                text = stringResource(R.string.run_overview),
                 style = MiuixTheme.textStyles.title4,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(14.dp))
 
             LxDetailRow(
-                label = "学生类型",
-                value = dashboard?.studentTypeLabel?.ifBlank { "未知" } ?: "未知",
+                label = stringResource(R.string.run_student_type),
+                value = dashboard?.studentTypeLabel?.ifBlank { stringResource(R.string.run_unknown) } ?: stringResource(R.string.run_unknown),
                 labelWidth = 76.dp,
                 showDivider = false,
             )
             LxDetailRow(
-                label = "单次达标",
-                value = if (singleRunTargetKm > 0.0) formatKm(singleRunTargetKm, 0) else "待确认",
+                label = stringResource(R.string.run_single_target),
+                value = if (singleRunTargetKm > 0.0) formatKm(singleRunTargetKm, 0) else stringResource(R.string.run_pending),
                 labelWidth = 76.dp,
                 showDivider = false,
             )
             LxDetailRow(
-                label = "剩余里程",
+                label = stringResource(R.string.run_remaining),
                 value = formatKm(leftKm, 2),
                 labelWidth = 76.dp,
                 showDivider = false,
             )
             LxDetailRow(
-                label = "最高单次",
+                label = stringResource(R.string.run_best),
                 value = if (maxKm > 0.0) {
                     buildString {
                         append(formatKm(maxKm, 2))
@@ -379,14 +381,14 @@ private fun InsightCard(dashboard: RunningDashboard?) {
                         }
                     }
                 } else {
-                    "暂无记录"
+                    stringResource(R.string.run_no_records)
                 },
                 labelWidth = 76.dp,
                 showDivider = false,
             )
             LxDetailRow(
-                label = "任务状态",
-                value = if (dashboard?.dsFlag == true) "当前阶段需要完成" else "暂无强制任务",
+                label = stringResource(R.string.run_task_state),
+                value = if (dashboard?.dsFlag == true) stringResource(R.string.run_required_now) else stringResource(R.string.run_no_mandatory),
                 labelWidth = 76.dp,
                 showDivider = false,
             )
