@@ -61,6 +61,10 @@ fun RouteTemplateRecordScreen(
     var showSaveDialog by remember { mutableStateOf(false) }
     var nameInput by remember { mutableStateOf("") }
 
+    // 权限回调和按钮 onClick 不是组合上下文，stringResource 必须先在外层取好
+    val noPermMsg = stringResource(R.string.tpl_no_location_perm)
+    val defaultRouteName = stringResource(R.string.tpl_default_name, uiState.templates.size + 1)
+
     val locationPermLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
         onResult = { grants ->
@@ -72,10 +76,11 @@ fun RouteTemplateRecordScreen(
                     RunTrackingService.start(context)
                 }
             } else {
-                viewModel.setError("缺少定位权限，无法开始录制")
+                viewModel.setError(noPermMsg)
             }
         },
     )
+
 
     Scaffold(
         modifier = modifier,
@@ -109,7 +114,7 @@ fun RouteTemplateRecordScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
-                            text = "已录制距离",
+                            text = stringResource(R.string.tpl_recorded_distance),
                             style = MiuixTheme.textStyles.footnote1,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         )
@@ -130,17 +135,17 @@ fun RouteTemplateRecordScreen(
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     MetricCell(
-                        title = "时长",
+                        title = stringResource(R.string.tpl_duration),
                         value = durationSeconds.formatDurationTpl(),
                         modifier = Modifier.weight(1f),
                     )
                     MetricCell(
-                        title = "轨迹点",
+                        title = stringResource(R.string.tpl_points_title),
                         value = "${tracker.points.size}",
                         modifier = Modifier.weight(1f),
                     )
                     MetricCell(
-                        title = "定位",
+                        title = stringResource(R.string.tpl_location),
                         value = tracker.locationLabel,
                         modifier = Modifier.weight(1f),
                     )
@@ -151,13 +156,13 @@ fun RouteTemplateRecordScreen(
                 LxCard {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text(
-                            text = "录制须知",
+                            text = stringResource(R.string.tpl_notice),
                             style = MiuixTheme.textStyles.title4,
                             fontWeight = FontWeight.Bold,
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "保存条件：轨迹点需大于 20 个且距离需大于 1 km。",
+                            text = stringResource(R.string.tpl_save_rule),
                             style = MiuixTheme.textStyles.body2,
                         )
                         tracker.errorMessage?.takeIf { it.isNotBlank() }?.let { errorMessage ->
@@ -185,7 +190,7 @@ fun RouteTemplateRecordScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         when {
                             !isRecording -> LxButton(
-                                text = "开始录制",
+                                text = stringResource(R.string.tpl_start),
                                 onClick = {
                                     val hasLocation = ContextCompat.checkSelfPermission(
                                         context, Manifest.permission.ACCESS_FINE_LOCATION
@@ -211,16 +216,16 @@ fun RouteTemplateRecordScreen(
                             )
                             else -> {
                                 LxButton(
-                                    text = "结束并保存",
+                                    text = stringResource(R.string.tpl_finish_save),
                                     onClick = {
                                         RunTrackingService.stop(context)
                                         viewModel.stopCollecting()
-                                        nameInput = "模板 ${uiState.templates.size + 1}"
+                                        nameInput = defaultRouteName
                                         showSaveDialog = true
                                     },
                                 )
                                 LxOutlinedButton(
-                                    text = "放弃本次",
+                                    text = stringResource(R.string.tpl_discard),
                                     onClick = {
                                         RunTrackingService.cancel(context)
                                         viewModel.cancelRecording()
@@ -232,7 +237,7 @@ fun RouteTemplateRecordScreen(
                         if (uiState.isRealRunActive && !isRecording) {
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "当前有跑步会话进行中，结束后再录制模板",
+                                text = stringResource(R.string.tpl_session_busy),
                                 style = MiuixTheme.textStyles.footnote1,
                                 color = MiuixTheme.colorScheme.error,
                             )
@@ -245,9 +250,9 @@ fun RouteTemplateRecordScreen(
 
     if (showSaveDialog) {
         LxDialog(
-            title = "保存模板",
-            confirmText = "保存",
-            dismissText = "放弃",
+            title = stringResource(R.string.tpl_save_title),
+            confirmText = stringResource(R.string.action_save),
+            dismissText = stringResource(R.string.action_discard),
             onDismissRequest = { },
             dismissOnBackPress = false,
             dismissOnClickOutside = false,
@@ -267,12 +272,12 @@ fun RouteTemplateRecordScreen(
             },
             content = {
                 Column {
-                    Text("请为本次路线命名", style = MiuixTheme.textStyles.body2)
+                    Text(stringResource(R.string.tpl_need_name), style = MiuixTheme.textStyles.body2)
                     Spacer(modifier = Modifier.height(12.dp))
                     LxTextField(
                         value = nameInput,
                         onValueChange = { nameInput = it },
-                        label = "模板名称",
+                        label = stringResource(R.string.tpl_name),
                         keyboardOptions = KeyboardOptions.Default,
                     )
                 }

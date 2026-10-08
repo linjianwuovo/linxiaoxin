@@ -58,7 +58,7 @@ fun RouteTemplateListScreen(
     ) { padding ->
         if (uiState.templates.isEmpty()) {
             LxEmpty(
-                message = "还没有任何模板，去录制一条吧",
+                message = stringResource(R.string.tpl_list_empty),
                 modifier = Modifier.padding(padding).fillMaxSize(),
             )
         } else {
@@ -94,17 +94,17 @@ private fun TemplateCard(
                     modifier = Modifier.weight(1f),
                 )
                 if (template.qualityStatus == RouteQualityStatus.WARNING) {
-                    Badge(text = "警告", color = LxWarning)
+                    Badge(text = stringResource(R.string.tpl_badge_warning), color = LxWarning)
                     Spacer(modifier = Modifier.width(6.dp))
                 }
                 if (template.isDefault) {
-                    Badge(text = "默认", color = LxTerra, bg = LxTerraSoft)
+                    Badge(text = stringResource(R.string.tpl_default), color = LxTerra, bg = LxTerraSoft)
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = String.format(
-                    "%.2f km · %d 个点 · %s",
+                text = stringResource(
+                    R.string.tpl_list_meta,
                     template.totalDistanceMeters / 1000.0,
                     template.pointCount,
                     formatDate(template.createdAtMillis),
@@ -115,7 +115,7 @@ private fun TemplateCard(
             template.lastUsedAtMillis?.let { used ->
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "最近使用 ${formatDate(used)}",
+                    text = stringResource(R.string.tpl_recent_used, formatDate(used)),
                     fontSize = 12.sp,
                     color = LxSage,
                 )

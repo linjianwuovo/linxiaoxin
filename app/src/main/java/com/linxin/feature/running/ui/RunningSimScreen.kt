@@ -72,7 +72,7 @@ fun RunningSimScreen(
         ) {
             item {
                 Text(
-                    text = "生成一条合理的校园轨迹后直接上传。",
+                    text = stringResource(R.string.sim_desc),
                     style = MiuixTheme.textStyles.body2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
@@ -83,7 +83,7 @@ fun RunningSimScreen(
                 LxCard {
                     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
                         Text(
-                            text = "路线来源",
+                            text = stringResource(R.string.sim_source),
                             style = MiuixTheme.textStyles.footnote1,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         )
@@ -91,14 +91,14 @@ fun RunningSimScreen(
                         val template = uiState.defaultTemplate
                         if (template != null) {
                             Text(
-                                text = "默认模板 · ${template.name}",
+                                text = stringResource(R.string.sim_default_template, template.name),
                                 style = MiuixTheme.textStyles.body2,
                                 fontWeight = FontWeight.Medium,
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = String.format(
-                                    "%.2f km · %d 个点",
+                                text = stringResource(
+                                    R.string.sim_template_meta,
                                     template.totalDistanceMeters / 1000.0,
                                     template.pointCount,
                                 ),
@@ -107,16 +107,16 @@ fun RunningSimScreen(
                             )
                         } else {
                             Text(
-                                text = "使用内置校园路线",
+                                text = stringResource(R.string.sim_builtin_route),
                                 style = MiuixTheme.textStyles.body2,
                                 fontWeight = FontWeight.Medium,
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = if (uiState.templateCount > 0)
-                                    "未设置默认模板，前往「我的 / 路线模拟」选一条"
+                                    stringResource(R.string.sim_no_default)
                                 else
-                                    "尚无模板，前往「我的 / 路线模拟」录制一条",
+                                    stringResource(R.string.sim_no_template),
                                 style = MiuixTheme.textStyles.footnote1,
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             )
@@ -130,7 +130,7 @@ fun RunningSimScreen(
                 LxCard {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text(
-                            text = "跑步参数",
+                            text = stringResource(R.string.sim_params),
                             style = MiuixTheme.textStyles.title4,
                             fontWeight = FontWeight.Bold,
                         )
@@ -139,7 +139,7 @@ fun RunningSimScreen(
                         LxTextField(
                             value = uiState.simDistance,
                             onValueChange = viewModel::updateSimDistance,
-                            label = "距离（km）",
+                            label = stringResource(R.string.sim_distance_km),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         )
                         Spacer(modifier = Modifier.height(12.dp))
@@ -147,7 +147,7 @@ fun RunningSimScreen(
                         LxTextField(
                             value = uiState.simDurationMinutes,
                             onValueChange = viewModel::updateSimDurationMinutes,
-                            label = "时长（分钟）",
+                            label = stringResource(R.string.sim_duration_min),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         )
                         Spacer(modifier = Modifier.height(12.dp))
@@ -158,7 +158,7 @@ fun RunningSimScreen(
                         ) {
                             listOf(20, 30, 45).forEach { minutes ->
                                 LxChoiceChip(
-                                    text = "$minutes 分钟",
+                                    text = stringResource(R.string.sim_minutes, minutes),
                                     selected = uiState.selectedSimDurationPresetMinutes == minutes,
                                     onClick = { viewModel.selectSimDurationPreset(minutes) },
                                 )
@@ -173,7 +173,7 @@ fun RunningSimScreen(
                 LxCard {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text(
-                            text = "开始时间",
+                            text = stringResource(R.string.sim_start_time),
                             style = MiuixTheme.textStyles.footnote1,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         )
@@ -190,14 +190,14 @@ fun RunningSimScreen(
 
                         val speed = viewModel.simulationSpeedKmh()
                         Text(
-                            text = "校验",
+                            text = stringResource(R.string.sim_validate),
                             style = MiuixTheme.textStyles.footnote1,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = if (speed == null) {
-                                "请输入距离与时长"
+                                stringResource(R.string.sim_need_input)
                             } else {
                                 val inRange = speed in 6.0..15.0
                                 String.format(
@@ -229,7 +229,7 @@ fun RunningSimScreen(
 
             item {
                 LxButton(
-                    text = if (uiState.isSubmittingSimulation) "正在提交..." else "生成轨迹并上传",
+                    text = if (uiState.isSubmittingSimulation) stringResource(R.string.sim_submitting) else stringResource(R.string.sim_generate_upload),
                     onClick = { scope.launch { viewModel.submitSimulation() } },
                     enabled = !uiState.isSubmittingSimulation,
                 )
