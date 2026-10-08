@@ -459,4 +459,11 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="news_search_failed">公告搜索失败，请稍后重试</string>
     <string name="news_match_count">找到 %1$d 条</string>
     <string name="news_no_match">没有匹配「%1$s」的公告</string>
+    <string name="checkin_day_tasks">%1$d月%2$d日的任务</string>
+    <string name="checkin_show_all">查看全部</string>
+    <string name="checkin_finding_day">正在往后翻页找这天的任务…</string>
+    <string name="checkin_day_none">这天没有查寝任务</string>
+    <string name="checkin_section_leave">离校登记</string>
+    <string name="checkin_day_leave">离校 · %1$s</string>
+    <string name="checkin_day_leave_range">%1$s 离校，%2$s 返校</string>
 </resources>
