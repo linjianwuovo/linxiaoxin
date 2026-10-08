@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -98,6 +99,13 @@ class ThemePrefs @Inject constructor(
     suspend fun setMonet(enabled: Boolean) {
         context.themeDataStore.edit { it[KEY_MONET] = enabled }
     }
+
+    /** 冷启动时同步读一次，避免第一帧按默认值组合、读到真值后整树重刷。 */
+    suspend fun currentLanguage(): AppLanguage =
+        runCatching {
+            context.themeDataStore.data.first()[KEY_LANGUAGE]
+                ?.let { runCatching { AppLanguage.valueOf(it) }.getOrNull() }
+        }.getOrNull() ?: AppLanguage.FOLLOW_SYSTEM
 
     suspend fun setLanguage(language: AppLanguage) {
         context.themeDataStore.edit { it[KEY_LANGUAGE] = language.name }
