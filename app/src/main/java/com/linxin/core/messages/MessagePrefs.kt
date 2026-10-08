@@ -74,6 +74,20 @@ class MessagePrefs @Inject constructor(
         store.edit { it[seenKey(tag)] = merged }
     }
 
+    /**
+     * 已读只能本地记：抓包确认门户没有"标记已读"接口，`readFlag` 是服务端按推送时点给的。
+     */
+    suspend fun readIds(): Set<String> {
+        val raw = store.data.first()[KEY_READ_IDS] ?: return emptySet()
+        return raw.split(',').filter { it.isNotBlank() }.toSet()
+    }
+
+    suspend fun markRead(id: String) {
+        if (id.isBlank()) return
+        val merged = (readIds() + id).toList().takeLast(MAX_SEEN).joinToString(",")
+        store.edit { it[KEY_READ_IDS] = merged }
+    }
+
     suspend fun markRun() {
         store.edit { it[KEY_LAST_RUN] = System.currentTimeMillis() }
     }
@@ -84,6 +98,7 @@ class MessagePrefs @Inject constructor(
         val KEY_CHECKIN = booleanPreferencesKey("src_checkin")
         val KEY_RETURN = booleanPreferencesKey("src_return")
         val KEY_LAST_RUN = longPreferencesKey("last_run_at")
+        val KEY_READ_IDS = stringPreferencesKey("read_ids")
 
         val SEEN_NEWS = stringPreferencesKey("seen_news")
         val SEEN_CHECKIN = stringPreferencesKey("seen_checkin")

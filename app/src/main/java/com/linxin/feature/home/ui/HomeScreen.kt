@@ -14,6 +14,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Campaign
+import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.runtime.Composable
@@ -36,6 +37,7 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.linxin.R
 import com.linxin.core.designsystem.theme.LxTerra
+import com.linxin.feature.messages.ui.MessagesScreen
 import com.linxin.feature.news.ui.NewsScreen
 import com.linxin.feature.schedule.ui.ScheduleScreen
 import com.linxin.feature.theme.ui.ThemeViewModel
@@ -48,6 +50,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 private val tabs = listOf(
     LxTab(R.string.tab_home, Icons.Outlined.Home),
     LxTab(R.string.tab_schedule, Icons.Outlined.CalendarMonth),
+    LxTab(R.string.tab_messages, Icons.Outlined.Forum),
     LxTab(R.string.tab_news, Icons.Outlined.Campaign),
     LxTab(R.string.tab_profile, Icons.Outlined.Person),
 )
@@ -103,12 +106,13 @@ fun HomeScreen(
                         onTabSelected = { goToTab(it) },
                     )
                     1 -> ScheduleScreen()
-                    2 -> NewsScreen(
+                    2 -> MessagesScreen()
+                    3 -> NewsScreen(
                         onNewsClick = { newsId ->
                             navController.navigate(Routes.newsDetail(newsId))
                         },
                     )
-                    3 -> ProfileScreen(
+                    4 -> ProfileScreen(
                         onNavigateCheckin = {
                             navController.navigate(Routes.CHECKIN_LIST) {
                                 launchSingleTop = true
