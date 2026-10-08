@@ -25,7 +25,8 @@ data class NewsUiState(
     val error: String? = null,
     val hasMore: Boolean = false,
     val currentPage: Int = 1,
-    // 搜索：接口没有标题关键字参数（协议要照抄原 App），所以把整个栏目翻完在本地匹配。
+    // 搜索：我们抓过的公告请求里没有关键字字段，安小信有没有服务端搜索尚未取证，
+    // 所以先按"翻页扫完 + 本地匹配"实现，等拿到原 App 的搜索请求再决定要不要换成服务端。
     val query: String = "",
     val isScanning: Boolean = false,
     val scanFinished: Boolean = false,

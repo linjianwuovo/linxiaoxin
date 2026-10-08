@@ -69,9 +69,10 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 底栏「公告」页：校方门户资讯里的「通知公告」一个分类。
  * 作为首页 pager 的一页，所以自己带 Scaffold 但不带 topBar。
  *
- * 搜索：`news/getNewsList.do` 只收 type / currentPage / pageSize / isActivity，
- * 没有标题关键字字段，协议又要和安小信保持一致，所以不做服务端搜索 ——
- * 输入后在后台把整个栏目翻页扫完（上限见 NewsViewModel），扫完一次性给结果。
+ * 搜索：我们只抓过 `news/getNewsList.do`（字段 type / currentPage / pageSize / isActivity）
+ * 和详情两条请求，**没抓过安小信的公告搜索请求**，不能断定它有没有服务端关键字字段。
+ * 协议红线是不许凭空造请求，所以现在这版是"本地翻页扫描 + 本地匹配"；
+ * 一旦拿到原 App 的真实请求体，就把扫描换成分页带关键字的服务端搜索。
  */
 @Composable
 fun NewsScreen(
