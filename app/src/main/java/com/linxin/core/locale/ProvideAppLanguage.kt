@@ -25,22 +25,24 @@ import java.util.Locale
  */
 @Composable
 fun ProvideAppLanguage(language: AppLanguage, content: @Composable () -> Unit) {
-    val tag = language.tag
-    if (tag == null) {
-        content()
-        return
-    }
     val context = LocalContext.current
-    val baseConfiguration = LocalConfiguration.current
-    val override = remember(tag, context, baseConfiguration) {
-        val configuration = Configuration(baseConfiguration)
-        // Configuration 上是 setLocales/getLocales（不是 setLocaleList），单数 setLocale 只是旧写法。
-        configuration.setLocales(LocaleList.forLanguageTags(tag))
-        context.createConfigurationContext(configuration).resources
+    val resources = remember(language, context) {
+        val tag = language.tag
+        if (tag == null) {
+            context.resources
+        } else {
+            val configuration = Configuration(context.resources.configuration)
+            // Configuration 上是 setLocales/getLocales（不是 setLocaleList），单数 setLocale 只是旧写法。
+            configuration.setLocales(LocaleList.forLanguageTags(tag))
+            context.createConfigurationContext(configuration).resources
+        }
     }
+    // 两个分支必须提供同一个组合树形状。早先 FOLLOW_SYSTEM 直接 content()、其余语言才包一层
+    // CompositionLocalProvider，于是"从跟随系统切到别的"会改变组合结构，整棵 NavHost 被重建，
+    // 真机表现就是闪一下回到主页。冷启动时 DataStore 还没读到值也会踩到同一条路径。
     CompositionLocalProvider(
-        LocalResources provides override,
-        LocalConfiguration provides override.configuration,
+        LocalResources provides resources,
+        LocalConfiguration provides resources.configuration,
         content = content,
     )
 }
