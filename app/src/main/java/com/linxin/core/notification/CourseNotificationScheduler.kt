@@ -1,5 +1,6 @@
 package com.linxin.core.notification
 
+import com.linxin.core.locale.AppText
 import android.os.Bundle
 import com.linxin.R
 import com.linxin.core.domain.SectionSchedule
@@ -59,14 +60,14 @@ class CourseNotificationScheduler @Inject constructor(
         val minutesUntilStart = ChronoUnit.MINUTES.between(now, startTime)
 
         val (title, statusText) = if (minutesUntilStart > 0) {
-            target.name to "即将上课 | 还有 ${minutesUntilStart} 分钟"
+            target.name to AppText.str(R.string.notif_upcoming, minutesUntilStart.toString())
         } else {
-            target.name to "已上课"
+            target.name to AppText.str(R.string.notif_started)
         }
 
         val capsuleText = shortenRoom(target.room)
-        val content = "$statusText\n地点：${target.room}"
-        val bigText = "$statusText\n地点：${target.room}"
+        val content = AppText.str(R.string.notif_content, statusText, target.room)
+        val bigText = AppText.str(R.string.notif_content, statusText, target.room)
 
         val extras = Bundle().apply {
             putString("courseName", target.name)

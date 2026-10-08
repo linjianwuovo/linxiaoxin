@@ -1,5 +1,7 @@
 package com.linxin.feature.running.service
 
+import com.linxin.core.locale.AppText
+import com.linxin.R
 import android.location.Location
 import com.linxin.feature.running.domain.GeoDistance
 import com.linxin.feature.running.domain.RunningSnapshot
@@ -23,7 +25,7 @@ class RunningTracker @Inject constructor() {
             startTimeMillis = startTimeMillis,
             isSessionActive = true,
             isCollecting = true,
-            locationLabel = "等待定位",
+            locationLabel = AppText.str(R.string.trk_wait_location),
         )
     }
 
@@ -34,14 +36,14 @@ class RunningTracker @Inject constructor() {
             startTimeMillis = startTimeMillis,
             isSessionActive = true,
             isCollecting = true,
-            locationLabel = "等待定位",
+            locationLabel = AppText.str(R.string.trk_wait_location),
         )
     }
 
     fun onServiceStarted() {
         _state.value = _state.value.copy(
             isCollecting = true,
-            locationLabel = "正在获取 GPS",
+            locationLabel = AppText.str(R.string.trk_getting_gps),
             errorMessage = null,
         )
     }
@@ -80,7 +82,7 @@ class RunningTracker @Inject constructor() {
             totalDistanceMeters = current.totalDistanceMeters + acceptedSegment,
             points = nextPoints,
             lastPoint = point,
-            locationLabel = if (nextPoints.size >= 2) "定位正常" else "已获取定位",
+            locationLabel = if (nextPoints.size >= 2) AppText.str(R.string.trk_ok) else AppText.str(R.string.trk_fixed),
             errorMessage = null,
         )
     }
@@ -88,7 +90,7 @@ class RunningTracker @Inject constructor() {
     fun onLocationError(message: String) {
         _state.value = _state.value.copy(
             isCollecting = false,
-            locationLabel = "定位失败",
+            locationLabel = AppText.str(R.string.trk_failed),
             errorMessage = message,
         )
     }
@@ -96,7 +98,7 @@ class RunningTracker @Inject constructor() {
     fun stopCollecting() {
         _state.value = _state.value.copy(
             isCollecting = false,
-            locationLabel = if (_state.value.points.isEmpty()) "已停止" else "轨迹已锁定",
+            locationLabel = if (_state.value.points.isEmpty()) AppText.str(R.string.trk_stopped) else AppText.str(R.string.trk_locked),
         )
     }
 

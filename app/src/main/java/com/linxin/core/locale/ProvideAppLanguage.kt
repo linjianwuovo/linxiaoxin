@@ -40,6 +40,8 @@ fun ProvideAppLanguage(language: AppLanguage, content: @Composable () -> Unit) {
     // 两个分支必须提供同一个组合树形状。早先 FOLLOW_SYSTEM 直接 content()、其余语言才包一层
     // CompositionLocalProvider，于是"从跟随系统切到别的"会改变组合结构，整棵 NavHost 被重建，
     // 真机表现就是闪一下回到主页。冷启动时 DataStore 还没读到值也会踩到同一条路径。
+    AppText.update(resources)
+
     CompositionLocalProvider(
         LocalResources provides resources,
         LocalConfiguration provides resources.configuration,
