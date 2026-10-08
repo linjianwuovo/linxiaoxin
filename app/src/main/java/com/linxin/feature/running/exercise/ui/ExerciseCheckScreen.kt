@@ -47,26 +47,26 @@ fun ExerciseCheckScreen(
                         val image = remember(uiState.qrContent) { qrImageBitmap(uiState.qrContent) }
                         Image(
                             bitmap = image,
-                            contentDescription = "锻炼考勤二维码",
+                            contentDescription = stringResource(R.string.ui_044),
                             modifier = Modifier.size(240.dp),
                         )
                     }
                     Text(
-                        text = "请到固定点位打卡机扫描此二维码",
+                        text = stringResource(R.string.ui_045),
                         modifier = Modifier.padding(top = 24.dp),
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
                 }
                 CheckPhase.SUCCESS -> Text(
-                    text = "打卡成功",
+                    text = stringResource(R.string.ui_046),
                     style = MiuixTheme.textStyles.title1,
                     fontWeight = FontWeight.Bold,
                     color = MiuixTheme.colorScheme.primary,
                 )
                 CheckPhase.TIMEOUT -> {
                     Text(
-                        text = "等待超时，未检测到打卡结果",
+                        text = stringResource(R.string.ui_047),
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )

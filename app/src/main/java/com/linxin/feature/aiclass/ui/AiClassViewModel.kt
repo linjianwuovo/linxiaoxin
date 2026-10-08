@@ -1,5 +1,7 @@
 package com.linxin.feature.aiclass.ui
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

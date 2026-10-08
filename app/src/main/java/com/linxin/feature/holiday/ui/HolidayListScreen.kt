@@ -115,7 +115,7 @@ private fun RegisterTab(
             modifier = Modifier.fillMaxSize(),
         )
         tasks.isEmpty() -> LxEmpty(
-            message = "当前没有需要登记的节假日",
+            message = stringResource(R.string.ui_028),
             modifier = Modifier.fillMaxSize(),
         )
         else -> LazyColumn(
@@ -147,7 +147,7 @@ private fun HistoryTab(
             modifier = Modifier.fillMaxSize(),
         )
         history.isEmpty() -> LxEmpty(
-            message = "还没有历史登记记录",
+            message = stringResource(R.string.ui_029),
             modifier = Modifier.fillMaxSize(),
         )
         else -> LazyColumn(

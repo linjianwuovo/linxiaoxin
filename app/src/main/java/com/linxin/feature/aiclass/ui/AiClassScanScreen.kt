@@ -101,7 +101,7 @@ fun AiClassScanScreen(
             if (signSucceeded) onBack() else scanState = ScanState.Scanning
         }
         LxDialog(
-            title = "签到结果",
+            title = stringResource(R.string.ui_008),
             message = signResult,
             confirmText = "确定",
             onConfirm = finish,
@@ -113,7 +113,7 @@ fun AiClassScanScreen(
         modifier = modifier,
         topBar = {
             LxTopBar(
-                title = "扫码签到",
+                title = stringResource(R.string.ui_006),
                 onBack = onBack,
             )
         },
@@ -168,7 +168,7 @@ fun AiClassScanScreen(
                 modifier = Modifier.align(Alignment.BottomCenter),
             ) {
                 Text(
-                    text = "将二维码对准框内",
+                    text = stringResource(R.string.ui_016),
                     style = MiuixTheme.textStyles.body2,
                     color = Color.White,
                     modifier = Modifier
@@ -344,7 +344,7 @@ private fun ScanOverlay(
         )
 
         Text(
-            text = "二维码放入框内自动识别",
+            text = stringResource(R.string.ui_017),
             style = MiuixTheme.textStyles.button,
             fontWeight = FontWeight.Medium,
             color = Color.White,
@@ -462,7 +462,7 @@ private fun CameraPermissionRequest(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = "需要相机权限才能扫码签到",
+                text = stringResource(R.string.ui_018),
                 style = MiuixTheme.textStyles.body2,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )

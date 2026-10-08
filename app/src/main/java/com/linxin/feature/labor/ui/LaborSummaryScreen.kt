@@ -324,7 +324,7 @@ private fun ActivityCard(
                     color = MiuixTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "志愿时长",
+                    text = stringResource(R.string.ui_030),
                     style = MiuixTheme.textStyles.footnote2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )

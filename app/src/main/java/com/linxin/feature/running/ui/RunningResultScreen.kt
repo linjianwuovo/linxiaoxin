@@ -48,7 +48,7 @@ fun RunningResultScreen(
     ) { padding ->
         if (result == null) {
             LxEmpty(
-                message = "当前没有可展示的结果",
+                message = stringResource(R.string.ui_064),
                 modifier = Modifier.padding(padding),
             )
             return@Scaffold
@@ -65,7 +65,7 @@ fun RunningResultScreen(
             item { ResultMetricsCard(result) }
             item {
                 LxButton(
-                    text = "返回跑步首页",
+                    text = stringResource(R.string.ui_065),
                     onClick = {
                         viewModel.clearResult()
                         onBackToRunning()
@@ -73,7 +73,7 @@ fun RunningResultScreen(
                 )
                 Spacer(modifier = Modifier.height(10.dp))
                 LxOutlinedButton(
-                    text = "返回首页",
+                    text = stringResource(R.string.ui_066),
                     onClick = {
                         viewModel.clearResult()
                         onBackToHome()
@@ -106,7 +106,7 @@ private fun ResultStatusCard(result: RunningResult) {
             if (result.uploadId.isNotBlank()) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = "记录 ID: ${result.uploadId}",
+                    text = stringResource(R.string.ui_067, result.uploadId.toString()),
                     style = MiuixTheme.textStyles.footnote1,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
@@ -120,17 +120,17 @@ private fun ResultMetricsCard(result: RunningResult) {
     LxCard {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = "本次摘要",
+                text = stringResource(R.string.ui_068),
                 style = MiuixTheme.textStyles.title4,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(14.dp))
-            LxDetailRow(label = "开始时间", value = result.startDate, showDivider = false)
-            LxDetailRow(label = "结束时间", value = result.endDate, showDivider = false)
+            LxDetailRow(label = stringResource(R.string.ui_069), value = result.startDate, showDivider = false)
+            LxDetailRow(label = stringResource(R.string.ui_070), value = result.endDate, showDivider = false)
             LxDetailRow(label = "距离", value = String.format("%.2f km", result.distanceKm), showDivider = false)
-            LxDetailRow(label = "时长", value = "${result.durationSeconds} 秒", showDivider = false)
+            LxDetailRow(label = stringResource(R.string.ui_057), value = stringResource(R.string.ui_071, result.durationSeconds.toString()), showDivider = false)
             LxDetailRow(label = "速度", value = String.format("%.2f km/h", result.speedKmh), showDivider = false)
-            LxDetailRow(label = "轨迹点", value = "${result.pointCount} 个", showDivider = false)
+            LxDetailRow(label = stringResource(R.string.ui_072), value = stringResource(R.string.ui_073, result.pointCount.toString()), showDivider = false)
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.linxin.feature.running.ui
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.linxin.core.settings.DeveloperPrefs

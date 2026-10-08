@@ -145,7 +145,7 @@ private fun TaskCard(
                     if (task.canCheck) {
                         Spacer(modifier = Modifier.height(20.dp))
                         LxButton(
-                            text = "开始锻炼",
+                            text = stringResource(R.string.ui_041),
                             onClick = { onStartCheck(task.autoId, task.memberId) },
                         )
                     }
@@ -182,9 +182,9 @@ private fun DurationBar(completed: Int, required: Int) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text("记录时长", style = MiuixTheme.textStyles.footnote1, color = LxInkMuted)
+            Text(stringResource(R.string.ui_042), style = MiuixTheme.textStyles.footnote1, color = LxInkMuted)
             Text(
-                text = "$completed / $required 分钟",
+                text = stringResource(R.string.ui_043, completed.toString(), required.toString()),
                 style = MiuixTheme.textStyles.footnote1,
                 color = LxInkSoft,
             )

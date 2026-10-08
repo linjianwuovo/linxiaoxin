@@ -1,4 +1,6 @@
 package com.linxin.core.designsystem.component
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import com.linxin.core.designsystem.theme.LxShapes
 
 import androidx.compose.foundation.background
