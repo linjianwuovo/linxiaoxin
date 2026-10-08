@@ -75,6 +75,8 @@ class MainActivity : ComponentActivity() {
             null
         }
         // 独立协程：等待 ready 或超时，并保证开屏最短展示时长，避免一闪而过
+        // 例外：语言切换引起的进程重启不再放开屏，否则会看到"闪一下开屏"。
+        if (com.linxin.core.locale.LocaleSwitchFlag.consume(this)) splashReleased = true
         val splashStart = SystemClock.elapsedRealtime()
         lifecycleScope.launch {
             withTimeoutOrNull(SPLASH_MAX_WAIT_MS) {
