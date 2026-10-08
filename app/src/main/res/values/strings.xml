@@ -455,9 +455,8 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
 
     <string name="news_search_hint">搜索公告标题或发布人</string>
     <string name="news_search_clear">清空搜索</string>
-    <string name="news_scanning">正在把整个栏目翻完…</string>
-    <string name="news_loaded_count">已翻到 %1$d 条</string>
+    <string name="news_searching">正在搜索公告…</string>
+    <string name="news_search_failed">公告搜索失败，请稍后重试</string>
     <string name="news_match_count">找到 %1$d 条</string>
-    <string name="news_scan_capped">公告超过 %1$d 条，只翻了前面这些</string>
     <string name="news_no_match">没有匹配「%1$s」的公告</string>
 </resources>

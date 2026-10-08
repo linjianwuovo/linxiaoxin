@@ -39,19 +39,28 @@ class NewsRepository @Inject constructor(
             val rows = response.data?.data.orEmpty()
             Result.success(
                 NewsPageResult(
-                    items = rows.mapNotNull { row ->
-                        val id = row.id ?: return@mapNotNull null
-                        NewsItem(
-                            id = id,
-                            title = row.bt.orEmpty().trim(),
-                            publisher = row.publishPerson.orEmpty().trim(),
-                            publishTime = row.publishTime.orEmpty().trim(),
-                            coverUrl = row.image1?.takeIf { it.isNotBlank() },
-                        )
-                    },
+                    items = newsItemsFromRows(rows),
                     hasNext = response.data?.hasNextPage ?: (rows.size >= pageSize),
                 ),
             )
+        } catch (e: Exception) {
+            Result.failure(Exception(mapError(e), e))
+        }
+    }
+
+    /**
+     * 公告搜索：走门户全局搜索 `appService/homeQuery.do`，只取 `newsVo` 那段。
+     * 这条接口没有分页概念，服务端一次把匹配到的公告给回。
+     */
+    suspend fun search(query: String): Result<List<NewsItem>> {
+        val q = query.trim()
+        if (q.isEmpty()) return Result.success(emptyList())
+        return try {
+            val response = api.searchHome(q)
+            if (response.flag != true) {
+                return Result.failure(Exception(response.msg ?: "搜索公告失败"))
+            }
+            Result.success(newsItemsFromRows(response.data?.newsVo.orEmpty()))
         } catch (e: Exception) {
             Result.failure(Exception(mapError(e), e))
         }
@@ -117,6 +126,23 @@ class NewsRepository @Inject constructor(
         const val NOTICE_TYPE_NAME = "通知公告"
     }
 }
+
+/**
+ * 列表与搜索共用的行 → 领域对象映射。
+ * 搜索接口（homeQuery 的 newsVo）比列表多给 `content` / `contentExceptPic` / `urlList`，
+ * 这里先不收 —— 点进去还是走 `news/getNewsDetail.do` 拿正文，与安小信一致。
+ */
+internal fun newsItemsFromRows(rows: List<NewsRow?>): List<NewsItem> =
+    rows.mapNotNull { row ->
+        val id = row?.id ?: return@mapNotNull null
+        NewsItem(
+            id = id,
+            title = row.bt.orEmpty().trim(),
+            publisher = row.publishPerson.orEmpty().trim(),
+            publishTime = row.publishTime.orEmpty().trim(),
+            coverUrl = row.image1?.takeIf { it.isNotBlank() },
+        )
+    }
 
 @Module
 @InstallIn(SingletonComponent::class)
