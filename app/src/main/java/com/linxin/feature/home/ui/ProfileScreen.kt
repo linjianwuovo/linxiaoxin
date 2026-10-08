@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.linxin.core.designsystem.component.LxCard
+import com.linxin.feature.messages.ui.MessagesCard
 import com.linxin.core.designsystem.component.LxDialog
 import com.linxin.core.designsystem.component.LxDialogConfirmTone
 import com.linxin.core.designsystem.theme.LxCream
@@ -165,6 +166,11 @@ fun ProfileScreen(
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(22.dp))
+
+        // ── 消息提醒（本地轮询，开关与来源在卡片里）──
+        MessagesCard()
 
         Spacer(modifier = Modifier.height(22.dp))
 

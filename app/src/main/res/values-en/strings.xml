@@ -466,4 +466,18 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="checkin_section_leave">Off-campus registration</string>
     <string name="checkin_day_leave">Off campus · %1$s</string>
     <string name="checkin_day_leave_range">Left %1$s, returns %2$s</string>
+    <string name="msg_channel_name">Message alerts</string>
+    <string name="msg_channel_desc">New announcements, pending check-ins, return reminders</string>
+    <string name="msg_news_title">New announcement</string>
+    <string name="msg_checkin_title">Dorm check-in pending</string>
+    <string name="msg_checkin_body">"%1$s" (%2$s–%3$s) is still unsigned</string>
+    <string name="msg_return_title">Return to campus</string>
+    <string name="msg_return_body">%1$s ends %2$s — remember to register your return</string>
+    <string name="msg_settings_title">Message alerts</string>
+    <string name="msg_settings_desc">Checked every 15 minutes, only when online</string>
+    <string name="msg_src_news">New announcements</string>
+    <string name="msg_src_checkin">Pending check-ins</string>
+    <string name="msg_src_return">Return reminders</string>
+    <string name="msg_check_now">Check now</string>
+    <string name="msg_perm_off">System notifications are off, so nothing can be delivered</string>
 </resources>
