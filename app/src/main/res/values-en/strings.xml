@@ -452,4 +452,12 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="hol_done">Completed</string>
     <string name="hol_registered">Registered</string>
     <string name="hol_not_registered">Not registered</string>
+
+    <string name="news_search_hint">Search by title or publisher</string>
+    <string name="news_search_clear">Clear search</string>
+    <string name="news_scanning">Looking through every announcement…</string>
+    <string name="news_loaded_count">%1$d loaded</string>
+    <string name="news_match_count">%1$d found</string>
+    <string name="news_scan_capped">More than %1$d announcements exist — only the first ones were scanned</string>
+    <string name="news_no_match">Nothing matches “%1$s”</string>
 </resources>
