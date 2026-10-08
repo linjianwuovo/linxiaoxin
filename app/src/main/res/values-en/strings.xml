@@ -480,4 +480,10 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="msg_src_return">Return reminders</string>
     <string name="msg_check_now">Check now</string>
     <string name="msg_perm_off">System notifications are off, so nothing can be delivered</string>
+    <string name="tab_messages">Messages</string>
+    <string name="msg_empty">No messages</string>
+    <string name="msg_filter_all">All</string>
+    <string name="msg_filter_unread">Unread</string>
+    <string name="msg_unread_count">%1$d unread</string>
+    <string name="msg_all_read">Nothing unread</string>
 </resources>

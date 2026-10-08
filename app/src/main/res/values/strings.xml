@@ -480,4 +480,10 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="msg_src_return">返校提醒</string>
     <string name="msg_check_now">立即检查一次</string>
     <string name="msg_perm_off">系统通知权限未开启，通知发不出去</string>
+    <string name="tab_messages">消息</string>
+    <string name="msg_empty">暂无消息</string>
+    <string name="msg_filter_all">全部</string>
+    <string name="msg_filter_unread">未读</string>
+    <string name="msg_unread_count">未读 %1$d</string>
+    <string name="msg_all_read">没有未读消息</string>
 </resources>
