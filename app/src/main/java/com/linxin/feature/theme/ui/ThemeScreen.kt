@@ -1,7 +1,7 @@
 package com.linxin.feature.theme.ui
 
 import androidx.compose.ui.text.style.TextOverflow
-import com.linxin.core.locale.AppLocale
+import com.linxin.core.settings.AppLanguage
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import android.os.Build
@@ -103,24 +103,21 @@ fun ThemeScreen(
 
             Spacer(Modifier.height(22.dp))
 
-            // 系统 per-app 语言：切换与持久化由系统负责，进程会被重启，所以这里不缓存选择。
-            if (AppLocale.supported) {
-                val ctx = LocalContext.current
-                SectionLabel(stringResource(R.string.section_language))
-                LxCard {
-                    SegmentedChoice(
-                        options = listOf(
-                            stringResource(R.string.lang_follow_system),
-                            stringResource(R.string.lang_zh),
-                            stringResource(R.string.lang_en),
-                        ),
-                        selectedIndex = AppLocale.current(ctx),
-                        modifier = Modifier.padding(14.dp),
-                        onSelect = { AppLocale.set(ctx, it) },
-                    )
-                }
-                Spacer(Modifier.height(22.dp))
+            SectionLabel(stringResource(R.string.section_language))
+            LxCard {
+                SegmentedChoice(
+                    options = listOf(
+                        stringResource(R.string.lang_follow_system),
+                        stringResource(R.string.lang_zh),
+                        stringResource(R.string.lang_en),
+                    ),
+                    selectedIndex = settings.language.ordinal,
+                    modifier = Modifier.padding(14.dp),
+                    onSelect = { viewModel.setLanguage(AppLanguage.values()[it]) },
+                )
             }
+
+            Spacer(Modifier.height(22.dp))
 
             SectionLabel(stringResource(R.string.section_color))
             LxCard {
