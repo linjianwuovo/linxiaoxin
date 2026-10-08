@@ -1,5 +1,6 @@
 package com.linxin.feature.running.ui
 
+import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -39,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.linxin.R
 import com.linxin.core.designsystem.theme.LxTabularNums
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.platform.LocalContext
@@ -107,7 +109,7 @@ fun RunningHomeScreen(
         containerColor = MiuixTheme.colorScheme.background,
         topBar = {
             if (onBack != null) {
-                LxTopBar(title = "运动跑步", onBack = onBack)
+                LxTopBar(title = stringResource(R.string.title_running_home), onBack = onBack)
             }
         },
     ) { padding ->

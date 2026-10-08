@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LinXin</string>
+    <string name="shortcut_scan_checkin">Scan in</string>
+    <string name="shortcut_scan_checkin_long">Scan to check in</string>
+    <string name="shortcut_dorm_checkin">Dorm check-in</string>
+    <string name="shortcut_dorm_checkin_long">Check in at dorm</string>
+
+    <!-- Bottom bar -->
+    <string name="tab_home">Home</string>
+    <string name="tab_schedule">Schedule</string>
+    <string name="tab_news">News</string>
+    <string name="tab_profile">Me</string>
+
+    <!-- Screen titles -->
+    <string name="title_ai_class">AI Class</string>
+    <string name="title_theme_settings">Appearance</string>
+    <string name="title_homework_detail">Assignment</string>
+    <string name="title_club_detail">Club</string>
+    <string name="title_news_detail">Announcement</string>
+    <string name="title_about">About LinXin</string>
+    <string name="title_labor">Labour Education</string>
+    <string name="title_route_template">Record Route</string>
+    <string name="title_scan_checkin">Scan Check-in</string>
+    <string name="title_more_functions">More</string>
+    <string name="title_dorm_checkin">Dorm Check-in</string>
+    <string name="title_mock_submit">Mock Submit</string>
+    <string name="title_template_manage">Templates</string>
+    <string name="title_template_detail">Template</string>
+    <string name="title_checkin">Check-in</string>
+    <string name="title_credit">Quality Credits</string>
+    <string name="title_exam">Exam Scores</string>
+    <string name="title_holiday">Holiday Absence/Return</string>
+    <string name="title_course_detail">Course</string>
+    <string name="title_running">Running</string>
+    <string name="title_running_result">Run Result</string>
+    <string name="title_route_mock">Route Simulation</string>
+    <string name="title_sport_checkin">Exercise Attendance</string>
+    <string name="title_running_home">Running</string>
+
+    <!-- Common -->
+    <string name="action_retry">Retry</string>
+
+    <!-- Settings -->
+    <string name="section_theme_mode">Theme mode</string>
+    <string name="section_color">Colour</string>
+    <string name="section_language">Language</string>
+    <string name="mode_follow_system">System</string>
+    <string name="mode_light">Light</string>
+    <string name="mode_dark">Dark</string>
+    <string name="lang_follow_system">System</string>
+    <string name="lang_zh">简体中文</string>
+    <string name="lang_en">English</string>
+    <string name="setting_monet">Monet colours</string>
+    <string name="setting_monet_summary">Pick the accent colour from your wallpaper</string>
+    <string name="setting_custom_accent">Custom accent colour</string>
+    <string name="setting_language_unavailable">Requires Android 13 or later</string>
+
+    <string name="section_bar_material">Bottom bar material</string>
+    <string name="bar_liquid">Liquid</string>
+    <string name="bar_frosted">Frosted</string>
+    <string name="bar_solid">Solid</string>
+    <string name="bar_liquid_desc">Live blur that flows with the background</string>
+    <string name="bar_frosted_desc">Heavier frost, soft and hazy</string>
+    <string name="bar_solid_desc">Opaque bar, the most power efficient</string>
+    <string name="slider_blur">Blur</string>
+    <string name="slider_refraction">Refraction</string>
+    <string name="slider_distortion">Distortion</string>
+    <string name="slider_dispersion">Dispersion</string>
+    <string name="accent_summary_monet">Monet is on — manual colour is inactive</string>
+    <string name="accent_summary_custom">Pick any accent; it drives the palette and ambient glow</string>
+    <string name="theme_footer">Applies instantly and is remembered.</string>
+</resources>

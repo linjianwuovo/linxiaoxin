@@ -1,4 +1,6 @@
 package com.linxin.feature.labor.ui
+import androidx.compose.ui.res.stringResource
+import com.linxin.R
 import com.linxin.core.designsystem.theme.LxShapes
 import com.linxin.core.designsystem.theme.RLg
 
@@ -60,7 +62,7 @@ fun LaborSummaryScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "劳动教育", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_labor), onBack = onBack) },
     ) { padding ->
         when {
             uiState.isLoading -> LxLoading(modifier = Modifier.padding(padding))

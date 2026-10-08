@@ -1,5 +1,6 @@
 package com.linxin.feature.running.exercise.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.linxin.R
 import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxTopBar
 
@@ -32,7 +34,7 @@ fun ExerciseCheckScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "锻炼考勤", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_sport_checkin), onBack = onBack) },
     ) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
@@ -69,7 +71,7 @@ fun ExerciseCheckScreen(
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
                     LxButton(
-                        text = "重试",
+                        text = stringResource(R.string.action_retry),
                         onClick = viewModel::retry,
                         modifier = Modifier.padding(top = 16.dp),
                     )

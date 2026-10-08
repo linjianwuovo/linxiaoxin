@@ -1,5 +1,7 @@
 package com.linxin.feature.home.ui
 
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -41,6 +43,7 @@ import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.highlight.HighlightStyle
 import com.kyant.shapes.Capsule
+import com.linxin.R
 import com.linxin.core.designsystem.liquid.lensWithDispersion
 import com.linxin.core.designsystem.theme.LxInkFaint
 import com.linxin.core.designsystem.theme.LxParchment
@@ -50,13 +53,13 @@ import dev.chrisbanes.haze.hazeEffect
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-data class LxTab(val label: String, val icon: ImageVector)
+data class LxTab(@StringRes val labelRes: Int, val icon: ImageVector)
 
 val LxHomeTabs = listOf(
-    LxTab("首页", Icons.Outlined.Home),
-    LxTab("课程表", Icons.Outlined.CalendarMonth),
-    LxTab("公告", Icons.Outlined.Campaign),
-    LxTab("我的", Icons.Outlined.Person),
+    LxTab(R.string.tab_home, Icons.Outlined.Home),
+    LxTab(R.string.tab_schedule, Icons.Outlined.CalendarMonth),
+    LxTab(R.string.tab_news, Icons.Outlined.Campaign),
+    LxTab(R.string.tab_profile, Icons.Outlined.Person),
 )
 
 /**
@@ -193,6 +196,7 @@ fun LxBottomBar(
     ) {
         tabs.forEachIndexed { index, tab ->
             val active = index == selectedIndex
+            val label = stringResource(tab.labelRes)
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -200,7 +204,7 @@ fun LxBottomBar(
                     .clickable(
                     // 玻璃栏里绝不能有触摸水波纹：indication 是一层约 10% 黑的灰色圆角矩形，
                     // 叠在折射上就变成"点哪一格哪一格发灰"，且部分机型按下后不会自动清掉。
-                    interactionSource = remember(tab.label) { MutableInteractionSource() },
+                    interactionSource = remember(label) { MutableInteractionSource() },
                     indication = null,
                 ) { onSelected(index) }
                     .alpha(if (active) 1f else 0.70f),
@@ -209,13 +213,13 @@ fun LxBottomBar(
             ) {
                 Icon(
                     imageVector = tab.icon,
-                    contentDescription = tab.label,
+                    contentDescription = label,
                     tint = if (active) selectedColor else LxInkFaint,
                     modifier = Modifier.size(22.dp),
                 )
                 Spacer(modifier = Modifier.height(3.dp))
                 Text(
-                    text = tab.label,
+                    text = label,
                     fontSize = 11.sp,
                     fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
                     color = if (active) selectedColor else LxInkFaint,

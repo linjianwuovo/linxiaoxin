@@ -1,4 +1,6 @@
 package com.linxin.feature.credit.ui
+import androidx.compose.ui.res.stringResource
+import com.linxin.R
 import com.linxin.core.designsystem.theme.LxShapes
 import com.linxin.core.designsystem.theme.RLg
 
@@ -56,7 +58,7 @@ fun CreditScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "素质学分", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_credit), onBack = onBack) },
     ) { padding ->
         when {
             uiState.isLoading -> LxLoading(modifier = Modifier.padding(padding))

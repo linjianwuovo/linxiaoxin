@@ -1,4 +1,6 @@
 package com.linxin.feature.aiclass.ui
+import androidx.compose.ui.res.stringResource
+import com.linxin.R
 import com.linxin.core.designsystem.theme.LxShapes
 
 import android.Manifest
@@ -451,7 +453,7 @@ private fun CameraPermissionRequest(
     }
 
     Scaffold(
-        topBar = { LxTopBar(title = "扫码签到", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_scan_checkin), onBack = onBack) },
     ) { padding ->
         Box(
             modifier = Modifier

@@ -1,4 +1,6 @@
 package com.linxin.feature.aiclass.ui
+import androidx.compose.ui.res.stringResource
+import com.linxin.R
 import com.linxin.core.designsystem.theme.LxShapes
 import com.linxin.core.designsystem.theme.RLg
 
@@ -73,7 +75,7 @@ fun AiHomeworkDetailScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "作业详情", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_homework_detail), onBack = onBack) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         when {
