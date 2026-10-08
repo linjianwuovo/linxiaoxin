@@ -1,7 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">林小信</string>
     <string name="shortcut_scan_checkin">扫码签到</string>
     <string name="shortcut_scan_checkin_long">扫码签到</string>
     <string name="shortcut_dorm_checkin">查寝签到</string>
     <string name="shortcut_dorm_checkin_long">查寝签到</string>
+
+    <!-- 底栏 -->
+    <string name="tab_home">首页</string>
+    <string name="tab_schedule">课程表</string>
+    <string name="tab_news">公告</string>
+    <string name="tab_profile">我的</string>
+
+    <!-- 页面标题 -->
+    <string name="title_ai_class">AI课堂</string>
+    <string name="title_theme_settings">主题设置</string>
+    <string name="title_homework_detail">作业详情</string>
+    <string name="title_club_detail">俱乐部详情</string>
+    <string name="title_news_detail">公告详情</string>
+    <string name="title_about">关于林小信</string>
+    <string name="title_labor">劳动教育</string>
+    <string name="title_route_template">录制模板</string>
+    <string name="title_scan_checkin">扫码签到</string>
+    <string name="title_more_functions">更多功能</string>
+    <string name="title_dorm_checkin">查寝签到</string>
+    <string name="title_mock_submit">模拟提交</string>
+    <string name="title_template_manage">模板管理</string>
+    <string name="title_template_detail">模板详情</string>
+    <string name="title_checkin">签到</string>
+    <string name="title_credit">素质学分</string>
+    <string name="title_exam">考试成绩</string>
+    <string name="title_holiday">节假日离返校</string>
+    <string name="title_course_detail">课程详情</string>
+    <string name="title_running">跑步中</string>
+    <string name="title_running_result">跑步结果</string>
+    <string name="title_route_mock">路线模拟</string>
+    <string name="title_sport_checkin">锻炼考勤</string>
+    <string name="title_running_home">运动跑步</string>
+
+    <!-- 通用 -->
+    <string name="action_retry">重试</string>
+
+    <!-- 设置页 -->
+    <string name="section_theme_mode">主题模式</string>
+    <string name="section_color">颜色</string>
+    <string name="section_language">语言</string>
+    <string name="mode_follow_system">跟随系统</string>
+    <string name="mode_light">浅色</string>
+    <string name="mode_dark">深色</string>
+    <string name="lang_follow_system">跟随系统</string>
+    <string name="lang_zh">简体中文</string>
+    <string name="lang_en">English</string>
+    <string name="setting_monet">启用 Monet 颜色</string>
+    <string name="setting_monet_summary">从壁纸自动取色作为主题色</string>
+    <string name="setting_custom_accent">自定义主题色</string>
+    <string name="setting_language_unavailable">需要 Android 13 及以上</string>
+
+    <string name="section_bar_material">底栏材质</string>
+    <string name="bar_liquid">液态玻璃</string>
+    <string name="bar_frosted">毛玻璃</string>
+    <string name="bar_solid">纯色</string>
+    <string name="bar_liquid_desc">背景实时模糊流动，通透感强</string>
+    <string name="bar_frosted_desc">更重的磨砂质感，朦胧柔和</string>
+    <string name="bar_solid_desc">不透明实心底栏，最省电</string>
+    <string name="slider_blur">模糊度</string>
+    <string name="slider_refraction">折射度</string>
+    <string name="slider_distortion">扭曲度</string>
+    <string name="slider_dispersion">色散</string>
+    <string name="accent_summary_monet">已启用 Monet，手动配色暂不生效</string>
+    <string name="accent_summary_custom">取色器任选，影响主色调与氛围光</string>
+    <string name="theme_footer">切换后立即生效，并会记住你的选择。</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.linxin.feature.about.ui
 
+import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
@@ -65,7 +66,7 @@ fun AboutScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "关于林小信", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_about), onBack = onBack) },
     ) { padding ->
         Column(
             modifier = Modifier

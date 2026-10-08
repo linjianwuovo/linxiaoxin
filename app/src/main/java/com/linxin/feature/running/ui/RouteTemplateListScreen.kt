@@ -1,5 +1,6 @@
 package com.linxin.feature.running.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxEmpty
 import com.linxin.core.designsystem.component.LxTopBar
@@ -52,7 +54,7 @@ fun RouteTemplateListScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "模板管理", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_template_manage), onBack = onBack) },
     ) { padding ->
         if (uiState.templates.isEmpty()) {
             LxEmpty(

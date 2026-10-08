@@ -1,5 +1,6 @@
 package com.linxin.feature.running.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.linxin.R
 import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxDetailRow
@@ -42,7 +44,7 @@ fun RunningResultScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "跑步结果", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_running_result), onBack = onBack) },
     ) { padding ->
         if (result == null) {
             LxEmpty(

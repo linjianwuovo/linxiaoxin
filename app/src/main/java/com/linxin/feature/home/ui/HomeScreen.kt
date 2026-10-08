@@ -1,5 +1,6 @@
 package com.linxin.feature.home.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -33,6 +34,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.linxin.R
 import com.linxin.core.designsystem.theme.LxTerra
 import com.linxin.feature.news.ui.NewsScreen
 import com.linxin.feature.schedule.ui.ScheduleScreen
@@ -44,10 +46,10 @@ import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private val tabs = listOf(
-    LxTab("首页", Icons.Outlined.Home),
-    LxTab("课程表", Icons.Outlined.CalendarMonth),
-    LxTab("公告", Icons.Outlined.Campaign),
-    LxTab("我的", Icons.Outlined.Person),
+    LxTab(R.string.tab_home, Icons.Outlined.Home),
+    LxTab(R.string.tab_schedule, Icons.Outlined.CalendarMonth),
+    LxTab(R.string.tab_news, Icons.Outlined.Campaign),
+    LxTab(R.string.tab_profile, Icons.Outlined.Person),
 )
 
 @Composable
