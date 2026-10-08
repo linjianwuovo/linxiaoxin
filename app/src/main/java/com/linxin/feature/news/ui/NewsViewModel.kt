@@ -5,6 +5,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.linxin.core.locale.AppText
 import com.linxin.feature.news.data.NewsRepository
 import com.linxin.feature.news.domain.NewsArticle
 import com.linxin.feature.news.domain.NewsItem
@@ -25,13 +26,13 @@ data class NewsUiState(
     val error: String? = null,
     val hasMore: Boolean = false,
     val currentPage: Int = 1,
-    // 搜索：我们抓过的公告请求里没有关键字字段，安小信有没有服务端搜索尚未取证，
-    // 所以先按"翻页扫完 + 本地匹配"实现，等拿到原 App 的搜索请求再决定要不要换成服务端。
+    // 搜索：照抄安小信的实现 —— 公告搜索走的不是 news/getNewsList.do，
+    // 而是门户全局搜索 appService/homeQuery.do（body: name=关键词, type=3），
+    // 服务端返回 contactsVo / newsVo / serviceVo 三段，我们只取 newsVo。结果整段来自服务端。
     val query: String = "",
-    val isScanning: Boolean = false,
-    val scanFinished: Boolean = false,
-    val scanCapped: Boolean = false,
-    val scanCap: Int = NEWS_SCAN_PAGE_CAP * NEWS_PAGE_SIZE,
+    val isSearching: Boolean = false,
+    val searchResults: List<NewsItem>? = null,
+    val searchError: String? = null,
 )
 
 @HiltViewModel
@@ -42,22 +43,20 @@ class NewsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(NewsUiState())
     val uiState: StateFlow<NewsUiState> = _uiState
 
-    private var scanJob: Job? = null
+    private var searchJob: Job? = null
 
     init {
         load()
     }
 
     fun load() {
-        scanJob?.cancel()
+        searchJob?.cancel()
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
                     isLoading = true,
                     error = null,
-                    isScanning = false,
-                    scanFinished = false,
-                    scanCapped = false,
+                    isSearching = false,
                 )
             }
             withNetworkRetry { repository.getNoticeList(page = 1) }.fold(
@@ -83,7 +82,7 @@ class NewsViewModel @Inject constructor(
 
     fun loadMore() {
         val state = _uiState.value
-        if (state.isLoading || state.isLoadingMore || state.isScanning || !state.hasMore) return
+        if (state.isLoading || state.isLoadingMore || state.query.isNotBlank() || !state.hasMore) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingMore = true) }
@@ -110,62 +109,55 @@ class NewsViewModel @Inject constructor(
     fun retry() = load()
 
     /**
-     * 输入搜索词。接口不收标题关键字，所以能匹配的范围 = 已经翻下来的页；
-     * 词非空且还没扫完时，后台把剩下的页补完，一次给全结果，不做"边加载边蹦"。
+     * 输入搜索词：300ms 去抖后打一次门户全局搜索（安小信就是这么做的），
+     * 结果整段替换，不边打字边蹦半成品。
      */
     fun setQuery(text: String) {
-        _uiState.update { it.copy(query = text) }
-        scanJob?.cancel()
-        if (text.isBlank()) return
-        val s = _uiState.value
-        if (s.isLoading || s.scanFinished) return
-        scanJob = viewModelScope.launch {
-            delay(SCAN_DEBOUNCE_MS)
+        searchJob?.cancel()
+        if (text.isBlank()) {
+            _uiState.update {
+                it.copy(query = text, isSearching = false, searchResults = null, searchError = null)
+            }
+            return
+        }
+        _uiState.update { it.copy(query = text, searchError = null) }
+        searchJob = viewModelScope.launch {
+            delay(SEARCH_DEBOUNCE_MS)
             if (_uiState.value.query != text) return@launch
-            scan(s.currentPage)
+            searchNow()
         }
     }
 
-    /** 从 startPage+1 开始把栏目翻到底（最多 SCAN_PAGE_CAP 页），期间可被新输入取消。 */
-    private suspend fun scan(startPage: Int) {
-        _uiState.update { it.copy(isScanning = true) }
-        var page = startPage + 1
-        var capped = false
-        try {
-            while (true) {
-                val cur = _uiState.value
-                if (!cur.hasMore) break
-                if (page > NEWS_SCAN_PAGE_CAP) { capped = true; break }
-                val next = withNetworkRetry { repository.getNoticeList(page = page) }.getOrNull()
-                if (next == null) {
-                    // 扫描途中某页失败：停住但保留已翻到的结果，别把列表清空
-                    _uiState.update { it.copy(hasMore = false) }
-                    break
-                }
-                _uiState.update {
-                    it.copy(
-                        items = it.items + next.items,
-                        hasMore = next.hasNext,
-                        currentPage = page,
-                    )
-                }
-                if (!next.hasNext) break
-                page++
-            }
-        } finally {
-            val finished = !_uiState.value.hasMore
-            _uiState.update {
-                it.copy(
-                    isScanning = false,
-                    scanCapped = capped,
-                    scanFinished = !capped && finished,
-                )
-            }
+    /** 用当前词立即搜一次；重试按钮也走这里 */
+    fun searchNow() {
+        val q = _uiState.value.query.trim()
+        if (q.isEmpty()) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSearching = true, searchError = null) }
+            withNetworkRetry { repository.search(q) }.fold(
+                onSuccess = { rows ->
+                    // 回来时词已经变了就不落这一批，避免旧结果盖新结果
+                    if (_uiState.value.query.trim() == q) {
+                        _uiState.update {
+                            it.copy(isSearching = false, searchResults = rows, searchError = null)
+                        }
+                    }
+                },
+                onFailure = { e ->
+                    _uiState.update {
+                        it.copy(
+                            isSearching = false,
+                            searchResults = null,
+                            searchError = e.message ?: AppText.str(R.string.news_search_failed),
+                        )
+                    }
+                },
+            )
         }
     }
 
     override fun onCleared() {
-        scanJob?.cancel()
+        searchJob?.cancel()
         super.onCleared()
     }
 
@@ -183,14 +175,10 @@ class NewsViewModel @Inject constructor(
     private companion object {
         val RETRY_BACKOFF_MS = longArrayOf(600L, 1800L)
 
-        /** 停 300ms 再扫，避免每敲一个字都从头翻页 */
-        const val SCAN_DEBOUNCE_MS = 300L
+        /** 停 300ms 再发请求，避免每敲一个字打一次门户搜索 */
+        const val SEARCH_DEBOUNCE_MS = 300L
     }
 }
-
-/** 每页 10 条、最多翻 30 页（300 条）封顶：接口协议保持原 App 的 pageSize，不靠加大页量偷懒 */
-private const val NEWS_PAGE_SIZE = 10
-private const val NEWS_SCAN_PAGE_CAP = 30
 
 data class NewsDetailUiState(
     val article: NewsArticle? = null,
