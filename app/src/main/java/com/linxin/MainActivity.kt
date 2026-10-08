@@ -1,5 +1,6 @@
 package com.linxin
 
+import com.linxin.core.locale.ProvideAppLanguage
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
@@ -75,8 +76,6 @@ class MainActivity : ComponentActivity() {
             null
         }
         // 独立协程：等待 ready 或超时，并保证开屏最短展示时长，避免一闪而过
-        // 例外：语言切换引起的进程重启不再放开屏，否则会看到"闪一下开屏"。
-        if (com.linxin.core.locale.LocaleSwitchFlag.consume(this)) splashReleased = true
         val splashStart = SystemClock.elapsedRealtime()
         lifecycleScope.launch {
             withTimeoutOrNull(SPLASH_MAX_WAIT_MS) {
@@ -131,7 +130,9 @@ class MainActivity : ComponentActivity() {
                 darkTheme = darkTheme,
                 accent = accent,
             ) {
-                Box(Modifier.fillMaxSize()) {
+                // 语言在组合内换 Resources，不重启进程，所以切换不闪开屏。见 ProvideAppLanguage。
+                ProvideAppLanguage(language = settings.language) {
+                    Box(Modifier.fillMaxSize()) {
                     LinXinNavHost(
                         sessionManager = sessionManager,
                         shortcutTarget = shortcutTarget,
@@ -152,6 +153,7 @@ class MainActivity : ComponentActivity() {
                         exit = fadeOut(tween(320)),
                     ) {
                         SplashOverlay()
+                    }
                     }
                 }
             }

@@ -2,6 +2,7 @@ package com.linxin.feature.theme.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.linxin.core.settings.AppLanguage
 import com.linxin.core.settings.BarMaterial
 import com.linxin.core.settings.ThemeMode
 import com.linxin.core.settings.ThemePrefs
@@ -23,6 +24,10 @@ class ThemeViewModel @Inject constructor(
 
     fun setMode(mode: ThemeMode) {
         viewModelScope.launch { themePrefs.setMode(mode) }
+    }
+
+    fun setLanguage(language: AppLanguage) {
+        viewModelScope.launch { themePrefs.setLanguage(language) }
     }
 
     fun setBarMaterial(material: BarMaterial) {
