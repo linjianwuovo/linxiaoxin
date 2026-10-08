@@ -1,5 +1,6 @@
 package com.linxin
 
+import com.linxin.core.locale.AppText
 import android.app.Application
 import com.linxin.core.network.NetTrace
 import com.linxin.navigation.ShortcutRegistrar
@@ -19,6 +20,7 @@ class LinXinApp : Application() {
     @Inject lateinit var netTrace: NetTrace
 
     override fun onCreate() {
+        AppText.init(this)
         super.onCreate()
         installCrashLogger()
         ShortcutRegistrar.register(this)

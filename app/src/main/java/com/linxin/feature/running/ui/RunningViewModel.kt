@@ -1,5 +1,6 @@
 package com.linxin.feature.running.ui
 
+import com.linxin.core.locale.AppText
 import com.linxin.R
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.ViewModel
@@ -106,7 +107,7 @@ class RunningViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isDashboardLoading = false,
-                            dashboardError = error.message ?: "加载跑步首页失败",
+                            dashboardError = error.message ?: AppText.str(R.string.rvm_load_dash),
                         )
                     }
                 },
@@ -116,7 +117,7 @@ class RunningViewModel @Inject constructor(
 
     suspend fun startRealRun(): Result<RunningStartInfo> {
         if (_uiState.value.isStarting) {
-            return Result.failure(IllegalStateException("正在启动中"))
+            return Result.failure(IllegalStateException(AppText.str(R.string.rvm_starting)))
         }
 
         _uiState.update {
@@ -138,7 +139,7 @@ class RunningViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isStarting = false,
-                        startError = error.message ?: "开始跑步失败",
+                        startError = error.message ?: AppText.str(R.string.rvm_start_failed),
                     )
                 }
                 Result.failure(error)
@@ -150,7 +151,7 @@ class RunningViewModel @Inject constructor(
         if (_uiState.value.isUploadingRun) return
         val snapshot = tracker.snapshotForUpload()
         if (snapshot == null) {
-            _uiState.update { it.copy(startError = "当前没有可上传的跑步记录") }
+            _uiState.update { it.copy(startError = AppText.str(R.string.rvm_no_upload)) }
             return
         }
 
@@ -249,7 +250,7 @@ class RunningViewModel @Inject constructor(
             },
             onFailure = { error ->
                 val failureResult = buildFailedResult(
-                    message = error.message ?: "模拟提交失败",
+                    message = error.message ?: AppText.str(R.string.rvm_sim_failed),
                     config = config,
                     pointCount = trajectorySize,
                 )
@@ -312,7 +313,7 @@ class RunningViewModel @Inject constructor(
                     it.copy(
                         isUploadingRun = false,
                         lastResult = buildFailedResult(
-                            message = error.message ?: "上传失败",
+                            message = error.message ?: AppText.str(R.string.rvm_upload_failed),
                             distanceKm = snapshot.distanceMeters / 1000.0,
                             durationSeconds = snapshot.durationSeconds,
                             startTimeMillis = snapshot.startTimeMillis,
@@ -332,21 +333,21 @@ class RunningViewModel @Inject constructor(
         val startTimeMillis = uiState.simStartTimeMillis
 
         if (distanceKm == null || distanceKm <= 0.0) {
-            _uiState.update { it.copy(simError = "请输入有效距离") }
+            _uiState.update { it.copy(simError = AppText.str(R.string.rvm_need_dist)) }
             return null
         }
         if (durationMinutes == null || durationMinutes <= 0) {
-            _uiState.update { it.copy(simError = "请输入有效时长") }
+            _uiState.update { it.copy(simError = AppText.str(R.string.rvm_need_dur)) }
             return null
         }
         if (startTimeMillis >= System.currentTimeMillis()) {
-            _uiState.update { it.copy(simError = "开始时间需要早于当前时间") }
+            _uiState.update { it.copy(simError = AppText.str(R.string.rvm_start_early)) }
             return null
         }
 
         val speedKmh = distanceKm / durationMinutes * 60.0
         if (speedKmh !in 6.0..15.0) {
-            _uiState.update { it.copy(simError = "模拟速度需要在 6-15 km/h 之间") }
+            _uiState.update { it.copy(simError = AppText.str(R.string.rvm_speed_range)) }
             return null
         }
 
@@ -365,10 +366,10 @@ class RunningViewModel @Inject constructor(
             return null
         }
         if (simStartTimeMillis >= System.currentTimeMillis()) {
-            return "开始时间需要早于当前时间"
+            return AppText.str(R.string.rvm_start_early)
         }
         val speedKmh = distanceKm / durationMinutes * 60.0
-        return if (speedKmh in 6.0..15.0) null else "模拟速度需要在 6-15 km/h 之间"
+        return if (speedKmh in 6.0..15.0) null else AppText.str(R.string.rvm_speed_range)
     }
 
     private fun buildFailedResult(

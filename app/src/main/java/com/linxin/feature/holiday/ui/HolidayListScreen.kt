@@ -78,7 +78,7 @@ fun HolidayListScreen(
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             TabRow(
-                tabs = listOf("去登记", "历史登记"),
+                tabs = listOf(stringResource(R.string.hol_tab_go), stringResource(R.string.hol_tab_history)),
                 selectedTabIndex = selectedTab,
                 onTabSelected = { selectedTab = it },
             )
@@ -180,7 +180,7 @@ fun HolidayTaskCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = task.name.ifBlank { "节假日登记" },
+                    text = task.name.ifBlank { stringResource(R.string.home_card_holiday) },
                     style = MiuixTheme.textStyles.body2,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
@@ -219,7 +219,7 @@ fun HistoryCard(record: HolidayHistory, modifier: Modifier = Modifier) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = record.name.ifBlank { "节假日登记" },
+                    text = record.name.ifBlank { stringResource(R.string.home_card_holiday) },
                     style = MiuixTheme.textStyles.body2,
                     fontWeight = FontWeight.Medium,
                     maxLines = 2,
@@ -241,7 +241,7 @@ fun HistoryCard(record: HolidayHistory, modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.width(12.dp))
 
             Text(
-                text = if (record.returnStartDate.isBlank()) "待返校" else "已完成",
+                text = if (record.returnStartDate.isBlank()) stringResource(R.string.hol_pending_return) else stringResource(R.string.hol_done),
                 style = MiuixTheme.textStyles.footnote2,
                 fontWeight = FontWeight.SemiBold,
                 color = if (record.returnStartDate.isBlank()) LxWarning else LxInkMuted,
@@ -253,7 +253,7 @@ fun HistoryCard(record: HolidayHistory, modifier: Modifier = Modifier) {
 @Composable
 private fun HolidayStatusBadge(isRegistered: Boolean) {
     val color = if (isRegistered) LxSuccess else LxTerra
-    val text = if (isRegistered) "已登记" else "待登记"
+    val text = if (isRegistered) stringResource(R.string.hol_registered) else stringResource(R.string.hol_not_registered)
 
     Box(
         modifier = Modifier
