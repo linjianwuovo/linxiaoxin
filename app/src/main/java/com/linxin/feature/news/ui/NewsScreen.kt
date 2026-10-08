@@ -69,10 +69,10 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 底栏「公告」页：校方门户资讯里的「通知公告」一个分类。
  * 作为首页 pager 的一页，所以自己带 Scaffold 但不带 topBar。
  *
- * 搜索：我们只抓过 `news/getNewsList.do`（字段 type / currentPage / pageSize / isActivity）
- * 和详情两条请求，**没抓过安小信的公告搜索请求**，不能断定它有没有服务端关键字字段。
- * 协议红线是不许凭空造请求，所以现在这版是"本地翻页扫描 + 本地匹配"；
- * 一旦拿到原 App 的真实请求体，就把扫描换成分页带关键字的服务端搜索。
+ * 搜索实现是从安小信自己的 dex 里核对来的：`NewsSearchActivity.loadSearchList` 打的是
+ * 门户全局搜索 `appService/homeQuery.do`（`name` = 关键词、`type` = "3"），
+ * 服务端一次返回匹配的公告，取响应里的 `newsVo` 段 —— 不是把列表拉下来本地过滤，
+ * 也不是给 `news/getNewsList.do` 编一个不存在的关键字字段。
  */
 @Composable
 fun NewsScreen(
@@ -82,16 +82,8 @@ fun NewsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val query = uiState.query.trim()
-    val shown = remember(uiState.items, query) {
-        if (query.isEmpty()) {
-            uiState.items
-        } else {
-            uiState.items.filter {
-                it.title.contains(query, ignoreCase = true) ||
-                    it.publisher.contains(query, ignoreCase = true)
-            }
-        }
-    }
+    val searching = query.isNotEmpty()
+    val shown = if (searching) uiState.searchResults.orEmpty() else uiState.items
 
     Scaffold(
         modifier = modifier,
@@ -115,61 +107,83 @@ fun NewsScreen(
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 6.dp),
             )
 
-            val error = uiState.error
+            val listError = uiState.error
+            val searchError = uiState.searchError
             when {
+                searching && searchError != null -> LxError(
+                    message = searchError,
+                    onRetry = viewModel::searchNow,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                // 服务端整段返回，所以搜索中只显示一个进度，不边打字边蹦半成品
+                searching && (uiState.isSearching || uiState.searchResults == null) -> Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(26.dp), strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(R.string.news_searching),
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = LxInkMuted,
+                    )
+                }
+                searching && shown.isEmpty() -> LxEmpty(
+                    message = stringResource(R.string.news_no_match, query),
+                    modifier = Modifier.fillMaxSize(),
+                )
+                searching -> SearchResults(
+                    count = shown.size,
+                    items = shown,
+                    onNewsClick = onNewsClick,
+                )
                 uiState.isLoading -> LxLoading(modifier = Modifier.fillMaxSize())
-                error != null && uiState.items.isEmpty() -> LxError(
-                    message = error,
+                listError != null && uiState.items.isEmpty() -> LxError(
+                    message = listError,
                     onRetry = viewModel::retry,
                     modifier = Modifier.fillMaxSize(),
                 )
-                // 扫描途中不露半成品结果，等翻完再一次出
-                query.isNotEmpty() && uiState.isScanning -> ScanProgress(
-                    loaded = uiState.items.size,
+                uiState.items.isEmpty() -> LxEmpty(
+                    message = stringResource(R.string.ui_036),
                     modifier = Modifier.fillMaxSize(),
                 )
-                shown.isEmpty() -> LxEmpty(
-                    message = if (query.isEmpty()) {
-                        stringResource(R.string.ui_036)
-                    } else {
-                        stringResource(R.string.news_no_match, query)
-                    },
-                    modifier = Modifier.fillMaxSize(),
+                else -> NewsList(
+                    items = uiState.items,
+                    isLoadingMore = uiState.isLoadingMore,
+                    onLoadMore = viewModel::loadMore,
+                    onNewsClick = onNewsClick,
                 )
-                else -> {
-                    if (query.isNotEmpty()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 20.dp, end = 20.dp, top = 2.dp, bottom = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = stringResource(R.string.news_match_count, shown.size),
-                                style = MiuixTheme.textStyles.footnote2,
-                                color = LxInkMuted,
-                            )
-                            if (uiState.scanCapped) {
-                                Text(
-                                    text = " · " + stringResource(R.string.news_scan_capped, uiState.scanCap),
-                                    style = MiuixTheme.textStyles.footnote2,
-                                    color = LxInkMuted,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-                    }
-                    NewsList(
-                        items = shown,
-                        isLoadingMore = uiState.isLoadingMore,
-                        onLoadMore = viewModel::loadMore,
-                        onNewsClick = onNewsClick,
-                    )
-                }
             }
         }
     }
+}
+
+/** 搜索结果：顶部一条"找到 N 条"，下面是和列表页同款卡片。 */
+@Composable
+private fun SearchResults(
+    count: Int,
+    items: List<NewsItem>,
+    onNewsClick: (String) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 20.dp, top = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.news_match_count, count),
+            style = MiuixTheme.textStyles.footnote2,
+            color = LxInkMuted,
+        )
+    }
+    NewsList(
+        items = items,
+        isLoadingMore = false,
+        onLoadMore = { },
+        onNewsClick = onNewsClick,
+    )
 }
 
 /** 胶囊形搜索框：左放大镜 + 输入 + 右清除，配色沿用 LxTextField 那套暖色 token。 */
@@ -233,29 +247,6 @@ private fun NewsSearchBar(
                     .clickable { onValueChange("") },
             )
         }
-    }
-}
-
-@Composable
-private fun ScanProgress(loaded: Int, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        CircularProgressIndicator(modifier = Modifier.size(26.dp), strokeWidth = 2.dp)
-        Spacer(modifier = Modifier.height(14.dp))
-        Text(
-            text = stringResource(R.string.news_scanning),
-            style = MiuixTheme.textStyles.body2,
-            color = LxInk,
-        )
-        Text(
-            text = stringResource(R.string.news_loaded_count, loaded),
-            style = MiuixTheme.textStyles.footnote2,
-            color = LxInkMuted,
-            modifier = Modifier.padding(top = 4.dp),
-        )
     }
 }
 

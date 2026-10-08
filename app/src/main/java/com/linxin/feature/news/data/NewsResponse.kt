@@ -18,6 +18,26 @@ data class NewsTypeRow(
     val type: String?,
 )
 
+/**
+ * 门户全局搜索 `appService/homeQuery.do` —— 安小信的公告搜索走的就是这条，
+ * 不是 `news/getNewsList.do`。依据是它 APK 里 `classes.dex` 的调用链：
+ * `NewsSearchActivity.loadSearchList` → `RemoteDataSource.querySingleHome(ctx, 关键词, "3", cb)`，
+ * 方法体里就是 `map.put("name", 关键词)` + `map.put("type", "3")` + `addCommonParams` →
+ * POST `https://in.aiit.edu.cn/zhxy-new-scps/appService/homeQuery.do`。
+ *
+ * 一次返回三段：`contactsVo`（通讯录）/ `newsVo`（公告）/ `serviceVo`（服务），我们只取 newsVo。
+ * newsVo 的条目字段与列表接口的 `data.data` 同名（`id/bt/publishPerson/publishTime/image1`），所以复用 [NewsRow]。
+ */
+data class HomeQueryResponse(
+    val flag: Boolean?,
+    val msg: String?,
+    val data: HomeQueryRow?,
+)
+
+data class HomeQueryRow(
+    val newsVo: List<NewsRow>?,
+)
+
 data class NewsListResponse(
     val flag: Boolean?,
     val msg: String?,
