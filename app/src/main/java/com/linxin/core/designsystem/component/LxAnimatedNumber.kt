@@ -1,5 +1,7 @@
 package com.linxin.core.designsystem.component
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import top.yukonga.miuix.kmp.theme.MiuixTheme

@@ -192,7 +192,7 @@ private fun DeveloperToggleRow(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
-            text = "启用调试功能",
+            text = stringResource(R.string.ui_002),
             fontSize = 15.sp,
             color = LxInk,
             modifier = Modifier.weight(1f),
@@ -228,12 +228,12 @@ private fun NetworkTraceRow(viewModel: AboutViewModel) {
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "复制最近网络请求",
+                text = stringResource(R.string.ui_004),
                 fontSize = 15.sp,
                 color = LxInk,
             )
             Text(
-                text = "记录最近 40 条 URL / 耗时 / 响应内容，只在内存里，复制后清空",
+                text = stringResource(R.string.ui_005),
                 fontSize = 11.sp,
                 color = LxInkMuted,
             )

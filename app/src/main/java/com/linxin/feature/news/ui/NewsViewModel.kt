@@ -1,5 +1,7 @@
 package com.linxin.feature.news.ui
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

@@ -1,5 +1,7 @@
 package com.linxin.feature.running.exercise.ui
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap

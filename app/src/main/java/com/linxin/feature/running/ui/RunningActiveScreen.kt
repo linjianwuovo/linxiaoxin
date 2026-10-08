@@ -69,7 +69,7 @@ fun RunningActiveScreen(
         when {
             uiState.isUploadingRun -> LxLoading(modifier = Modifier.padding(padding))
             !uiState.trackerState.isSessionActive -> LxEmpty(
-                message = "当前没有进行中的跑步会话",
+                message = stringResource(R.string.ui_055),
                 modifier = Modifier.padding(padding),
             )
             else -> RunningActiveContent(
@@ -125,7 +125,7 @@ private fun RunningActiveContent(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        text = "当前距离",
+                        text = stringResource(R.string.ui_056),
                         style = MiuixTheme.textStyles.footnote1,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
@@ -146,17 +146,17 @@ private fun RunningActiveContent(
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 ActiveMetricCard(
-                    title = "时长",
+                    title = stringResource(R.string.ui_057),
                     value = durationSeconds.formatDuration(),
                     modifier = Modifier.weight(1f),
                 )
                 ActiveMetricCard(
-                    title = "配速",
+                    title = stringResource(R.string.ui_058),
                     value = if (paceSeconds > 0L) paceSeconds.formatPace() else "--'--\"",
                     modifier = Modifier.weight(1f),
                 )
                 ActiveMetricCard(
-                    title = "速度",
+                    title = stringResource(R.string.ui_059),
                     value = if (speedKmh > 0.0) String.format("%.1f", speedKmh) else "--",
                     unitText = if (speedKmh > 0.0) "km/h" else null,
                     modifier = Modifier.weight(1f),
@@ -168,7 +168,7 @@ private fun RunningActiveContent(
             LxCard {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
-                        text = "定位状态",
+                        text = stringResource(R.string.ui_060),
                         style = MiuixTheme.textStyles.title4,
                         fontWeight = FontWeight.Bold,
                     )
@@ -187,7 +187,7 @@ private fun RunningActiveContent(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "已记录 ${trackerState.points.size} 个轨迹点",
+                        text = stringResource(R.string.ui_061, trackerState.points.size.toString()),
                         style = MiuixTheme.textStyles.footnote1,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
@@ -198,8 +198,8 @@ private fun RunningActiveContent(
         item {
             Box(modifier = Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    LxButton(text = "结束并上传", onClick = onFinish)
-                    LxOutlinedButton(text = "放弃本次", onClick = onCancel)
+                    LxButton(text = stringResource(R.string.ui_062), onClick = onFinish)
+                    LxOutlinedButton(text = stringResource(R.string.ui_063), onClick = onCancel)
                 }
             }
         }
