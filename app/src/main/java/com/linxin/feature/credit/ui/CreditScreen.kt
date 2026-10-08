@@ -110,7 +110,7 @@ private fun CreditContent(
 
         item(key = "records_title") {
             Text(
-                text = "学分记录",
+                text = stringResource(R.string.credit_records),
                 style = MiuixTheme.textStyles.title3,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
@@ -132,7 +132,7 @@ private fun CreditContent(
             item(key = "empty") {
                 LxCard {
                     Text(
-                        text = "暂无学分记录",
+                        text = stringResource(R.string.credit_no_records),
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         modifier = Modifier.padding(20.dp),
@@ -159,13 +159,13 @@ private fun OverviewCard(overview: CreditOverview) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "学分总览",
+                    text = stringResource(R.string.credit_overview),
                     style = MiuixTheme.textStyles.title4,
                     fontWeight = FontWeight.Bold,
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "%.1f 学分".format(overview.totalCredit),
+                        text = stringResource(R.string.credit_credit_n, overview.totalCredit),
                         style = MiuixTheme.textStyles.footnote1,
                         color = MiuixTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold,
@@ -173,7 +173,7 @@ private fun OverviewCard(overview: CreditOverview) {
                     Spacer(modifier = Modifier.width(8.dp))
                     val statusColor = if (overview.pass) LxSuccess else MiuixTheme.colorScheme.error
                     Text(
-                        text = if (overview.pass) "已达标" else "未达标",
+                        text = if (overview.pass) stringResource(R.string.credit_pass) else stringResource(R.string.credit_fail),
                         style = MiuixTheme.textStyles.footnote2,
                         color = statusColor,
                         fontWeight = FontWeight.SemiBold,
@@ -270,7 +270,7 @@ private fun RecordCard(record: CreditRecord, onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${record.score} 学分 · ${record.statusName}",
+                    text = stringResource(R.string.credit_score_status, record.score, record.statusName),
                     style = MiuixTheme.textStyles.footnote2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
@@ -306,14 +306,14 @@ private fun DetailSheetContent(
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(16.dp))
-            LxDetailRow(label = "获奖级别", value = detail.awardLevelName)
-            LxDetailRow(label = "获奖等级", value = detail.awardPrizeName)
-            LxDetailRow(label = "最高级别", value = detail.highestLevelName)
-            LxDetailRow(label = "获得学分", value = "%.1f".format(detail.prizeScore))
-            LxDetailRow(label = "获得时间", value = detail.getTime)
-            LxDetailRow(label = "所属模块", value = detail.qualityModuleName)
-            LxDetailRow(label = "子类别", value = detail.qualityCategoryName)
-            LxDetailRow(label = "审核状态", value = detail.statusName, showDivider = false)
+            LxDetailRow(label = stringResource(R.string.credit_award_level), value = detail.awardLevelName)
+            LxDetailRow(label = stringResource(R.string.credit_award_grade), value = detail.awardPrizeName)
+            LxDetailRow(label = stringResource(R.string.credit_highest_level), value = detail.highestLevelName)
+            LxDetailRow(label = stringResource(R.string.credit_earned), value = "%.1f".format(detail.prizeScore))
+            LxDetailRow(label = stringResource(R.string.credit_earned_at), value = detail.getTime)
+            LxDetailRow(label = stringResource(R.string.credit_module), value = detail.qualityModuleName)
+            LxDetailRow(label = stringResource(R.string.credit_subcat), value = detail.qualityCategoryName)
+            LxDetailRow(label = stringResource(R.string.credit_audit), value = detail.statusName, showDivider = false)
         }
     }
 }

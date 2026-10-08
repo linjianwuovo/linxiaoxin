@@ -1,5 +1,7 @@
 package com.linxin.feature.holiday.ui
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -80,7 +82,7 @@ fun HolidayRegisterScreen(
         containerColor = MiuixTheme.colorScheme.background,
         topBar = {
             LxTopBar(
-                title = uiState.holidayName.ifBlank { "节假日登记" },
+                title = uiState.holidayName.ifBlank { stringResource(R.string.home_card_holiday) },
                 onBack = onBack,
             )
         },
@@ -138,22 +140,22 @@ private fun RegisterForm(
         }
 
         // 日期范围
-        SectionLabel("时间安排")
+        SectionLabel(stringResource(R.string.hol_schedule))
         DateField(
-            label = "开始时间",
+            label = stringResource(R.string.hol_start),
             value = uiState.startDate,
-            placeholder = "选择开始时间",
+            placeholder = stringResource(R.string.hol_pick_start),
             onClick = { datePickerState.open(fieldIndex = 0, currentValue = uiState.startDate) },
         )
         DateField(
-            label = "结束时间",
+            label = stringResource(R.string.hol_end),
             value = uiState.endDate,
-            placeholder = "选择结束时间",
+            placeholder = stringResource(R.string.hol_pick_end),
             onClick = { datePickerState.open(fieldIndex = 1, currentValue = uiState.endDate) },
         )
 
         // 离校/留校
-        SectionLabel("离校/留校")
+        SectionLabel(stringResource(R.string.hol_leave_stay))
         StrokeRadioGroup(
             options = uiState.strokeOptions,
             selected = uiState.stroke,
@@ -161,11 +163,11 @@ private fun RegisterForm(
         )
 
         // 事由
-        SectionLabel("事由")
+        SectionLabel(stringResource(R.string.hol_reason))
         TextField(
             value = uiState.reason,
             onValueChange = onReasonChange,
-            label = "事由",
+            label = stringResource(R.string.hol_reason),
             modifier = Modifier.fillMaxWidth(),
             minLines = 2,
             maxLines = 4,
@@ -173,11 +175,11 @@ private fun RegisterForm(
 
         // 目的地（按节假日配置显隐）
         if (uiState.destinationEnabled) {
-            SectionLabel("目的地")
+            SectionLabel(stringResource(R.string.hol_dest))
             TextField(
                 value = uiState.destination,
                 onValueChange = onDestinationChange,
-                label = "目的地",
+                label = stringResource(R.string.hol_dest),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -185,11 +187,11 @@ private fun RegisterForm(
 
         // 紧急联系电话（按节假日配置显隐）
         if (uiState.urgentPhoneEnabled) {
-            SectionLabel("紧急联系电话")
+            SectionLabel(stringResource(R.string.hol_emergency))
             TextField(
                 value = uiState.urgentPhone,
                 onValueChange = onUrgentPhoneChange,
-                label = "紧急联系电话",
+                label = stringResource(R.string.hol_emergency),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -209,7 +211,7 @@ private fun RegisterForm(
                     strokeWidth = 2.dp,
                 )
             } else {
-                Text("提交登记")
+                Text(stringResource(R.string.hol_submit))
             }
         }
 

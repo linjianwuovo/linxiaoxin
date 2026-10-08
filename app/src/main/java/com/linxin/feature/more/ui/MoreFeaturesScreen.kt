@@ -103,25 +103,25 @@ fun MoreFeaturesScreen(
                 Column {
                     MoreMenuRow(
                         icon = Icons.Outlined.EventNote,
-                        title = "节假日离返校",
+                        title = stringResource(R.string.title_holiday),
                         onClick = onNavigateHoliday,
                     )
                     MoreMenuDivider()
                     MoreMenuRow(
                         icon = Icons.Outlined.WorkHistory,
-                        title = "劳动教育",
+                        title = stringResource(R.string.title_labor),
                         onClick = onNavigateLabor,
                     )
                     MoreMenuDivider()
                     MoreMenuRow(
                         icon = Icons.Outlined.Grading,
-                        title = "考试成绩",
+                        title = stringResource(R.string.title_exam),
                         onClick = onNavigateExam,
                     )
                     MoreMenuDivider()
                     MoreMenuRow(
                         icon = Icons.Outlined.EmojiEvents,
-                        title = "素质学分",
+                        title = stringResource(R.string.title_credit),
                         onClick = onNavigateCredit,
                     )
                 }
@@ -142,11 +142,11 @@ fun MoreFeaturesScreen(
                         MoreMenuDivider()
                         MoreMenuRow(
                             icon = Icons.Outlined.Alarm,
-                            title = "精确闹钟权限",
+                            title = stringResource(R.string.more_exact_alarm),
                             trailing = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                if (exactAlarmGranted) "已授权" else "未授权"
+                                if (exactAlarmGranted) stringResource(R.string.more_granted) else stringResource(R.string.more_not_granted)
                             } else {
-                                "无需授权"
+                                stringResource(R.string.more_not_needed)
                             },
                             trailingColor = if (exactAlarmGranted) LxInkGhost else MiuixTheme.colorScheme.error,
                             onClick = { context.openExactAlarmSettings() },
@@ -154,8 +154,8 @@ fun MoreFeaturesScreen(
                         MoreMenuDivider()
                         MoreMenuRow(
                             icon = Icons.Outlined.BatterySaver,
-                            title = "电池优化白名单",
-                            trailing = if (batteryOptimizationIgnored) "已加入" else "未加入",
+                            title = stringResource(R.string.more_battery),
+                            trailing = if (batteryOptimizationIgnored) stringResource(R.string.more_in_whitelist) else stringResource(R.string.more_not_in_whitelist),
                             trailingColor = if (batteryOptimizationIgnored) LxInkGhost else MiuixTheme.colorScheme.error,
                             onClick = { context.openBatteryOptimizationSettings(batteryOptimizationIgnored) },
                         )
@@ -186,12 +186,12 @@ private fun LiveNotificationRow(
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "实况通知",
+                text = stringResource(R.string.more_live),
                 fontSize = 15.sp,
                 color = LxInk,
             )
             Text(
-                text = "为保障实况通知正常发送，请授予精确闹钟权限和电池优化白名单，该功能不会增加耗电量",
+                text = stringResource(R.string.more_live_hint),
                 modifier = Modifier.padding(top = 4.dp),
                 fontSize = 12.sp,
                 lineHeight = 16.sp,
