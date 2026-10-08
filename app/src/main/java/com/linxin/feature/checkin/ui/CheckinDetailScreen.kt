@@ -72,11 +72,13 @@ fun CheckinDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val error = uiState.error
+    // LaunchedEffect 里不是组合上下文，stringResource 必须在外面先取好
+    val doneToast = stringResource(R.string.checkin_done_toast)
 
     // 签到成功后返回
     LaunchedEffect(uiState.submitSuccess) {
         if (uiState.submitSuccess) {
-            snackbarHostState.showSnackbar("签到成功！")
+            snackbarHostState.showSnackbar(doneToast)
             onSubmitSuccess()
             onBack()
         }
@@ -182,7 +184,7 @@ private fun DetailContent(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "已完成签到",
+                        text = stringResource(R.string.checkin_completed),
                         style = MiuixTheme.textStyles.title3,
                         fontWeight = FontWeight.SemiBold,
                         color = LxSuccess,
@@ -233,7 +235,7 @@ private fun DetailContent(
                 && !uiState.isSubmitting
 
         LxButton(
-            text = if (uiState.isSubmitting) "签到中..." else "一键签到",
+            text = if (uiState.isSubmitting) stringResource(R.string.checkin_submitting) else stringResource(R.string.checkin_one_tap),
             onClick = { viewModel.submitSignIn(photoFile) },
             enabled = canSubmit,
         )
@@ -245,23 +247,23 @@ private fun TaskInfoCard(detail: TaskDetail) {
     LxCard {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = detail.taskName.ifBlank { "查寝签到" },
+                text = detail.taskName.ifBlank { stringResource(R.string.title_dorm_checkin) },
                 style = MiuixTheme.textStyles.title3,
                 fontWeight = FontWeight.Bold,
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            LxDetailRow(label = "签到时间", value = "${detail.startTime} ~ ${detail.endTime}")
+            LxDetailRow(label = stringResource(R.string.checkin_time), value = "${detail.startTime} ~ ${detail.endTime}")
             if (detail.address.isNotBlank()) {
-                LxDetailRow(label = "签到地点", value = detail.address)
+                LxDetailRow(label = stringResource(R.string.checkin_place), value = detail.address)
             }
             if (detail.locationRange > 0) {
-                LxDetailRow(label = "签到范围", value = "${detail.locationRange.toInt()}米")
+                LxDetailRow(label = stringResource(R.string.checkin_range), value = stringResource(R.string.checkin_meters, detail.locationRange.toInt()))
             }
             LxDetailRow(
-                label = "需要拍照",
-                value = if (detail.needPhoto) "是" else "否",
+                label = stringResource(R.string.checkin_need_photo),
+                value = if (detail.needPhoto) stringResource(R.string.state_yes) else stringResource(R.string.state_no),
                 showDivider = false,
             )
         }
@@ -279,7 +281,7 @@ private fun PhotoSection(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "签到照片",
+                text = stringResource(R.string.checkin_photo),
                 style = MiuixTheme.textStyles.title4,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.fillMaxWidth(),
@@ -290,7 +292,7 @@ private fun PhotoSection(
             if (photoUri != null) {
                 AsyncImage(
                     model = photoUri,
-                    contentDescription = "签到照片",
+                    contentDescription = stringResource(R.string.checkin_photo),
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(4f / 3f)
@@ -298,7 +300,7 @@ private fun PhotoSection(
                     contentScale = ContentScale.Crop,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                LxOutlinedButton(text = "重新拍照", onClick = onTakePhoto)
+                LxOutlinedButton(text = stringResource(R.string.checkin_retake), onClick = onTakePhoto)
             } else {
                 Box(
                     modifier = Modifier
@@ -322,14 +324,14 @@ private fun PhotoSection(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "点击拍照",
+                            text = stringResource(R.string.checkin_tap_photo),
                             style = MiuixTheme.textStyles.footnote1,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         )
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
-                LxOutlinedButton(text = "拍照", onClick = onTakePhoto)
+                LxOutlinedButton(text = stringResource(R.string.checkin_take_photo), onClick = onTakePhoto)
             }
         }
     }
@@ -348,7 +350,7 @@ private fun LocationSection(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "当前定位",
+                    text = stringResource(R.string.checkin_current_location),
                     style = MiuixTheme.textStyles.title4,
                     fontWeight = FontWeight.Bold,
                 )
@@ -387,22 +389,22 @@ private fun LocationSection(
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    LxOutlinedButton(text = "重新定位", onClick = onRequestLocation)
+                    LxOutlinedButton(text = stringResource(R.string.checkin_relocate), onClick = onRequestLocation)
                 }
 
                 LocationStatus.FAILED -> {
                     Text(
-                        text = "定位失败，请检查权限和GPS开关",
+                        text = stringResource(R.string.checkin_locate_failed),
                         style = MiuixTheme.textStyles.footnote1,
                         color = MiuixTheme.colorScheme.error,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    LxOutlinedButton(text = "重试定位", onClick = onRequestLocation)
+                    LxOutlinedButton(text = stringResource(R.string.checkin_retry_location), onClick = onRequestLocation)
                 }
 
                 LocationStatus.LOCATING -> {
                     Text(
-                        text = "正在获取位置...",
+                        text = stringResource(R.string.checkin_locating),
                         style = MiuixTheme.textStyles.footnote1,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
@@ -410,7 +412,7 @@ private fun LocationSection(
 
                 LocationStatus.IDLE -> {
                     LxOutlinedButton(
-                        text = "获取定位",
+                        text = stringResource(R.string.checkin_get_location),
                         onClick = onRequestLocation,
                     )
                 }

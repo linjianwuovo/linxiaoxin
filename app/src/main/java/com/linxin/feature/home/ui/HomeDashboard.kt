@@ -1,5 +1,7 @@
 package com.linxin.feature.home.ui
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
@@ -144,7 +146,7 @@ fun HomeDashboard(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.QrCodeScanner,
-                        contentDescription = "扫码",
+                        contentDescription = stringResource(R.string.home_scan),
                         tint = LxTerra,
                         modifier = Modifier.size(20.dp),
                     )
@@ -162,7 +164,7 @@ fun HomeDashboard(
                 // "下一节" headline 占位
                 Box(modifier = Modifier.padding(horizontal = 24.dp)) {
                     Text(
-                        text = "正在加载…",
+                        text = stringResource(R.string.home_loading),
                         fontWeight = FontWeight.Medium,
                         fontSize = 22.sp,
                         color = LxInkMuted,
@@ -249,13 +251,12 @@ private fun GreetingSection(
     modifier: Modifier = Modifier,
 ) {
     val hour = remember { LocalTime.now().hour }
-    val greeting = remember(hour) {
-        when (hour) {
-            in 0..5 -> "夜深了"
-            in 6..11 -> "早上好"
-            in 12..17 -> "下午好"
-            else -> "晚上好"
-        }
+    // 不用 remember 包：stringResource 只能在组合里调，缓存反而会让语言切换后不刷新。
+    val greeting = when (hour) {
+        in 0..5 -> stringResource(R.string.home_greeting_late)
+        in 6..11 -> stringResource(R.string.home_greeting_morning)
+        in 12..17 -> stringResource(R.string.home_greeting_afternoon)
+        else -> stringResource(R.string.home_greeting_evening)
     }
 
     Column(modifier = modifier) {
@@ -316,9 +317,8 @@ private fun NextClassHeadline(
     modifier: Modifier = Modifier,
 ) {
     val now = remember { LocalTime.now() }
-    val headline = remember(courses, tomorrowFirstSection, now) {
-        buildNextClassHeadline(courses, tomorrowFirstSection, now)
-    }
+    // 不能 remember：stringResource 只能在组合里调，缓存下来语言切换后就不跟着变了。
+    val headline = buildNextClassHeadline(courses, tomorrowFirstSection, now)
     Text(
         text = headline,
         modifier = modifier,
@@ -329,6 +329,7 @@ private fun NextClassHeadline(
     )
 }
 
+@Composable
 private fun buildNextClassHeadline(
     courses: List<Course>,
     tomorrowFirstSection: Int?,
@@ -336,9 +337,9 @@ private fun buildNextClassHeadline(
 ): String {
     if (courses.isEmpty()) {
         return if (tomorrowFirstSection != null) {
-            "明天第 $tomorrowFirstSection 节开课"
+            stringResource(R.string.home_class_tomorrow, tomorrowFirstSection)
         } else {
-            "今天没有课程安排"
+            stringResource(R.string.home_no_classes_today)
         }
     }
     val current = courses.firstOrNull { c ->
@@ -347,7 +348,7 @@ private fun buildNextClassHeadline(
         now >= s && now < e
     }
     if (current != null) {
-        return "正在上 · ${current.name} · ${current.room}"
+        return stringResource(R.string.home_class_now, current.name, current.room)
     }
     val next = courses.firstOrNull { c ->
         val s = SectionSchedule.startOf(c.startSection) ?: return@firstOrNull false
@@ -358,14 +359,14 @@ private fun buildNextClassHeadline(
         val clock = if (start != null) {
             String.format(Locale.CHINA, "%02d:%02d", start.hour, start.minute)
         } else {
-            "第 ${next.startSection} 节"
+            stringResource(R.string.home_period_n, next.startSection)
         }
-        return "下一节 · ${next.name} · ${next.room} · $clock"
+        return stringResource(R.string.home_next_class, next.name, next.room, clock)
     }
     return if (tomorrowFirstSection != null) {
-        "明天第 $tomorrowFirstSection 节开课"
+        stringResource(R.string.home_class_tomorrow, tomorrowFirstSection)
     } else {
-        "今天的课全部结束"
+        stringResource(R.string.home_classes_done)
     }
 }
 
@@ -394,18 +395,23 @@ private fun TodayCourseCard(
     onClick: () -> Unit,
 ) {
     // badge 改为承载"星期"（课数在列表里可见，不重复）
-    val weekdayLabel = remember {
+    val weekdayLabel = run {
         val idx = java.time.LocalDate.now().dayOfWeek.value - 1
-        listOf("星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日")[idx]
+        listOf(
+            stringResource(R.string.home_weekday_1), stringResource(R.string.home_weekday_2),
+            stringResource(R.string.home_weekday_3), stringResource(R.string.home_weekday_4),
+            stringResource(R.string.home_weekday_5), stringResource(R.string.home_weekday_6),
+            stringResource(R.string.home_weekday_7),
+        )[idx]
     }
     DashboardCard(
-        title = "今日课程",
-        badge = if (currentWeek > 0) "第 $currentWeek 周 · $weekdayLabel" else weekdayLabel,
+        title = stringResource(R.string.home_today_courses),
+        badge = if (currentWeek > 0) stringResource(R.string.home_week_badge, currentWeek, weekdayLabel) else weekdayLabel,
         onClick = onClick,
     ) {
         when {
             error != null -> LxErrorHint(error)
-            courses.isEmpty() -> LxEmptyHint("今天没有课，好好休息")
+            courses.isEmpty() -> LxEmptyHint(stringResource(R.string.home_empty_today))
             else -> {
                 courses.take(3).forEach { course ->
                     Row(
@@ -435,7 +441,7 @@ private fun TodayCourseCard(
                                 overflow = TextOverflow.Ellipsis,
                             )
                             Text(
-                                text = "第${course.startSection}-${course.endSection}节 · ${course.room}",
+                                text = stringResource(R.string.home_course_periods, course.startSection, course.endSection, course.room),
                                 fontSize = 12.sp,
                                 color = LxInkMuted,
                             )
@@ -444,7 +450,7 @@ private fun TodayCourseCard(
                 }
                 if (courses.size > 3) {
                     Text(
-                        text = "还有 ${courses.size - 3} 节课...",
+                        text = stringResource(R.string.home_more_courses, courses.size - 3),
                         style = MiuixTheme.textStyles.footnote2,
                         color = LxInkMuted,
                         modifier = Modifier.padding(top = 4.dp),
@@ -478,8 +484,9 @@ private fun parseHourMinute(raw: String): Pair<Int, Int>? {
 
 @Composable
 private fun CheckinCard(task: CheckinTask, onClick: () -> Unit) {
+    val checkinFallback = stringResource(R.string.home_card_checkin)
     DashboardCard(
-        title = "查寝签到",
+        title = stringResource(R.string.home_card_checkin),
         onClick = onClick,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -487,7 +494,7 @@ private fun CheckinCard(task: CheckinTask, onClick: () -> Unit) {
             Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
-                    text = task.taskName.ifBlank { "查寝签到" },
+                    text = task.taskName.ifBlank { checkinFallback },
                     fontSize = 14.5.sp,
                     fontWeight = FontWeight.Medium,
                 )
@@ -536,6 +543,7 @@ private fun shouldShowHoliday(task: HolidayTask?): Boolean {
 
 @Composable
 private fun HolidayCard(task: HolidayTask, onClick: () -> Unit) {
+    val holidayFallback = stringResource(R.string.home_card_holiday)
     val now = remember { LocalDateTime.now() }
     val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm") }
     val registerStart = remember(task.registerStartDate) {
@@ -550,7 +558,7 @@ private fun HolidayCard(task: HolidayTask, onClick: () -> Unit) {
     }
 
     DashboardCard(
-        title = "节假日登记",
+        title = stringResource(R.string.home_card_holiday),
         onClick = onClick,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -558,13 +566,13 @@ private fun HolidayCard(task: HolidayTask, onClick: () -> Unit) {
             Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
-                    text = task.name.ifBlank { "节假日登记" },
+                    text = task.name.ifBlank { holidayFallback },
                     fontSize = 14.5.sp,
                     fontWeight = FontWeight.Medium,
                 )
                 Spacer(modifier = Modifier.height(1.dp))
                 Text(
-                    text = "登记截止 ${task.registerEndDate}",
+                    text = stringResource(R.string.home_holiday_deadline, task.registerEndDate),
                     fontSize = 12.sp,
                     color = LxInkMuted,
                 )
@@ -578,15 +586,15 @@ private fun HolidayCard(task: HolidayTask, onClick: () -> Unit) {
 @Composable
 private fun RunningCard(dashboard: RunningDashboard?, error: String?, onClick: () -> Unit) {
     // badge 承载互补信息（body 说"离完成还差 X"，badge 说"目标 3 km"）
-    val targetBadge = "目标 ${DAILY_TARGET_KM.toInt()} km"
+    val targetBadge = stringResource(R.string.home_running_target, DAILY_TARGET_KM.toInt())
     DashboardCard(
-        title = "运动进度",
+        title = stringResource(R.string.home_card_running),
         badge = targetBadge,
         onClick = onClick,
     ) {
         when {
             error != null -> LxErrorHint(error)
-            dashboard == null -> LxEmptyHint("暂无运动数据")
+            dashboard == null -> LxEmptyHint(stringResource(R.string.home_running_empty))
             else -> {
                 val dailyProgress = (dashboard.todayKm / DAILY_TARGET_KM).coerceIn(0.0, 1.0).toFloat()
                 val remaining = max(DAILY_TARGET_KM - dashboard.todayKm, 0.0)
@@ -623,16 +631,16 @@ private fun RunningCard(dashboard: RunningDashboard?, error: String?, onClick: (
                         verticalArrangement = Arrangement.Center,
                     ) {
                         Text(
-                            text = "今日 ${formatKm(dashboard.todayKm)} km",
+                            text = stringResource(R.string.home_running_today, formatKm(dashboard.todayKm)),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
                             lineHeight = 19.sp,
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         val subtitle = if (dashboard.todayKm >= DAILY_TARGET_KM) {
-                            "今日目标已达成"
+                            stringResource(R.string.home_running_done)
                         } else {
-                            "离完成还差 ${formatKm(remaining)} km"
+                            stringResource(R.string.home_running_remaining, formatKm(remaining))
                         }
                         Text(
                             text = subtitle,

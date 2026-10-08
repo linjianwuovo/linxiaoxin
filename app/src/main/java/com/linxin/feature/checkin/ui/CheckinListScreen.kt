@@ -93,7 +93,7 @@ fun CheckinListScreen(
                 modifier = Modifier.padding(padding),
             )
             uiState.hasNothing -> LxEmpty(
-                message = "暂无签到任务",
+                message = stringResource(R.string.checkin_empty),
                 modifier = Modifier.padding(padding),
             )
             else -> TaskList(
@@ -157,7 +157,7 @@ private fun TaskList(
         // 查寝签到 section
         if (uiState.tasks.isNotEmpty() || uiState.error != null) {
             item(key = "section_checkin") {
-                SectionHeader("查寝签到")
+                SectionHeader(stringResource(R.string.title_dorm_checkin))
             }
             uiState.error?.let { tasksError ->
                 item(key = "checkin_error") {
@@ -176,7 +176,7 @@ private fun TaskList(
         // 主题签到 section
         if (uiState.subjectTasks.isNotEmpty() || uiState.subjectError != null) {
             item(key = "section_subject") {
-                SectionHeader("主题签到")
+                SectionHeader(stringResource(R.string.checkin_section_theme))
             }
             uiState.subjectError?.let { subjectError ->
                 item(key = "subject_error") {
@@ -224,7 +224,7 @@ private fun TaskCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = task.taskName.ifBlank { "查寝签到" },
+                    text = task.taskName.ifBlank { stringResource(R.string.title_dorm_checkin) },
                     style = MiuixTheme.textStyles.body2,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
@@ -269,10 +269,14 @@ private fun SectionHeader(title: String) {
 @Composable
 private fun StatusBadge(isSigned: Boolean, statusText: String = "") {
     // 服务端原文优先：未开始 ≠ 未签到，混成一档会误导
-    val text = statusText.ifBlank { if (isSigned) "已签到" else "未签到" }
+    val text = statusText.ifBlank {
+        if (isSigned) stringResource(R.string.checkin_state_signed)
+        else stringResource(R.string.checkin_state_unsigned)
+    }
+    // 配色只认服务端原文：拿翻译后的 text 去比 "已签到"，英文界面下会全部落到默认档。
     val color = when {
-        isSigned || text == "已签到" -> LxSuccess
-        text == "未开始" || text == "签到中" -> LxWarning
+        isSigned || statusText == "已签到" -> LxSuccess
+        statusText == "未开始" || statusText == "签到中" -> LxWarning
         else -> MiuixTheme.colorScheme.secondary
     }
 
@@ -317,7 +321,8 @@ private fun MonthOverviewCard(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
         ) {
             Text(
-                text = month?.let { "${it.year} 年 ${it.monthValue} 月签到概览" } ?: "本月签到概览",
+                text = month?.let { stringResource(R.string.checkin_month_overview, it.year, it.monthValue) }
+                ?: stringResource(R.string.checkin_overview),
                 style = MiuixTheme.textStyles.body2,
                 fontWeight = FontWeight.SemiBold,
                 color = LxInk,
@@ -326,15 +331,15 @@ private fun MonthOverviewCard(
             statics?.let { data ->
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    StatCell("已签", data.signed, LxSuccess, Modifier.weight(1f))
-                    StatCell("未签", data.notSigned, LxTerra, Modifier.weight(1f))
-                    StatCell("签到中", data.inProgress, LxWarning, Modifier.weight(1f))
+                    StatCell(stringResource(R.string.checkin_stat_signed), data.signed, LxSuccess, Modifier.weight(1f))
+                    StatCell(stringResource(R.string.checkin_stat_unsigned), data.notSigned, LxTerra, Modifier.weight(1f))
+                    StatCell(stringResource(R.string.checkin_stat_in_progress), data.inProgress, LxWarning, Modifier.weight(1f))
                 }
                 Spacer(modifier = Modifier.height(10.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    StatCell("请假", data.leave, LxInkMuted, Modifier.weight(1f))
-                    StatCell("离校", data.offCampus, LxInkMuted, Modifier.weight(1f))
-                    StatCell("扫码", data.qrCode, LxInkMuted, Modifier.weight(1f))
+                    StatCell(stringResource(R.string.checkin_stat_leave), data.leave, LxInkMuted, Modifier.weight(1f))
+                    StatCell(stringResource(R.string.checkin_stat_off_campus), data.offCampus, LxInkMuted, Modifier.weight(1f))
+                    StatCell(stringResource(R.string.checkin_stat_qr), data.qrCode, LxInkMuted, Modifier.weight(1f))
                 }
             }
 
@@ -344,7 +349,12 @@ private fun MonthOverviewCard(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    listOf("一", "二", "三", "四", "五", "六", "日").forEach { label ->
+                    listOf(
+                    stringResource(R.string.checkin_wday_1), stringResource(R.string.checkin_wday_2),
+                    stringResource(R.string.checkin_wday_3), stringResource(R.string.checkin_wday_4),
+                    stringResource(R.string.checkin_wday_5), stringResource(R.string.checkin_wday_6),
+                    stringResource(R.string.checkin_wday_7),
+                ).forEach { label ->
                         Text(
                             text = label,
                             modifier = Modifier.weight(1f),

@@ -86,7 +86,10 @@ private fun ExamContent(
     onSemesterSelected: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val semesters = remember { listOf("1" to "第一学期", "2" to "第二学期") }
+    val semesters = listOf(
+        "1" to stringResource(R.string.exam_semester_1),
+        "2" to stringResource(R.string.exam_semester_2),
+    )
     val yearOptions = uiState.schoolYears.map { it.value to it.display }
     // null = 没弹；"year"/"semester" = 正在选哪个
     var picking by remember { mutableStateOf<String?>(null) }
@@ -109,7 +112,7 @@ private fun ExamContent(
                     )
                     SelectorField(
                         value = semesters.firstOrNull { it.first == uiState.selectedSemester }?.second
-                            ?: "第${uiState.selectedSemester}学期",
+                            ?: stringResource(R.string.exam_semester_n, uiState.selectedSemester),
                         onClick = { picking = PICK_SEMESTER },
                         modifier = Modifier.weight(1f),
                     )
@@ -122,7 +125,7 @@ private fun ExamContent(
                 item(key = "empty") {
                     LxCard {
                         Text(
-                            text = "该学期暂无成绩记录",
+                            text = stringResource(R.string.exam_empty),
                             style = MiuixTheme.textStyles.body2,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             modifier = Modifier.padding(20.dp),
@@ -146,7 +149,7 @@ private fun ExamContent(
             if (options.isNotEmpty()) {
                 OverlayBottomSheet(
                     show = true,
-                    title = if (isYear) "选择学年" else "选择学期",
+                    title = if (isYear) stringResource(R.string.exam_pick_year) else stringResource(R.string.exam_pick_semester),
                     onDismissRequest = { picking = null },
                     backgroundColor = MiuixTheme.colorScheme.surface,
                     cornerRadius = RLg,
@@ -262,8 +265,8 @@ private fun ScoreCard(score: ExamScore) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                ScoreMetaText("学分: ${score.credit}")
-                ScoreMetaText("绩点: ${score.gpa}")
+                ScoreMetaText(stringResource(R.string.exam_credit, score.credit))
+                ScoreMetaText(stringResource(R.string.exam_gpa, score.gpa))
                 ScoreMetaText(score.category)
             }
         }
@@ -303,7 +306,7 @@ private fun SummaryCard(scores: List<ExamScore>) {
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = "总学分",
+                    text = stringResource(R.string.exam_total_credit),
                     style = MiuixTheme.textStyles.footnote2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
@@ -316,7 +319,7 @@ private fun SummaryCard(scores: List<ExamScore>) {
                     color = MiuixTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "平均绩点",
+                    text = stringResource(R.string.exam_avg_gpa),
                     style = MiuixTheme.textStyles.footnote2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
