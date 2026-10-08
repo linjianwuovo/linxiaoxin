@@ -57,7 +57,7 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @HiltViewModel
-class MessagesViewModel @Inject constructor(
+class MessageSettingsViewModel @Inject constructor(
     private val prefs: MessagePrefs,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
@@ -86,7 +86,7 @@ class MessagesViewModel @Inject constructor(
 }
 
 @Composable
-fun MessagesCard(viewModel: MessagesViewModel = hiltViewModel()) {
+fun MessagesCard(viewModel: MessageSettingsViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val settings by viewModel.settings.collectAsStateWithLifecycle()
 
