@@ -1,5 +1,7 @@
 package com.linxin.feature.checkin.ui
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel

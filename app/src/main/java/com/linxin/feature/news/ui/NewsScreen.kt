@@ -1,5 +1,7 @@
 package com.linxin.feature.news.ui
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,7 +67,7 @@ fun NewsScreen(
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
             Text(
-                text = "公告",
+                text = stringResource(R.string.ui_035),
                 style = MiuixTheme.textStyles.title1,
                 fontWeight = FontWeight.Bold,
                 color = LxInk,
@@ -81,7 +83,7 @@ fun NewsScreen(
                     modifier = Modifier.fillMaxSize(),
                 )
                 uiState.items.isEmpty() -> LxEmpty(
-                    message = "暂无公告",
+                    message = stringResource(R.string.ui_036),
                     modifier = Modifier.fillMaxSize(),
                 )
                 else -> NewsList(

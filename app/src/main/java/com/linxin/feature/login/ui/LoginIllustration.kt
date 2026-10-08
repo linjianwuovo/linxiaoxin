@@ -1,5 +1,7 @@
 package com.linxin.feature.login.ui
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
