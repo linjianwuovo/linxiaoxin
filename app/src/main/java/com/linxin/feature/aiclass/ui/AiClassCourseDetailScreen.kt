@@ -1,5 +1,6 @@
 package com.linxin.feature.aiclass.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxDetailRow
 import com.linxin.core.designsystem.component.LxError
@@ -57,7 +59,7 @@ fun AiClassCourseDetailScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "课程详情", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_course_detail), onBack = onBack) },
     ) { padding ->
         val course = uiState.selectedCourse
         when {

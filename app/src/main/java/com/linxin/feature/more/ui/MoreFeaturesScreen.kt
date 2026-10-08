@@ -1,5 +1,6 @@
 package com.linxin.feature.more.ui
 
+import androidx.compose.ui.res.stringResource
 import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxTopBar
 import com.linxin.core.designsystem.theme.LxCream
@@ -94,7 +96,7 @@ fun MoreFeaturesScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "更多功能", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_more_functions), onBack = onBack) },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(horizontal = 20.dp, vertical = 16.dp)) {
             LxCard {

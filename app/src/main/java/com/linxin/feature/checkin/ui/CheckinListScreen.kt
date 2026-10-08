@@ -1,5 +1,6 @@
 package com.linxin.feature.checkin.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxEmpty
 import com.linxin.core.designsystem.component.LxError
@@ -79,7 +81,7 @@ fun CheckinListScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "查寝签到", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_dorm_checkin), onBack = onBack) },
     ) { padding ->
         val tasksDead = error != null &&
             uiState.subjectTasks.isEmpty() && uiState.statics == null && uiState.days.isEmpty()
