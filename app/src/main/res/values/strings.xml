@@ -466,4 +466,18 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="checkin_section_leave">离校登记</string>
     <string name="checkin_day_leave">离校 · %1$s</string>
     <string name="checkin_day_leave_range">%1$s 离校，%2$s 返校</string>
+    <string name="msg_channel_name">消息提醒</string>
+    <string name="msg_channel_desc">新公告、查寝待签、返校提醒</string>
+    <string name="msg_news_title">新公告</string>
+    <string name="msg_checkin_title">查寝还没签</string>
+    <string name="msg_checkin_body">《%1$s》%2$s~%3$s 还没签到</string>
+    <string name="msg_return_title">返校提醒</string>
+    <string name="msg_return_body">%1$s 假期 %2$s 结束，记得登记返校</string>
+    <string name="msg_settings_title">消息提醒</string>
+    <string name="msg_settings_desc">每 15 分钟检查一次，只在有网时跑</string>
+    <string name="msg_src_news">新公告</string>
+    <string name="msg_src_checkin">查寝待签</string>
+    <string name="msg_src_return">返校提醒</string>
+    <string name="msg_check_now">立即检查一次</string>
+    <string name="msg_perm_off">系统通知权限未开启，通知发不出去</string>
 </resources>

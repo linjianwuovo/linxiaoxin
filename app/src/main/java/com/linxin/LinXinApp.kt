@@ -1,5 +1,7 @@
 package com.linxin
 
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import com.linxin.core.locale.AppText
 import android.app.Application
 import com.linxin.core.network.NetTrace
@@ -14,10 +16,15 @@ import java.util.Locale
 import javax.inject.Inject
 
 @HiltAndroidApp
-class LinXinApp : Application() {
+class LinXinApp : Application(), Configuration.Provider {
 
     // 提前实例化，让"启用调试功能"的开关从启动就跟 DataStore 对齐
     @Inject lateinit var netTrace: NetTrace
+
+    @Inject lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
     override fun onCreate() {
         AppText.init(this)
