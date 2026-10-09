@@ -17,6 +17,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -113,7 +116,7 @@ class CardViewModel @Inject constructor(
     data class PayTarget(
         val url: String,
         val orderNo: String,
-        val cookies: List<Pair<String, String>>,
+        val cookies: List<com.linxin.feature.card.data.CardCookieSeed>,
     )
 
     fun clearWriteOutcome() {
@@ -333,9 +336,16 @@ fun CampusCardScreen(
                     title = stringResource(R.string.card_recharge_cashier),
                     onBack = viewModel::closePay,
                     actions = {
-                        LxTextButton(
-                            text = stringResource(R.string.card_recharge_check),
-                            onClick = viewModel::checkPayResult,
+                        // 不用 LxTextButton：Miuix 的主色文字按钮是实心蓝底大胶囊，
+                        // 放顶栏会把标题挤成「收…」（2026-10-09 18:50 真机）
+                        Text(
+                            text = stringResource(R.string.card_recharge_check_short),
+                            style = MiuixTheme.textStyles.body1,
+                            color = LxInk,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { viewModel.checkPayResult() }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
                         )
                     },
                 )

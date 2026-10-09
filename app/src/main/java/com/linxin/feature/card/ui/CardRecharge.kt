@@ -28,11 +28,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.linxin.feature.card.data.CardCookieSeed
 import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxDialog
@@ -221,6 +223,8 @@ fun CardPayWebView(
     // 网页自己那一坨按钮、配色不归我们管，我们能管的是别在它上面再压一层我们的控件：
     // 顶栏（含「查结果」）由外层 Scaffold 给，这里整块留给网页，只留一条加载进度和一句脚注。
     var progress by remember { mutableStateOf(0) }
+    // 颜色得在组合作用域里取，再带进 AndroidView 的 factory（那里不是 composable 上下文）
+    val bgArgb = MiuixTheme.colorScheme.background.toArgb()
     Column(modifier = modifier.fillMaxSize()) {
         if (progress < 100) {
             LinearProgressIndicator(
@@ -235,7 +239,7 @@ fun CardPayWebView(
                 .fillMaxWidth()
                 .weight(1f),
             factory = { context ->
-                seedCookies(target.url, target.cookies)
+                seedCookies(target.cookies)
                 WebView(context).apply {
                     layoutParams = ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
@@ -246,6 +250,9 @@ fun CardPayWebView(
                     settings.allowFileAccess = false
                     settings.allowContentAccess = false
                     isVerticalScrollBarEnabled = false
+                    // WebView 默认底色是纯白，页面还没出来（或者它自己报错）时屏幕上就是一大块白，
+                    // 配上一条深色提示看着像出了大事。跟 app 背景同色，至少不刺眼。
+                    setBackgroundColor(bgArgb)
                     webViewClient = object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                             val scheme = request.url.scheme ?: return false
@@ -286,11 +293,26 @@ fun CardPayWebView(
     }
 }
 
-/** 把一卡通会话 cookie 种进 WebView（收银台和 okhttp 用的是两套 cookie 存储） */
-private fun seedCookies(url: String, cookies: List<Pair<String, String>>) {
+/**
+ * 把一卡通会话 cookie 种进 WebView（收银台和 okhttp 用的是两套 cookie 存储）。
+ *
+ * 一定要带上原始 domain：`CookieManager.setCookie(url, "name=value")` 是 host-only 的，
+ * 那样只有收银台那一台读得到，页面再去调 ecardh5 就没会话了，屏幕上就是
+ * 一条「会话失效或前置异常」+ 整块空白（2026-10-09 18:50 真机）。
+ * 那些 cookie 本来就是 `.17wanxiao.com` 跨子域的，按父域种才对得上。
+ */
+private fun seedCookies(cookies: List<CardCookieSeed>) {
     if (cookies.isEmpty()) return
     val manager = CookieManager.getInstance()
     manager.setAcceptCookie(true)
-    cookies.forEach { (name, value) -> manager.setCookie(url, "$name=$value") }
+    cookies.forEach { seed ->
+        val host = seed.domain.removePrefix(".").ifBlank { return@forEach }
+        val builder = StringBuilder(seed.name)
+            .append('=').append(seed.value)
+            .append("; domain=").append(seed.domain)
+            .append("; path=").append(seed.path.ifBlank { "/" })
+        if (seed.secure) builder.append("; secure")
+        manager.setCookie("https://$host/", builder.toString())
+    }
     manager.flush()
 }

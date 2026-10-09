@@ -604,4 +604,5 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="card_close">完成</string>
     <string name="card_recharge_sms_verify">这所学校要求充值前先做短信验证，本应用没接那条流程，请去官方入口充值。</string>
     <string name="card_recharge_result">充值结果</string>
+    <string name="card_recharge_check_short">查结果</string>
 </resources>
