@@ -41,6 +41,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -225,7 +226,11 @@ fun LxBottomBar(
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .offset { IntOffset(pillOffsetX.roundToInt(), 0) }
+                // 这里不能用 Modifier.offset { IntOffset(...) }：那个 lambda 只在重新测量的时候取值，
+                // 滑块的尺寸又不随选中项变，Compose 就不重测，读到的永远是上一帧的位置 ——
+                // 真机上表现成"滑块慢一格"（点公告它停在消息那格）。
+                // graphicsLayer 的 translationX 在绘制阶段每帧都读，跟着动画走，不会滞后。
+                .graphicsLayer { translationX = pillOffsetX }
                 .size(width = pillWidthDp, height = pillHeightDp)
                 .clip(pillShape)
                 .then(
