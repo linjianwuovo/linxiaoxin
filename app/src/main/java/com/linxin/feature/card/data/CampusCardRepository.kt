@@ -19,6 +19,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -66,7 +67,49 @@ class CampusCardRepository @Inject constructor(
         }
     }
 
+    /**
+     * 换会话外面套一层退避重试。
+     *
+     * 起因：2026-10-09 16:45 真机上进校园卡直接报「一卡通引导页打不开（504）」，
+     * 而我同一时刻从电脑上打同一个地址三次都是 200、平均 0.27 秒 —— 504 是网关超时，
+     * 它自己连学校 SSO 那一跳卡了（13:35 也抓到过 `javax.net.ssl.SSLException: Connection reset`）。
+     * 这种失败让用户手动点重试很没道理，所以只重试「服务端没响应」这一类：
+     * 502/503/504 和连接层异常，退避 1.2s、2.4s 再试，最多三次。
+     * 「token 验证失败」「还没登录」这种是确定性失败，一次就抛，不浪费时间。
+     */
     private suspend fun ensureSessionLocked() {
+        var last: Exception? = null
+        repeat(SESSION_ATTEMPTS) { attempt ->
+            try {
+                runSessionExchange()
+                return
+            } catch (e: Exception) {
+                last = e
+                if (!e.isTransientUpstream()) throw e
+                if (attempt < SESSION_ATTEMPTS - 1) delay(1200L * (attempt + 1))
+            }
+        }
+        val cause = last ?: Exception("一卡通会话换不出来")
+        throw CardUpstreamExhausted(
+            "一卡通服务器没响应，自动试了 $SESSION_ATTEMPTS 次都没连上：${cause.message}",
+            cause,
+        )
+    }
+
+    private fun Throwable.isTransientUpstream(): Boolean = when (this) {
+        is CardUpstream -> httpCode in TRANSIENT_CODES
+        // 连接被重置、读超时这些也归进来：重试它们没有副作用，会话交换本身是只读的
+        is java.io.IOException -> true
+        else -> false
+    }
+
+    /** 第一跳 / 第三跳的 HTTP 状态，留着码才能判断该不该重试 */
+    private class CardUpstream(val httpCode: Int, message: String) : Exception(message)
+
+    /** 退避重试也用完了 —— 上层别再跟着重试，那只会让人多等一倍时间 */
+    private class CardUpstreamExhausted(message: String, cause: Throwable?) : Exception(message, cause)
+
+    private suspend fun runSessionExchange() {
         val creds = tokenManager.snapshot()
         val token = creds.accessToken.orEmpty()
         val xh = creds.userCode.orEmpty()
@@ -84,7 +127,9 @@ class CampusCardRepository @Inject constructor(
                 "&_userType=$userType&appId=${ApiConstants.APP_ID}" +
                 "&returnFromIscToAppFunc=ReturnDefault",
         )
-        if (!bootstrap.isSuccessful) throw Exception("一卡通引导页打不开（${bootstrap.code()}）")
+        if (!bootstrap.isSuccessful) {
+            throw CardUpstream(bootstrap.code(), "引导页（light.action）打不开，HTTP ${bootstrap.code()}")
+        }
         bootstrap.body()?.close()
 
         // 第 2 步：userData 就是抓包里那串 JSON，键的顺序也照它 H5 里写好的样子来
@@ -110,7 +155,9 @@ class CampusCardRepository @Inject constructor(
 
         // 第 3 步：跟着 302 走完，ecardh5 的会话 cookie 就在这一步种下
         val authorize = api.followAuthorize(authorizeUrl)
-        if (!authorize.isSuccessful) throw Exception("一卡通授权跳转失败（${authorize.code()}）")
+        if (!authorize.isSuccessful) {
+            throw CardUpstream(authorize.code(), "授权跳转失败，HTTP ${authorize.code()}")
+        }
         authorize.body()?.close()
         sessionReady = true
     }
@@ -126,10 +173,21 @@ class CampusCardRepository @Inject constructor(
     private suspend fun <T> readWithRetry(block: suspend () -> Result<T>): Result<T> {
         val first = block()
         if (first.isSuccess) return first
+        // 服务端压根没响应时 `ensureSessionLocked` 已经自己试过三轮了，这里再跟一轮就是让人多等一倍
+        if (first.exceptionOrNull()?.causesContain { it is CardUpstreamExhausted } == true) return first
         sessionReady = false
         rsaPublicKey = null
         userInfoRow = null
         return block()
+    }
+
+    private inline fun Throwable.causesContain(check: (Throwable) -> Boolean): Boolean {
+        var t: Throwable? = this
+        while (t != null) {
+            if (check(t)) return true
+            t = t.cause
+        }
+        return false
     }
 
     suspend fun balance(): Result<CardBalance> = readWithRetry { balanceOnce() }
@@ -612,6 +670,12 @@ class CampusCardRepository @Inject constructor(
 
         /** `quota` 缺失或不是正数时，它 H5 自己就用 "500" */
         private const val DEFAULT_MAX = 500
+
+        /** 换会话最多试几次 */
+        private const val SESSION_ATTEMPTS = 3
+
+        /** 只有这几个状态算「服务端暂时不行」，值得重试 */
+        private val TRANSIENT_CODES = setOf(502, 503, 504)
 
         /** `toPay` 里那串走 `wechat.html` 的 paywayid，一个不多一个不少照抄 */
         private val WECHAT_PAYWAY_IDS = setOf(
