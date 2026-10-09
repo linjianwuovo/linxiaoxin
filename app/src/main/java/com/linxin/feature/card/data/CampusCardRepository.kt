@@ -45,6 +45,15 @@ class CampusCardRepository @Inject constructor(
         sessionReady = false
     }
 
+    /**
+     * 提前把会话换好。这条链要串行打四跳、跨 hub / open / ecardh5 三个域名，每跳都要重新
+     * TLS 握手（真机 logcat 量到 260 / 740 / 2000 / 720 ms 这个量级），等用户点进校园卡
+     * 再开始换就得干等好几秒。首页数据加载完后在后台跑一次，出错不抛（用户可能根本不进这页）。
+     */
+    suspend fun warmUp() {
+        runCatching { ensureSession() }
+    }
+
     private suspend fun ensureSession() {
         if (sessionReady) return
         sessionMutex.withLock {
