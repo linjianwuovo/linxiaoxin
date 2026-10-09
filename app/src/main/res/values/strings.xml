@@ -503,4 +503,26 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="repair_repair_note">维修说明</string>
     <string name="repair_finish">完成情况</string>
     <string name="repair_evaluation">服务评价</string>
+
+    <!-- 请假（只读） -->
+    <string name="title_leave">请假</string>
+    <string name="leave_tab_apply">我的申请</string>
+    <string name="leave_tab_todo">待我处理</string>
+    <string name="leave_empty_apply">还没有提交过申请</string>
+    <string name="leave_empty_todo">没有待处理的流程</string>
+    <string name="leave_untitled">流程单</string>
+
+    <!-- 校园卡（只读） -->
+    <string name="title_card">校园卡</string>
+    <string name="card_total">卡内余额</string>
+    <string name="card_main">主钱包</string>
+    <string name="card_subsidy">补助钱包</string>
+    <string name="card_fund">基金</string>
+    <string name="card_status">卡状态</string>
+    <string name="card_status_ok">正常使用中</string>
+    <string name="card_status_code">状态码 %1$d</string>
+    <string name="card_valid_until">有效期至</string>
+    <string name="card_month_trades">本月交易</string>
+    <string name="card_month_trades_value">%1$d 笔</string>
+    <string name="card_readonly_hint">这里只显示余额和卡状态。充值、挂失、改密、解绑都会动到钱和凭证，没有做进来。</string>
 </resources>

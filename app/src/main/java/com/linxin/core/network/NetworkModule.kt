@@ -27,6 +27,8 @@ import javax.inject.Singleton
 @Qualifier @Retention(AnnotationRetention.BINARY) annotation class FifOkHttpClient
 @Qualifier @Retention(AnnotationRetention.BINARY) annotation class IzuoyeRetrofit
 @Qualifier @Retention(AnnotationRetention.BINARY) annotation class RepairRetrofit
+@Qualifier @Retention(AnnotationRetention.BINARY) annotation class LeaveRetrofit
+@Qualifier @Retention(AnnotationRetention.BINARY) annotation class CardRetrofit
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -102,6 +104,11 @@ object NetworkModule {
     @Provides @Singleton @RepairRetrofit
     fun provideRepairRetrofit(client: OkHttpClient): Retrofit =
         buildRetrofit(client, ApiConstants.BASE_REPAIR + "/")
+
+    // 请假（业务流转引擎）：身份五件套由 LeaveApi 自己声明，AuthInterceptor 对该域名跳过注入
+    @Provides @Singleton @LeaveRetrofit
+    fun provideLeaveRetrofit(client: OkHttpClient): Retrofit =
+        buildRetrofit(client, ApiConstants.BASE_LEAVE + "/")
 
     // ─── FIF AI课堂 ───
 
