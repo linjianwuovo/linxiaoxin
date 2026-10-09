@@ -1,7 +1,11 @@
 package com.linxin.feature.home.ui
 
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +27,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -47,13 +52,9 @@ import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-private val tabs = listOf(
-    LxTab(R.string.tab_home, Icons.Outlined.Home),
-    LxTab(R.string.tab_schedule, Icons.Outlined.CalendarMonth),
-    LxTab(R.string.tab_messages, Icons.Outlined.Forum),
-    LxTab(R.string.tab_news, Icons.Outlined.Campaign),
-    LxTab(R.string.tab_profile, Icons.Outlined.Person),
-)
+// 底栏四个 tab + 中间那颗「全部服务」；公告还在 pager 里（第 3 页），
+// 但从底栏走不到它了，只能从中间那颗进 —— 照酷安那种「四 tab 一中键」的排法。
+private val tabs = LxHomeTabs
 
 @Composable
 fun HomeScreen(
@@ -75,10 +76,17 @@ fun HomeScreen(
         selectedTab = pagerState.currentPage
     }
 
-    fun goToTab(index: Int) {
-        selectedTab = index
-        scope.launch { pagerState.animateScrollToPage(index) }
+    // 底栏只有四格，页号却是 0..4（公告占 3），所以两边要换算一次
+    val barIndex = tabs.indexOfFirst { it.pageIndex == selectedTab }
+    var servicesOpen by remember { mutableStateOf(false) }
+
+    fun goToPage(page: Int) {
+        selectedTab = page
+        servicesOpen = false
+        scope.launch { pagerState.animateScrollToPage(page) }
     }
+
+    fun goToTab(index: Int) = goToPage(tabs[index].pageIndex)
 
 
     Box(
@@ -159,7 +167,7 @@ fun HomeScreen(
 
         // 悬浮液态玻璃底栏（Kyant0 Backdrop 官方用法，照搬 demo 实现）
         LxBottomBar(
-            selectedIndex = selectedTab,
+            selectedIndex = barIndex,
             onSelected = { goToTab(it) },
             material = themeSettings.barMaterial,
             backdrop = glassBackdrop,
@@ -169,10 +177,37 @@ fun HomeScreen(
             glassDistortion = themeSettings.glassDistortion,
             glassDispersion = themeSettings.glassDispersion,
             tabs = tabs,
+            centerOpen = servicesOpen,
+            onCenterClick = { servicesOpen = !servicesOpen },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth(),
         )
+
+        if (servicesOpen) {
+            // 一层透明遮罩点哪儿都关，菜单卡片浮在底栏上方
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.28f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { servicesOpen = false },
+            )
+            LxServiceMenu(
+                onAnnouncement = { goToPage(3) },
+                onRoute = { route ->
+                    servicesOpen = false
+                    navController.navigate(route) { launchSingleTop = true }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 84.dp),
+            )
+        }
     }
 }
 
