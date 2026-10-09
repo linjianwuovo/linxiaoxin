@@ -32,3 +32,9 @@ frida-server*
 
 # MiSans VF：许可协议禁止单独分发字体副本，字体文件只留在本地，见 MISANS-NOTICE.txt
 /app/src/main/res/font/misans_vf.ttf
+
+# 真机验证产物：uiautomator dump / screencap / logcat 一律不落进工作区
+/u*.xml
+/s*.png
+/logcat*.txt
+*.pb
