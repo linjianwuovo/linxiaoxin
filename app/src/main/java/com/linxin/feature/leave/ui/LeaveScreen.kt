@@ -91,7 +91,8 @@ class LeaveViewModel @Inject constructor(
                     applies = applyResult.getOrNull()?.items ?: emptyList(),
                     todos = todoResult.getOrNull()?.items ?: emptyList(),
                     isLoading = false,
-                    error = failure?.message ?: "请假记录加载失败",
+                    // 没有异常就是没有异常：空列表是正常状态，不能当成失败
+                    error = failure?.message,
                 )
             }
         }

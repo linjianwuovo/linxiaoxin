@@ -525,4 +525,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="card_month_trades">This month</string>
     <string name="card_month_trades_value">%1$d transactions</string>
     <string name="card_readonly_hint">Balance and card status only. Top-up, freeze, password change and unbinding all touch money or credentials, so they are not built in.</string>
+    <string name="card_trades_failed">Could not load transactions for this month</string>
+    <string name="card_trades_empty">No spending this month</string>
+    <string name="card_trade_untitled">Card transaction</string>
 </resources>

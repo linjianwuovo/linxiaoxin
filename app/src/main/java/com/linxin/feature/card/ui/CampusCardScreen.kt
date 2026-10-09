@@ -2,13 +2,15 @@ package com.linxin.feature.card.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.res.stringResource
 import com.linxin.R
 import androidx.compose.runtime.Composable
@@ -16,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -29,6 +32,7 @@ import com.linxin.core.designsystem.theme.LxInk
 import com.linxin.core.designsystem.theme.LxInkMuted
 import com.linxin.feature.card.data.CampusCardRepository
 import com.linxin.feature.card.data.CardBalance
+import com.linxin.feature.card.data.CardTrade
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import java.time.YearMonth
@@ -46,16 +50,16 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 data class CardUiState(
     val balance: CardBalance? = null,
-    val monthTrades: Int? = null,
+    val trades: List<CardTrade> = emptyList(),
+    val tradesLoaded: Boolean = false,
     val isLoading: Boolean = true,
     val error: String? = null,
 )
 
 /**
- * 校园卡只读页：余额 + 卡状态 + 本月流水条数。
- *
- * 流水**只显示条数**——抓到的那次账本是空的（`{"size":0,"data":[]}`），
- * 每一行有哪些字段没有出处，所以不猜；要显示明细得先拿到一次非空返回再补。
+ * 校园卡只读页：余额 + 卡状态 + 本月流水。
+ * 余额和流水两条一起发、一起显示，不一路加载一路蹦。
+ * 充值 / 挂失 / 改密 / 解绑都是动钱动凭证的写操作，没有做进来。
  */
 @HiltViewModel
 class CardViewModel @Inject constructor(
@@ -76,21 +80,18 @@ class CardViewModel @Inject constructor(
             val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd")
             val balance = async { repository.balance() }
             val trades = async {
-                repository.monthTradeCount(
-                    month.atDay(1).format(fmt),
-                    month.atEndOfMonth().format(fmt),
-                )
+                repository.monthTrades(month.atDay(1).format(fmt), month.atEndOfMonth().format(fmt))
             }
             val balanceResult = balance.await()
             val tradesResult = trades.await()
             _uiState.update {
                 it.copy(
                     balance = balanceResult.getOrNull(),
-                    monthTrades = tradesResult.getOrNull(),
+                    trades = tradesResult.getOrNull().orEmpty(),
+                    tradesLoaded = tradesResult.isSuccess,
                     isLoading = false,
                     error = balanceResult.exceptionOrNull()?.message
-                        ?: tradesResult.exceptionOrNull()?.message
-                        ?: "校园卡加载失败",
+                        ?: tradesResult.exceptionOrNull()?.message,
                 )
             }
         }
@@ -110,68 +111,62 @@ fun CampusCardScreen(
         containerColor = MiuixTheme.colorScheme.background,
         topBar = { LxTopBar(title = stringResource(R.string.title_card), onBack = onBack) },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(horizontal = 20.dp),
-        ) {
-            when {
-                uiState.isLoading -> LxLoading(modifier = Modifier.fillMaxSize())
-                uiState.balance == null && uiState.error != null -> LxError(
-                    message = uiState.error!!,
-                    onRetry = viewModel::load,
-                )
-                else -> uiState.balance?.let { balance ->
-                    Column {
-                        LxCard {
-                            Column(modifier = Modifier.padding(20.dp)) {
-                                Text(
-                                    text = stringResource(R.string.card_total),
-                                    style = MiuixTheme.textStyles.footnote1,
-                                    color = LxInkMuted,
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = "¥ ${balance.totalText.ifBlank { "%.2f".format(balance.mainFare + balance.subsidyFare + balance.fundFare) }}",
-                                    style = MiuixTheme.textStyles.headline1,
-                                    fontWeight = FontWeight.Bold,
-                                    color = LxInk,
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                CardMoneyRow(stringResource(R.string.card_main), balance.mainFare)
-                                CardMoneyRow(stringResource(R.string.card_subsidy), balance.subsidyFare)
-                                CardMoneyRow(stringResource(R.string.card_fund), balance.fundFare)
-                                Spacer(modifier = Modifier.height(12.dp))
-                                CardMoneyRow(
-                                    label = stringResource(R.string.card_status),
-                                    value = if (balance.status == 1) {
-                                        stringResource(R.string.card_status_ok)
-                                    } else {
-                                        stringResource(R.string.card_status_code, balance.status)
-                                    },
-                                )
-                                if (balance.validUntil.isNotBlank()) {
-                                    CardMoneyRow(
-                                        label = stringResource(R.string.card_valid_until),
-                                        value = balance.validUntil,
-                                    )
-                                }
-                                uiState.monthTrades?.let { count ->
-                                    CardMoneyRow(
-                                        label = stringResource(R.string.card_month_trades),
-                                        value = stringResource(R.string.card_month_trades_value, count),
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(14.dp))
+        when {
+            uiState.isLoading -> LxLoading(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize(),
+            )
+            uiState.balance == null && uiState.error != null -> LxError(
+                message = uiState.error!!,
+                onRetry = viewModel::load,
+                modifier = Modifier.padding(padding),
+            )
+            else -> LazyColumn(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                uiState.balance?.let { balance ->
+                    item { BalanceCard(balance) }
+                }
+                item {
+                    Text(
+                        text = stringResource(R.string.card_month_trades),
+                        style = MiuixTheme.textStyles.title4,
+                        fontWeight = FontWeight.SemiBold,
+                        color = LxInk,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                when {
+                    !uiState.tradesLoaded -> item {
                         Text(
-                            text = stringResource(R.string.card_readonly_hint),
-                            style = MiuixTheme.textStyles.footnote2,
+                            text = stringResource(R.string.card_trades_failed),
+                            style = MiuixTheme.textStyles.body2,
                             color = LxInkMuted,
                         )
                     }
+                    uiState.trades.isEmpty() -> item {
+                        Text(
+                            text = stringResource(R.string.card_trades_empty),
+                            style = MiuixTheme.textStyles.body2,
+                            color = LxInkMuted,
+                        )
+                    }
+                    else -> items(uiState.trades) { trade ->
+                        TradeRow(trade)
+                    }
+                }
+                item {
+                    Text(
+                        text = stringResource(R.string.card_readonly_hint),
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = LxInkMuted,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
                 }
             }
         }
@@ -179,8 +174,81 @@ fun CampusCardScreen(
 }
 
 @Composable
-private fun CardMoneyRow(label: String, value: Double) {
-    CardMoneyRow(label, "%.2f".format(value))
+private fun BalanceCard(balance: CardBalance) {
+    LxCard {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = stringResource(R.string.card_total),
+                style = MiuixTheme.textStyles.footnote1,
+                color = LxInkMuted,
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "¥ " + balance.totalText.ifBlank {
+                    "%.2f".format(balance.mainFare + balance.subsidyFare + balance.fundFare)
+                },
+                style = MiuixTheme.textStyles.headline1,
+                fontWeight = FontWeight.Bold,
+                color = LxInk,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            CardMoneyRow(stringResource(R.string.card_main), "%.2f".format(balance.mainFare))
+            CardMoneyRow(stringResource(R.string.card_subsidy), "%.2f".format(balance.subsidyFare))
+            CardMoneyRow(stringResource(R.string.card_fund), "%.2f".format(balance.fundFare))
+            Spacer(modifier = Modifier.height(10.dp))
+            CardMoneyRow(
+                label = stringResource(R.string.card_status),
+                value = if (balance.status == 1) {
+                    stringResource(R.string.card_status_ok)
+                } else {
+                    stringResource(R.string.card_status_code, balance.status)
+                },
+            )
+            if (balance.validUntil.isNotBlank()) {
+                CardMoneyRow(
+                    label = stringResource(R.string.card_valid_until),
+                    value = balance.validUntil,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TradeRow(trade: CardTrade) {
+    LxCard {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = trade.title.ifBlank { stringResource(R.string.card_trade_untitled) },
+                    style = MiuixTheme.textStyles.body1,
+                    color = LxInk,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                val sub = listOf(trade.time, trade.place).filter { it.isNotBlank() }.joinToString(" · ")
+                if (sub.isNotBlank()) {
+                    Text(
+                        text = sub,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = LxInkMuted,
+                    )
+                }
+            }
+            Text(
+                text = "%.2f".format(trade.amount),
+                style = MiuixTheme.textStyles.title4,
+                fontWeight = FontWeight.SemiBold,
+                color = LxInk,
+            )
+        }
+    }
 }
 
 @Composable
@@ -204,4 +272,3 @@ private fun CardMoneyRow(label: String, value: String) {
         )
     }
 }
-

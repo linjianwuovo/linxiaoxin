@@ -525,4 +525,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="card_month_trades">本月交易</string>
     <string name="card_month_trades_value">%1$d 笔</string>
     <string name="card_readonly_hint">这里只显示余额和卡状态。充值、挂失、改密、解绑都会动到钱和凭证，没有做进来。</string>
+    <string name="card_trades_failed">这个月流水没取到</string>
+    <string name="card_trades_empty">这个月还没有消费记录</string>
+    <string name="card_trade_untitled">校园卡交易</string>
 </resources>
