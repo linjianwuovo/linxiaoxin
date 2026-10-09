@@ -27,6 +27,7 @@ interface RepairApi {
     suspend fun getMyRepairs(
         @Field("accessToken") accessToken: String,
         @Field("xh") xh: String,
+        @Field("userCode") userCode: String,
         @Field("userName") userName: String,
         @Field("userType") userType: String,
     ): RepairListResponse
@@ -38,6 +39,7 @@ interface RepairApi {
         @Field("bxdh") bxdh: String,
         @Field("accessToken") accessToken: String,
         @Field("xh") xh: String,
+        @Field("userCode") userCode: String,
         @Field("userName") userName: String,
         @Field("userType") userType: String,
     ): RepairDetailResponse
@@ -49,6 +51,7 @@ interface RepairApi {
         @Field("bxdh") bxdh: String,
         @Field("accessToken") accessToken: String,
         @Field("xh") xh: String,
+        @Field("userCode") userCode: String,
         @Field("userName") userName: String,
         @Field("userType") userType: String,
     ): RepairFlowResponse

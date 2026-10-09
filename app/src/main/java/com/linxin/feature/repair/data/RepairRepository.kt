@@ -40,7 +40,7 @@ class RepairRepository @Inject constructor(
     suspend fun myRepairs(): Result<List<RepairItem>> {
         return try {
             val me = identity()
-            val resp = api.getMyRepairs(me.accessToken, me.xh, me.userName, me.userType)
+            val resp = api.getMyRepairs(me.accessToken, me.xh, me.xh, me.userName, me.userType)
             if (resp.flag != true) {
                 return Result.failure(Exception(resp.msg ?: resp.code ?: "获取报修单失败"))
             }
@@ -69,7 +69,7 @@ class RepairRepository @Inject constructor(
     suspend fun detail(bxdh: String): Result<RepairInfo> {
         return try {
             val me = identity()
-            val resp = api.getRepairDetail(bxdh, me.accessToken, me.xh, me.userName, me.userType)
+            val resp = api.getRepairDetail(bxdh, me.accessToken, me.xh, me.xh, me.userName, me.userType)
             if (resp.flag != true) {
                 return Result.failure(Exception(resp.msg ?: resp.code ?: "获取报修详情失败"))
             }
@@ -106,7 +106,7 @@ class RepairRepository @Inject constructor(
     suspend fun flow(bxdh: String): Result<List<RepairStep>> {
         return try {
             val me = identity()
-            val resp = api.getRepairFlow(bxdh, me.accessToken, me.xh, me.userName, me.userType)
+            val resp = api.getRepairFlow(bxdh, me.accessToken, me.xh, me.xh, me.userName, me.userType)
             if (resp.flag != true) {
                 return Result.failure(Exception(resp.msg ?: resp.code ?: "获取处理进度失败"))
             }

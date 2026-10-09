@@ -17,6 +17,8 @@ import okhttp3.OkHttpClient
 import org.json.JSONObject
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * 校园卡只读数据层：换会话 + 查余额。
@@ -33,12 +35,25 @@ class CampusCardRepository @Inject constructor(
     @Volatile
     private var sessionReady = false
 
+    /**
+     * 换会话必须串行：余额和流水两个请求是并行发的，两条链同时跑时后一次的 code
+     * 会把前一次换来的会话顶掉，服务端就回"会话失效或前置异常"。
+     */
+    private val sessionMutex = Mutex()
+
     fun resetSession() {
         sessionReady = false
     }
 
     private suspend fun ensureSession() {
         if (sessionReady) return
+        sessionMutex.withLock {
+            if (sessionReady) return@withLock
+            ensureSessionLocked()
+        }
+    }
+
+    private suspend fun ensureSessionLocked() {
         val creds = tokenManager.snapshot()
         val token = creds.accessToken.orEmpty()
         val xh = creds.userCode.orEmpty()
@@ -48,7 +63,7 @@ class CampusCardRepository @Inject constructor(
 
         val hub = ApiConstants.BASE_WANXIAO_HUB
         // 第 1 步：只为拿 hub 的 cookie，返回的那段 HTML 本身不用解析
-        api.openBootstrap(
+        val bootstrap = api.openBootstrap(
             "$hub/bsacs/light.action?flag=${ApiConstants.ECARD_FLAG}" +
                 "&ecardFunc=index&access_token=$token" +
                 "&_userCode=$xh&code=$xh&userCode=$xh" +
@@ -56,6 +71,8 @@ class CampusCardRepository @Inject constructor(
                 "&_userType=$userType&appId=${ApiConstants.APP_ID}" +
                 "&returnFromIscToAppFunc=ReturnDefault",
         )
+        if (!bootstrap.isSuccessful) throw Exception("一卡通引导页打不开（${bootstrap.code()}）")
+        bootstrap.body()?.close()
 
         // 第 2 步：userData 就是抓包里那串 JSON，键的顺序也照它 H5 里写好的样子来
         val userData = JSONObject()
@@ -77,9 +94,9 @@ class CampusCardRepository @Inject constructor(
         val authorizeUrl = redirect.url ?: throw Exception("一卡通没返回跳转地址")
 
         // 第 3 步：跟着 302 走完，ecardh5 的会话 cookie 就在这一步种下
-        api.followAuthorize(authorizeUrl).use { resp ->
-            if (!resp.isSuccessful) throw Exception("一卡通授权跳转失败（${resp.code}）")
-        }
+        val authorize = api.followAuthorize(authorizeUrl)
+        if (!authorize.isSuccessful) throw Exception("一卡通授权跳转失败（${authorize.code()}）")
+        authorize.body()?.close()
         sessionReady = true
     }
 
@@ -109,10 +126,10 @@ class CampusCardRepository @Inject constructor(
     }
 
     /**
-     * 本月流水条数。抓到的那次账本是空的（`{"size":0,"data":[]}`），
-     * 所以**行的字段名没有出处**，这里只取有出证的 `size`，不去猜每一行长什么样。
+     * 本月流水。第一次抓到的是空账本，2026-10-09 在电脑上把整条链跑通后拿到了非空返回，
+     * 行字段（`accdscrp`/`amount`/`businessopdt`/`term_name`/`orderno`/`type`…）就是那次的内容。
      */
-    suspend fun monthTradeCount(beginDate: String, endDate: String): Result<Int> {
+    suspend fun monthTrades(beginDate: String, endDate: String): Result<List<CardTrade>> {
         return try {
             ensureSession()
             val resp = api.trades(
@@ -123,9 +140,19 @@ class CampusCardRepository @Inject constructor(
                 endDate = endDate,
             )
             if (resp.result_ != true) {
+                sessionReady = false
                 return Result.failure(Exception(resp.message_ ?: "交易明细加载失败"))
             }
-            Result.success(resp.data?.size ?: 0)
+            Result.success(
+                resp.data?.data.orEmpty().map { row ->
+                    CardTrade(
+                        time = row.businessopdt.orEmpty().trim(),
+                        title = (row.accdscrp ?: row.description).orEmpty().trim(),
+                        place = row.term_name.orEmpty().trim(),
+                        amount = row.amount ?: 0.0,
+                    )
+                },
+            )
         } catch (e: Exception) {
             sessionReady = false
             Result.failure(Exception(e.message ?: "交易明细加载失败", e))
@@ -142,21 +169,37 @@ annotation class CardCookieJar
 @InstallIn(SingletonComponent::class)
 object CampusCardModule {
 
+    /**
+     * 扁平存 + `Cookie.matches(url)` 判域。
+     *
+     * 不能按 host 分桶：一卡通在 hub 上种的会话 cookie 是 `Domain=.17wanxiao.com` 这种跨子域的，
+     * 分桶存进 hub 桶后就再也发不给 ecardh5，服务端直接回"出现异常,请联系运维人员"。
+     * 只有 `matches()` 才懂 domain / path / secure 那套规则。
+     */
     @Provides
     @Singleton
     @CardCookieJar
-    fun provideCardCookieJar(): CookieJar = object : CookieJar {
-        val cookies = mutableMapOf<String, MutableList<Cookie>>()
-        override fun saveFromResponse(url: HttpUrl, cookies0: List<Cookie>) {
-            val host = url.host
-            val list = cookies.getOrPut(host) { mutableListOf() }
-            list.removeAll { old -> cookies0.any { it.name == old.name && it.path == old.path } }
-            list += cookies0
-        }
+    fun provideCardCookieJar(): CookieJar {
+        val store = mutableListOf<Cookie>()
+        return object : CookieJar {
+            override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+                val now = System.currentTimeMillis()
+                synchronized(store) {
+                    store.removeAll { old ->
+                        old.expiresAt < now ||
+                            cookies.any { it.name == old.name && it.domain == old.domain && it.path == old.path }
+                    }
+                    store += cookies
+                }
+            }
 
-        override fun loadForRequest(url: HttpUrl): List<Cookie> {
-            val now = System.currentTimeMillis()
-            return cookies[url.host].orEmpty().filter { it.expiresAt > now }
+            override fun loadForRequest(url: HttpUrl): List<Cookie> {
+                val now = System.currentTimeMillis()
+                return synchronized(store) {
+                    store.removeAll { it.expiresAt < now }
+                    store.filter { it.matches(url) }
+                }
+            }
         }
     }
 

@@ -4,12 +4,11 @@ package com.linxin.feature.repair.data
  * 报修平台的响应外层：`{code, data, flag, msg, rows, total}`，列表/对象都塞在 `data.data` 里。
  * 字段名照抓包原样，一个都不改。
  */
+// 抓包里 rows 是数组不是数字（和请假那套信封同名但类型不同），界面不用就干脆不声明，Gson 会忽略
 data class RepairListResponse(
     val flag: Boolean?,
     val code: String?,
     val msg: String?,
-    val rows: Int?,
-    val total: Int?,
     val data: RepairListShell?,
 )
 
@@ -67,8 +66,6 @@ data class RepairDetailResponse(
     val flag: Boolean?,
     val code: String?,
     val msg: String?,
-    val rows: Int?,
-    val total: Int?,
     val data: RepairDetailShell?,
 )
 
@@ -106,8 +103,6 @@ data class RepairFlowResponse(
     val flag: Boolean?,
     val code: String?,
     val msg: String?,
-    val rows: Int?,
-    val total: Int?,
     val data: RepairFlowShell?,
 )
 
