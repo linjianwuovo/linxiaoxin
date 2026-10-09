@@ -30,6 +30,10 @@ object ApiConstants {
      */
     const val BASE_WAP_CASHIER = "https://wapnew.17wanxiao.com/WapCashDesk/e-pay"
 
+    /** SDK 里 `callPaywayid=="1212"` 那一支走的工行 H5 注册地址，整份 SDK 里就出现一次 */
+    const val BASE_PAY_ADAPTER =
+        "https://payadapter.17wanxiao.com/PayAdapterService/registerUser/IcbcEWapCash/V1/default"
+
     /** 抓包里安小信打开完美校园时用的学校标识（light.action 的 flag 参数） */
     const val ECARD_FLAG = "ahxx_ecardh5_1000538"
 
