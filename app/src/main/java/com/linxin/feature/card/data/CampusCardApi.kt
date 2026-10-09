@@ -343,3 +343,14 @@ data class CardPayStatusResponse(
 data class CardPayStatus(
     val payflag: String?,
 )
+
+/** 一页流水：行 + 服务端给的总条数，够不够下一页由这两个数算 */
+data class CardTradePage(
+    val trades: List<CardTrade>,
+    val total: Int?,
+    val beginIndex: Int,
+    val pageSize: Int,
+) {
+    val hasMore: Boolean
+        get() = total?.let { beginIndex + trades.size < it } ?: (trades.size >= pageSize && trades.isNotEmpty())
+}

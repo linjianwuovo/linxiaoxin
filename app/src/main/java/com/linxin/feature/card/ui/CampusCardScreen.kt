@@ -32,6 +32,7 @@ import com.linxin.core.designsystem.component.LxDialog
 import com.linxin.core.designsystem.component.LxTextButton
 import com.linxin.core.designsystem.component.LxError
 import com.linxin.core.designsystem.component.LxLoading
+import com.linxin.core.designsystem.component.LxOutlinedButton
 import com.linxin.core.designsystem.component.LxTopBar
 import com.linxin.core.designsystem.theme.LxInk
 import com.linxin.core.designsystem.theme.LxInkMuted
@@ -60,6 +61,11 @@ data class CardUiState(
     val tradesLoaded: Boolean = false,
     val isLoading: Boolean = true,
     val error: String? = null,
+    /** 服务端说的总条数，翻页时标题上显示「已加载 / 总数」 */
+    val tradesTotal: Int? = null,
+    val tradesMore: Boolean = false,
+    val loadingMore: Boolean = false,
+    val moreError: String? = null,
 )
 
 /** 写操作的一次结果：ok + 服务端原话（失败时）或重新绑定地址（解绑成功时） */
@@ -280,28 +286,68 @@ class CardViewModel @Inject constructor(
         load()
     }
 
+    private fun monthRange(): Pair<String, String> {
+        val month = YearMonth.from(LocalDate.now())
+        val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        return month.atDay(1).format(fmt) to month.atEndOfMonth().format(fmt)
+    }
+
     fun load() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            val month = YearMonth.from(LocalDate.now())
-            val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+            val (from, to) = monthRange()
             val balance = async { repository.balance() }
-            val trades = async {
-                repository.monthTrades(month.atDay(1).format(fmt), month.atEndOfMonth().format(fmt))
-            }
+            val trades = async { repository.trades(from, to, beginIndex = 0, pageSize = TRADES_PAGE_SIZE) }
             val balanceResult = balance.await()
             val tradesResult = trades.await()
             _uiState.update {
                 it.copy(
                     balance = balanceResult.getOrNull(),
-                    trades = tradesResult.getOrNull().orEmpty(),
+                    trades = tradesResult.getOrNull()?.trades.orEmpty(),
+                    tradesTotal = tradesResult.getOrNull()?.total,
+                    tradesMore = tradesResult.getOrNull()?.hasMore == true,
                     tradesLoaded = tradesResult.isSuccess,
+                    loadingMore = false,
+                    moreError = null,
                     isLoading = false,
                     error = balanceResult.exceptionOrNull()?.message
                         ?: tradesResult.exceptionOrNull()?.message,
                 )
             }
         }
+    }
+
+    /**
+     * 翻下一页。`beginIndex` 用已加载的条数，服务端那个字段就是从 0 开始的偏移。
+     * 失败只把这一页标成失败，不动已经列出来的那些行，也不整页重刷。
+     */
+    fun loadMoreTrades() {
+        val st = _uiState.value
+        if (st.loadingMore || !st.tradesMore) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(loadingMore = true, moreError = null) }
+            val (from, to) = monthRange()
+            repository.trades(from, to, beginIndex = st.trades.size, pageSize = TRADES_PAGE_SIZE).fold(
+                onSuccess = { page ->
+                    _uiState.update {
+                        it.copy(
+                            trades = it.trades + page.trades,
+                            tradesTotal = page.total ?: it.tradesTotal,
+                            tradesMore = page.hasMore,
+                            loadingMore = false,
+                        )
+                    }
+                },
+                onFailure = { e ->
+                    _uiState.update { it.copy(loadingMore = false, moreError = e.message) }
+                },
+            )
+        }
+    }
+
+    private companion object {
+        /** 一次 20 条，跟它 H5 的流水页一致 */
+        private const val TRADES_PAGE_SIZE = 20
     }
 }
 
@@ -419,6 +465,49 @@ fun CampusCardScreen(
                     }
                     else -> items(uiState.trades) { trade ->
                         TradeRow(trade)
+                    }
+                }
+                if (uiState.tradesLoaded && uiState.trades.isNotEmpty()) {
+                    item {
+                        // 标题下面标一下「已显示 / 总共」，不然翻页翻到哪了没人知道
+                        uiState.tradesTotal?.let { total ->
+                            Text(
+                                text = stringResource(R.string.card_trades_count, uiState.trades.size, total),
+                                style = MiuixTheme.textStyles.footnote2,
+                                color = LxInkMuted,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                        }
+                    }
+                }
+                when {
+                    uiState.tradesMore -> item {
+                        LxOutlinedButton(
+                            text = if (uiState.loadingMore) {
+                                stringResource(R.string.card_trades_loading)
+                            } else {
+                                stringResource(R.string.card_trades_more)
+                            },
+                            enabled = !uiState.loadingMore,
+                            onClick = viewModel::loadMoreTrades,
+                        )
+                        uiState.moreError?.let {
+                            Text(
+                                text = it,
+                                style = MiuixTheme.textStyles.footnote2,
+                                color = LxInkMuted,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                        }
+                    }
+                    // 到底了就说一句，别留个空位让人以为没加载完
+                    uiState.tradesLoaded && uiState.trades.isNotEmpty() -> item {
+                        Text(
+                            text = stringResource(R.string.card_trades_all),
+                            style = MiuixTheme.textStyles.footnote2,
+                            color = LxInkMuted,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
                     }
                 }
                 item {
