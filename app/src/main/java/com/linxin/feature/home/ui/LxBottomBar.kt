@@ -7,37 +7,40 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.material.icons.outlined.Forum
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import top.yukonga.miuix.kmp.basic.Icon
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -60,18 +63,13 @@ import dev.chrisbanes.haze.hazeEffect
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-/**
- * 一个底栏项。`pageIndex` 是它对应的 HorizontalPager 页号 —— 底栏现在只有四个 tab
- * （中间那颗是「全部服务」按钮，不占页），所以 tab 下标和页号不再是一回事，
- * 公告那一页还在 pager 里，只是从中间那颗进去。
- */
-data class LxTab(@StringRes val labelRes: Int, val icon: ImageVector, val pageIndex: Int)
+data class LxTab(@StringRes val labelRes: Int, val icon: ImageVector)
 
 val LxHomeTabs = listOf(
-    LxTab(R.string.tab_home, Icons.Outlined.Home, 0),
-    LxTab(R.string.tab_schedule, Icons.Outlined.CalendarMonth, 1),
-    LxTab(R.string.tab_messages, Icons.Outlined.Forum, 2),
-    LxTab(R.string.tab_profile, Icons.Outlined.Person, 4),
+    LxTab(R.string.tab_home, Icons.Outlined.Home),
+    LxTab(R.string.tab_schedule, Icons.Outlined.CalendarMonth),
+    LxTab(R.string.tab_news, Icons.Outlined.Campaign),
+    LxTab(R.string.tab_profile, Icons.Outlined.Person),
 )
 
 /**
@@ -120,8 +118,6 @@ fun LxBottomBar(
     glassDistortion: Float,
     glassDispersion: Float,
     tabs: List<LxTab> = LxHomeTabs,
-    onCenterClick: (() -> Unit)? = null,
-    centerOpen: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     if (tabs.isEmpty()) return
@@ -203,94 +199,113 @@ fun LxBottomBar(
     }
 
     val selectedColor = scheme.primary
-    // 选中图标下面垫的那块圆角方形，是照酷安底栏加的；只用主色低透明度实色，
-    // 不叠第二层玻璃采样 —— 之前那种"栏内再开一块小玻璃"在部分机型上会折成一块死灰。
-    val blockTint = selectedColor.copy(alpha = if (isDark) 0.26f else 0.14f)
-    val blockShape = RoundedCornerShape(13.dp)
-    val centerSize = 52.dp
-    val splitAt = (tabs.size + 1) / 2
 
-    @Composable
-    fun RowScope.tabItem(index: Int) {
-        val tab = tabs[index]
-        val active = index == selectedIndex
-        val label = stringResource(tab.labelRes)
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .clickable(
-                    // 玻璃栏里绝不能有触摸水波纹：indication 是一层约 10% 黑的灰色圆角矩形，
-                    // 叠在折射上就变成"点哪一格哪一格发灰"，且部分机型按下后不会自动清掉。
-                    interactionSource = remember(label) { MutableInteractionSource() },
-                    indication = null,
-                ) { onSelected(index) }
-                .alpha(if (active) 1f else 0.70f),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(blockShape)
-                    .background(if (active) blockTint else Color.Transparent),
-            ) {
-                Icon(
-                    imageVector = tab.icon,
-                    contentDescription = label,
-                    tint = if (active) selectedColor else LxInkFaint,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = label,
-                fontSize = 11.sp,
-                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-                color = if (active) selectedColor else LxInkFaint,
-            )
-        }
+    // ── 玻璃滑块 ──
+    // 选中项底下那块会左右滑的胶囊。
+    //
+    // 这个指示器以前废过一次，原因写在栏体那段注释里：把栏体那套折射参数原样搬到一块 46dp 高的
+    // 小胶囊上，折射带最宽 28dp、位移最大 24dp，两个加起来比胶囊本身还高，整块被折平，
+    // 采样一失败就剩"一格死灰"。所以这次按胶囊自己的尺寸重算，不吃设置页那三根折射滑杆，
+    // 只跟模糊强度联动；折射带锁在胶囊高度的一半以内，位移给到 7dp。
+    var barWidthPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val cellPx: Float = if (tabs.isEmpty()) 0f else barWidthPx.toFloat() / tabs.size
+    val pillWidthDp = with(density) { (cellPx * 0.68f).toDp() }
+    val pillHeightDp = 46.dp
+    val pillShape = RoundedCornerShape(percent = 50)
+    val pillStartPx = with(density) {
+        ((selectedIndex.coerceAtLeast(0) + 0.5f) * cellPx) - (pillWidthDp.toPx() / 2f)
     }
+    val pillOffsetX by animateFloatAsState(targetValue = pillStartPx, label = "lxPill")
+    val pillTint = if (isDark) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.30f)
+    val pillBorder = Color.White.copy(alpha = if (isDark) 0.24f else 0.45f)
 
-    Row(
-        modifier = barBody.padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // 左半 + 中间那颗实心圆 + 右半：中间那颗不翻页，它开「全部服务」菜单
-        tabs.take(splitAt).forEachIndexed { i, _ -> tabItem(i) }
+    Box(modifier = barBody.padding(horizontal = 4.dp)) {
+        // 滑块画在 tab 底下，自己不吃点击
         Box(
-            contentAlignment = Alignment.Center,
             modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
+                .align(Alignment.CenterStart)
+                .offset { IntOffset(pillOffsetX.roundToInt(), 0) }
+                .size(width = pillWidthDp, height = pillHeightDp)
+                .clip(pillShape)
+                .then(
+                    when (material) {
+                        BarMaterial.LIQUID -> Modifier.drawBackdrop(
+                            backdrop = backdrop,
+                            shape = { pillShape },
+                            effects = {
+                                vibrancy()
+                                blur((blurDp * 0.75f).dp.toPx())
+                                lensWithDispersion(
+                                    refractionHeight = (pillHeightDp / 2.4f).toPx(),
+                                    refractionAmount = 7.dp.toPx(),
+                                    dispersion = dispersion * 0.5f,
+                                    depthEffect = true,
+                                )
+                            },
+                            highlight = {
+                                Highlight(
+                                    width = LxGlass.HighlightWidth,
+                                    style = HighlightStyle.Default(
+                                        angle = LxGlass.HighlightAngle,
+                                        falloff = LxGlass.HighlightFalloff,
+                                    ),
+                                )
+                            },
+                            onDrawSurface = { drawRect(pillTint) },
+                        )
+                        BarMaterial.FROSTED -> Modifier
+                            .hazeEffect(state = hazeState) {
+                                blurRadius = (frostBlurDp * 0.6f).dp
+                                noiseFactor = 0.10f
+                                backgroundColor = parchment.copy(alpha = 0.34f)
+                            }
+                            .background(pillTint)
+                        BarMaterial.SOLID -> Modifier.background(
+                            selectedColor.copy(alpha = if (isDark) 0.22f else 0.12f),
+                        )
+                    },
+                )
+                .border(1.dp, pillBorder, pillShape),
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .onSizeChanged { barWidthPx = it.width },
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (onCenterClick != null) {
-                Box(
-                    contentAlignment = Alignment.Center,
+            tabs.forEachIndexed { index, tab ->
+                val active = index == selectedIndex
+                val label = stringResource(tab.labelRes)
+                Column(
                     modifier = Modifier
-                        .size(centerSize)
-                        .clip(CircleShape)
-                        .background(selectedColor)
+                        .weight(1f)
+                        .fillMaxHeight()
                         .clickable(
-                            interactionSource = remember("center") { MutableInteractionSource() },
+                            // 玻璃栏里绝不能有触摸水波纹：indication 是一层约 10% 黑的灰色圆角矩形，
+                            // 叠在折射上就变成"点哪一格哪一格发灰"，且部分机型按下后不会自动清掉。
+                            interactionSource = remember(label) { MutableInteractionSource() },
                             indication = null,
-                        ) { onCenterClick() },
+                        ) { onSelected(index) },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
                 ) {
                     Icon(
-                        imageVector = if (centerOpen) Icons.Outlined.Close else Icons.Outlined.Add,
-                        contentDescription = stringResource(R.string.tab_services),
-                        tint = Color.White,
-                        modifier = Modifier
-                            .size(26.dp)
-                            .graphicsLayer {
-                                // 开合时那颗加号转 45 度变成叉，比换图标顺眼，也不额外要动画资源
-                                rotationZ = if (centerOpen) 45f else 0f
-                            },
+                        imageVector = tab.icon,
+                        contentDescription = label,
+                        tint = if (active) selectedColor else LxInkFaint,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = label,
+                        fontSize = 11.sp,
+                        fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                        color = if (active) selectedColor else LxInkFaint,
                     )
                 }
             }
         }
-        tabs.drop(splitAt).forEachIndexed { i, _ -> tabItem(i + splitAt) }
     }
 }
