@@ -26,6 +26,7 @@ import javax.inject.Singleton
 @Qualifier @Retention(AnnotationRetention.BINARY) annotation class FifRetrofit
 @Qualifier @Retention(AnnotationRetention.BINARY) annotation class FifOkHttpClient
 @Qualifier @Retention(AnnotationRetention.BINARY) annotation class IzuoyeRetrofit
+@Qualifier @Retention(AnnotationRetention.BINARY) annotation class RepairRetrofit
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -95,6 +96,12 @@ object NetworkModule {
     @Provides @Singleton @CreditRetrofit
     fun provideCreditRetrofit(client: OkHttpClient): Retrofit =
         buildRetrofit(client, ApiConstants.BASE_CREDIT + "/")
+
+    // 报修：接口自己带 accessToken/userName/xh/userType 四个字段（照它 H5 的 userInfo 合并法），
+    // 所以 AuthInterceptor 对这个域名不注入门户那套通用字段，见那边的 repair 分支。
+    @Provides @Singleton @RepairRetrofit
+    fun provideRepairRetrofit(client: OkHttpClient): Retrofit =
+        buildRetrofit(client, ApiConstants.BASE_REPAIR + "/")
 
     // ─── FIF AI课堂 ───
 

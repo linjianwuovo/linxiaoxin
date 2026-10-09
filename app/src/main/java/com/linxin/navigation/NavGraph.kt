@@ -47,6 +47,8 @@ import com.linxin.feature.holiday.ui.HolidayListScreen
 import com.linxin.feature.holiday.ui.HolidayRegisterScreen
 import com.linxin.feature.home.ui.HomeScreen
 import com.linxin.feature.labor.ui.LaborSummaryScreen
+import com.linxin.feature.repair.ui.RepairDetailScreen
+import com.linxin.feature.repair.ui.RepairScreen
 import com.linxin.feature.login.ui.LoginScreen
 import com.linxin.feature.more.ui.MoreFeaturesScreen
 import com.linxin.feature.onboarding.ui.OnboardingScreen
@@ -452,6 +454,22 @@ fun LinXinNavHost(
             )
         }
 
+        // 报修（只读）
+        composable(Routes.REPAIR_LIST) {
+            RepairScreen(
+                onBack = { navController.popBackStack() },
+                onOpenDetail = { bxdh ->
+                    navController.navigate(Routes.repairDetail(bxdh)) { launchSingleTop = true }
+                },
+            )
+        }
+
+        composable(Routes.REPAIR_DETAIL) {
+            RepairDetailScreen(
+                onBack = { navController.popBackStack() },
+            )
+        }
+
         // AI Class
         composable(Routes.AICLASS_HOME) { backStackEntry ->
             val aiClassEntry = remember(backStackEntry) {
@@ -545,6 +563,9 @@ fun LinXinNavHost(
                 onBack = { navController.popBackStack() },
                 onNavigateLabor = {
                     navController.navigate(Routes.LABOR_SUMMARY) { launchSingleTop = true }
+                },
+                onNavigateRepair = {
+                    navController.navigate(Routes.REPAIR_LIST) { launchSingleTop = true }
                 },
                 onNavigateExam = {
                     navController.navigate(Routes.EXAM_SCORES) { launchSingleTop = true }

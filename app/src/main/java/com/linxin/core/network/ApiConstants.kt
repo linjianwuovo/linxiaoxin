@@ -12,6 +12,9 @@ object ApiConstants {
     // 素质学分
     const val BASE_CREDIT = "https://cqc.aiit.edu.cn"
 
+    // 报修平台（H5 在 /dist-app/，接口挂在根路径 /bxjlSjd/ 下）
+    const val BASE_REPAIR = "https://repair.aiit.edu.cn"
+
     // FIF AI课堂
     const val BASE_FIF_SSO = "https://aiitpass.fifedu.com"
     const val BASE_FIF = "https://sttp.fifedu.com"
