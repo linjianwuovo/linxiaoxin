@@ -605,4 +605,8 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="card_recharge_sms_verify">This school requires SMS verification before top-up, which this app does not implement. Please use the official entry.</string>
     <string name="card_recharge_result">Top-up result</string>
     <string name="card_recharge_check_short">Result</string>
+    <string name="card_trades_more">Load more</string>
+    <string name="card_trades_loading">Loading...</string>
+    <string name="card_trades_all">Nothing more</string>
+    <string name="card_trades_count">Showing %1$d of %2$d</string>
 </resources>

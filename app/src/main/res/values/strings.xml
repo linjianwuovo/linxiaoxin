@@ -605,4 +605,8 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="card_recharge_sms_verify">这所学校要求充值前先做短信验证，本应用没接那条流程，请去官方入口充值。</string>
     <string name="card_recharge_result">充值结果</string>
     <string name="card_recharge_check_short">查结果</string>
+    <string name="card_trades_more">加载更多</string>
+    <string name="card_trades_loading">正在加载…</string>
+    <string name="card_trades_all">没有更多了</string>
+    <string name="card_trades_count">已显示 %1$d 笔 · 共 %2$d 笔</string>
 </resources>

@@ -219,18 +219,24 @@ class CampusCardRepository @Inject constructor(
     }
 
     /**
-     * 本月流水。第一次抓到的是空账本，2026-10-09 在电脑上把整条链跑通后拿到了非空返回，
-     * 行字段（`accdscrp`/`amount`/`businessopdt`/`term_name`/`orderno`/`type`…）就是那次的内容。
+     * 流水分页。`beginIndex` 是从 0 开始的偏移，`size` 是服务端给的这一段时间的总条数，
+     * 两者一比就知道还有没有下一页；服务端哪天不返回 `size` 了，就退一步按「这页拿满了」猜，
+     * 多要一次空页不影响正确性。
      */
-    suspend fun monthTrades(beginDate: String, endDate: String): Result<List<CardTrade>> =
-        readWithRetry { monthTradesOnce(beginDate, endDate) }
+    suspend fun trades(beginDate: String, endDate: String, beginIndex: Int, pageSize: Int): Result<CardTradePage> =
+        readWithRetry { tradesOnce(beginDate, endDate, beginIndex, pageSize) }
 
-    private suspend fun monthTradesOnce(beginDate: String, endDate: String): Result<List<CardTrade>> {
+    private suspend fun tradesOnce(
+        beginDate: String,
+        endDate: String,
+        beginIndex: Int,
+        pageSize: Int,
+    ): Result<CardTradePage> {
         return try {
             ensureSession()
             val resp = api.trades(
-                beginIndex = 0,
-                pageSize = 20,
+                beginIndex = beginIndex,
+                pageSize = pageSize,
                 type = "-1",
                 beginDate = beginDate,
                 endDate = endDate,
@@ -239,15 +245,22 @@ class CampusCardRepository @Inject constructor(
                 sessionReady = false
                 return Result.failure(Exception(failureReason(resp.message_, resp.message, fallback = "交易明细没取到，服务端也没给原因")))
             }
+            val rows = resp.data?.data.orEmpty().map { row ->
+                CardTrade(
+                    time = row.businessopdt.orEmpty().trim(),
+                    title = (row.accdscrp ?: row.description).orEmpty().trim(),
+                    place = row.term_name.orEmpty().trim(),
+                    amount = row.amount ?: 0.0,
+                )
+            }
+            val total = resp.data?.size
             Result.success(
-                resp.data?.data.orEmpty().map { row ->
-                    CardTrade(
-                        time = row.businessopdt.orEmpty().trim(),
-                        title = (row.accdscrp ?: row.description).orEmpty().trim(),
-                        place = row.term_name.orEmpty().trim(),
-                        amount = row.amount ?: 0.0,
-                    )
-                },
+                CardTradePage(
+                    trades = rows,
+                    total = total,
+                    beginIndex = beginIndex,
+                    pageSize = pageSize,
+                ),
             )
         } catch (e: Exception) {
             sessionReady = false
