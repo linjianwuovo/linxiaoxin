@@ -1,11 +1,7 @@
 package com.linxin.feature.home.ui
 
 import androidx.compose.ui.res.stringResource
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,7 +23,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -52,12 +47,13 @@ import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-/** pager 的页数：0 首页 1 课程表 2 消息 3 公告 4 我的 */
-private const val LxHomePages = 5
-
-// 底栏四个 tab + 中间那颗「全部服务」；公告还在 pager 里（第 3 页），
-// 但从底栏走不到它了，只能从中间那颗进 —— 照酷安那种「四 tab 一中键」的排法。
-private val tabs = LxHomeTabs
+private val tabs = listOf(
+    LxTab(R.string.tab_home, Icons.Outlined.Home),
+    LxTab(R.string.tab_schedule, Icons.Outlined.CalendarMonth),
+    LxTab(R.string.tab_messages, Icons.Outlined.Forum),
+    LxTab(R.string.tab_news, Icons.Outlined.Campaign),
+    LxTab(R.string.tab_profile, Icons.Outlined.Person),
+)
 
 @Composable
 fun HomeScreen(
@@ -71,9 +67,7 @@ fun HomeScreen(
     // 这是用户提供的液态玻璃 demo（Kyant0 Backdrop 官方用法）的接法。
     val glassBackdrop = rememberLayerBackdrop()
     val themeSettings by themeViewModel.settings.collectAsState()
-    // 页数不能跟着 tabs.size 走：底栏四个 tab + 中间那颗，公告还在 pager 里但不在底栏上，
-    // 用 tabs.size 会让最后一页（我的）被截掉，点「我的」就被夹到公告那页（2026-10-09 22:30 他报的）。
-    val pagerState = rememberPagerState(initialPage = selectedTab) { LxHomePages }
+    val pagerState = rememberPagerState(initialPage = selectedTab) { tabs.size }
     val scope = rememberCoroutineScope()
 
     // 滑动翻页时同步高亮底栏
@@ -81,17 +75,10 @@ fun HomeScreen(
         selectedTab = pagerState.currentPage
     }
 
-    // 底栏只有四格，页号却是 0..4（公告占 3），所以两边要换算一次
-    val barIndex = tabs.indexOfFirst { it.pageIndex == selectedTab }
-    var servicesOpen by remember { mutableStateOf(false) }
-
-    fun goToPage(page: Int) {
-        selectedTab = page
-        servicesOpen = false
-        scope.launch { pagerState.animateScrollToPage(page) }
+    fun goToTab(index: Int) {
+        selectedTab = index
+        scope.launch { pagerState.animateScrollToPage(index) }
     }
-
-    fun goToTab(index: Int) = goToPage(tabs[index].pageIndex)
 
 
     Box(
@@ -172,7 +159,7 @@ fun HomeScreen(
 
         // 悬浮液态玻璃底栏（Kyant0 Backdrop 官方用法，照搬 demo 实现）
         LxBottomBar(
-            selectedIndex = barIndex,
+            selectedIndex = selectedTab,
             onSelected = { goToTab(it) },
             material = themeSettings.barMaterial,
             backdrop = glassBackdrop,
@@ -182,37 +169,10 @@ fun HomeScreen(
             glassDistortion = themeSettings.glassDistortion,
             glassDispersion = themeSettings.glassDispersion,
             tabs = tabs,
-            centerOpen = servicesOpen,
-            onCenterClick = { servicesOpen = !servicesOpen },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth(),
         )
-
-        if (servicesOpen) {
-            // 一层透明遮罩点哪儿都关，菜单卡片浮在底栏上方
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.28f))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) { servicesOpen = false },
-            )
-            LxServiceMenu(
-                onAnnouncement = { goToPage(3) },
-                onRoute = { route ->
-                    servicesOpen = false
-                    navController.navigate(route) { launchSingleTop = true }
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 84.dp),
-            )
-        }
     }
 }
 

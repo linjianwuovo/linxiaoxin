@@ -609,5 +609,4 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="card_trades_loading">Loading...</string>
     <string name="card_trades_all">Nothing more</string>
     <string name="card_trades_count">Showing %1$d of %2$d</string>
-    <string name="tab_services">More</string>
 </resources>
