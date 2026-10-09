@@ -2,6 +2,7 @@ package com.linxin.feature.card.data
 
 import com.linxin.core.auth.TokenManager
 import com.linxin.core.network.failureReason
+import com.linxin.core.network.netFail
 import com.linxin.core.network.ApiConstants
 import com.linxin.core.network.CardRetrofit
 import dagger.Module
@@ -213,7 +214,7 @@ class CampusCardRepository @Inject constructor(
             )
         } catch (e: Exception) {
             sessionReady = false
-            Result.failure(Exception(e.message ?: "校园卡加载失败", e))
+            Result.failure(netFail(e, "校园卡加载失败"))
         }
     }
 
@@ -250,7 +251,7 @@ class CampusCardRepository @Inject constructor(
             )
         } catch (e: Exception) {
             sessionReady = false
-            Result.failure(Exception(e.message ?: "交易明细加载失败", e))
+            Result.failure(netFail(e, "交易明细加载失败"))
         }
     }
 
@@ -335,7 +336,7 @@ class CampusCardRepository @Inject constructor(
             Result.success(data?.reBindUrl.orEmpty())
         } catch (e: Exception) {
             sessionReady = false
-            Result.failure(Exception(e.message ?: "一卡通操作失败", e))
+            Result.failure(netFail(e, "一卡通操作失败"))
         }
     }
 
@@ -404,7 +405,7 @@ class CampusCardRepository @Inject constructor(
             )
         } catch (e: Exception) {
             sessionReady = false
-            Result.failure(Exception(e.message ?: "充值信息加载失败", e))
+            Result.failure(netFail(e, "充值信息加载失败"))
         }
     }
 
@@ -499,7 +500,7 @@ class CampusCardRepository @Inject constructor(
             )
         } catch (e: Exception) {
             sessionReady = false
-            Result.failure(Exception(e.message ?: "下单失败", e))
+            Result.failure(netFail(e, "下单失败"))
         }
     }
 
@@ -646,7 +647,7 @@ class CampusCardRepository @Inject constructor(
             Result.success(resp.data?.payflag.orEmpty().trim())
         } catch (e: Exception) {
             sessionReady = false
-            Result.failure(Exception(e.message ?: "支付结果查询失败", e))
+            Result.failure(netFail(e, "支付结果查询失败"))
         }
     }
 
