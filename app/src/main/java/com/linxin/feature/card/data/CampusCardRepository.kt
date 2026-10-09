@@ -158,6 +158,73 @@ class CampusCardRepository @Inject constructor(
             Result.failure(Exception(e.message ?: "交易明细加载失败", e))
         }
     }
+
+    // ─── 写操作：挂失 / 改密 / 解绑 ───
+    // 加密方式读它 H5 的 axios 拦截器确认：jsencrypt 的 setPublicKey/encrypt，
+    // 即 RSA/ECB/PKCS1Padding + base64；公钥来自 gotowhere=userInfo 的 data.data.rsaPublicKey。
+    // 拦截器只加密 password（改密是 oldpwd/newpwd），不会自动加验证码之类的字段。
+
+    private var rsaPublicKey: String? = null
+
+    private suspend fun publicKey(): String {
+        rsaPublicKey?.let { return it }
+        ensureSession()
+        val resp = api.userInfo()
+        val key = resp.data?.rsaPublicKey
+        if (resp.result_ != true || key.isNullOrBlank()) {
+            throw Exception(resp.message_ ?: "拿不到一卡通加密公钥")
+        }
+        rsaPublicKey = key
+        return key
+    }
+
+    private fun encrypt(plain: String, pem: String): String {
+        val body = pem
+            .replace("-----BEGIN PUBLIC KEY-----", "")
+            .replace("-----END PUBLIC KEY-----", "")
+            .replace("\\s".toRegex(), "")
+        val spec = java.security.spec.X509EncodedKeySpec(
+            android.util.Base64.decode(body, android.util.Base64.DEFAULT),
+        )
+        val key = java.security.KeyFactory.getInstance("RSA").generatePublic(spec)
+        val cipher = javax.crypto.Cipher.getInstance("RSA/ECB/PKCS1Padding")
+        cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, key)
+        return android.util.Base64.encodeToString(cipher.doFinal(plain.toByteArray()), android.util.Base64.NO_WRAP)
+    }
+
+    /** 挂失。挂失后这张卡就不能消费了，界面那边必须二次确认。 */
+    suspend fun lostCard(password: String): Result<String> = write {
+        api.lostCard(encrypt(password, publicKey()))
+    }
+
+    /** 改查询密码。 */
+    suspend fun modifyPassword(oldPassword: String, newPassword: String): Result<String> = write {
+        val pem = publicKey()
+        api.modifyPassword(encrypt(oldPassword, pem), encrypt(newPassword, pem))
+    }
+
+    /** 解绑。成功判据是第二级 `data.result_code == 0`。 */
+    suspend fun unbind(password: String): Result<String> = write {
+        api.unbind(encrypt(password, publicKey()))
+    }
+
+    private suspend fun write(call: suspend () -> CardWriteResponse): Result<String> {
+        return try {
+            ensureSession()
+            val resp = call()
+            if (resp.code_ != 0 && resp.result_ != true) {
+                return Result.failure(Exception(resp.message_ ?: "一卡通操作失败"))
+            }
+            val data = resp.data
+            if (data?.result_code != null && data.result_code != 0) {
+                return Result.failure(Exception(data.message ?: resp.message_ ?: "一卡通操作失败"))
+            }
+            Result.success(data?.reBindUrl.orEmpty())
+        } catch (e: Exception) {
+            sessionReady = false
+            Result.failure(Exception(e.message ?: "一卡通操作失败", e))
+        }
+    }
 }
 
 /** 一卡通这条链跨三个子域，cookie 必须自己攒着，所以给它一个独立的 client。 */

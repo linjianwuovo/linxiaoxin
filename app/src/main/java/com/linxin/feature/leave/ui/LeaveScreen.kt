@@ -16,6 +16,9 @@ import androidx.compose.ui.res.stringResource
 import com.linxin.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -25,7 +28,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
+import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxCard
+import com.linxin.core.designsystem.component.LxDialog
+import com.linxin.core.designsystem.component.LxDialogConfirmTone
+import com.linxin.core.designsystem.component.LxOutlinedButton
 import com.linxin.core.designsystem.component.LxEmpty
 import com.linxin.core.designsystem.component.LxError
 import com.linxin.core.designsystem.component.LxLoading
@@ -101,11 +108,22 @@ class LeaveViewModel @Inject constructor(
     fun selectTab(tab: Int) {
         _uiState.update { it.copy(tab = tab) }
     }
+
+    fun withdraw(executionId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            repository.withdraw(executionId).fold(
+                onSuccess = { load() },
+                onFailure = { e -> _uiState.update { it.copy(isLoading = false, error = e.message) } },
+            )
+        }
+    }
 }
 
 @Composable
 fun LeaveScreen(
     onBack: () -> Unit,
+    onCreate: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LeaveViewModel = hiltViewModel(),
 ) {
@@ -147,13 +165,22 @@ fun LeaveScreen(
                     ),
                     modifier = Modifier.fillMaxSize(),
                 )
-                else -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(uiState.shown, key = { it.id }) { item ->
-                        LeaveCard(item)
+                else -> Column(modifier = Modifier.fillMaxSize()) {
+                    LxButton(
+                        text = stringResource(R.string.leave_new),
+                        onClick = onCreate,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 6.dp),
+                    )
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(uiState.shown, key = { it.id }) { item ->
+                            LeaveCard(item = item, onWithdraw = { viewModel.withdraw(item.id) })
+                        }
                     }
                 }
             }
@@ -162,7 +189,8 @@ fun LeaveScreen(
 }
 
 @Composable
-private fun LeaveCard(item: LeaveItem) {
+private fun LeaveCard(item: LeaveItem, onWithdraw: () -> Unit) {
+    var confirmWithdraw by remember { mutableStateOf(false) }
     LxCard {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -192,6 +220,26 @@ private fun LeaveCard(item: LeaveItem) {
                     color = LxInkMuted,
                 )
             }
+            if (item.withdrawable) {
+                Spacer(modifier = Modifier.height(8.dp))
+                LxOutlinedButton(
+                    text = stringResource(R.string.leave_withdraw),
+                    onClick = { confirmWithdraw = true },
+                )
+            }
         }
+    }
+    if (confirmWithdraw) {
+        LxDialog(
+            title = stringResource(R.string.leave_withdraw),
+            message = stringResource(R.string.leave_withdraw_confirm),
+            confirmText = stringResource(R.string.action_confirm),
+            confirmTone = LxDialogConfirmTone.Destructive,
+            onConfirm = {
+                confirmWithdraw = false
+                onWithdraw()
+            },
+            onDismissRequest = { confirmWithdraw = false },
+        )
     }
 }

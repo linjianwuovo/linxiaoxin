@@ -33,6 +33,8 @@ data class LeaveRow(
     val createDate: String?,
     val receiveTime: String?,
     val msgType: String?,
+    /** "1" 时列表行才显示撤回按钮（H5 的判据） */
+    val isWithdraw: String?,
     val userName: String?,
     val userCode: String?,
 )
@@ -43,4 +45,28 @@ data class LeaveItem(
     val title: String,
     val status: String,
     val time: String,
+    val withdrawable: Boolean = false,
+)
+
+/** getFlowSheet.do 的外层。flowSheet 是一段 JSON 字符串，用 org.json 现场解，不建死 DTO */
+data class LeaveFlowSheetResponse(
+    val flag: Boolean?,
+    val result: String?,
+    val data: LeaveFlowSheetData?,
+)
+
+data class LeaveFlowSheetData(
+    val flowSheet: String?,
+    val specialType: String?,
+)
+
+/** submitForm.do 的响应：data.executionId 要存下来（驳回重提时用） */
+data class LeaveSubmitResponse(
+    val flag: Boolean?,
+    val result: String?,
+    val data: LeaveSubmitData?,
+)
+
+data class LeaveSubmitData(
+    val executionId: String?,
 )

@@ -48,7 +48,9 @@ import com.linxin.feature.holiday.ui.HolidayRegisterScreen
 import com.linxin.feature.home.ui.HomeScreen
 import com.linxin.feature.labor.ui.LaborSummaryScreen
 import com.linxin.feature.repair.ui.RepairDetailScreen
+import com.linxin.feature.repair.ui.RepairFormScreen
 import com.linxin.feature.repair.ui.RepairScreen
+import com.linxin.feature.leave.ui.LeaveCreateScreen
 import com.linxin.feature.leave.ui.LeaveScreen
 import com.linxin.feature.card.ui.CampusCardScreen
 import com.linxin.feature.login.ui.LoginScreen
@@ -463,6 +465,18 @@ fun LinXinNavHost(
                 onOpenDetail = { bxdh ->
                     navController.navigate(Routes.repairDetail(bxdh)) { launchSingleTop = true }
                 },
+                onCreate = {
+                    navController.navigate(Routes.REPAIR_FORM) { launchSingleTop = true }
+                },
+            )
+        }
+
+        composable(Routes.REPAIR_FORM) {
+            RepairFormScreen(
+                onBack = { navController.popBackStack() },
+                onSubmitted = {
+                    navController.popBackStack(Routes.REPAIR_LIST, inclusive = false)
+                },
             )
         }
 
@@ -476,6 +490,18 @@ fun LinXinNavHost(
         composable(Routes.LEAVE_LIST) {
             LeaveScreen(
                 onBack = { navController.popBackStack() },
+                onCreate = {
+                    navController.navigate(Routes.LEAVE_CREATE) { launchSingleTop = true }
+                },
+            )
+        }
+
+        composable(Routes.LEAVE_CREATE) {
+            LeaveCreateScreen(
+                onBack = { navController.popBackStack() },
+                onSubmitted = {
+                    navController.popBackStack(Routes.LEAVE_LIST, inclusive = false)
+                },
             )
         }
 

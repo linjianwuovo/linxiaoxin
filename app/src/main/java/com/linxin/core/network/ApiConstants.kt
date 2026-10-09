@@ -25,6 +25,12 @@ object ApiConstants {
     /** 抓包里安小信打开完美校园时用的学校标识（light.action 的 flag 参数） */
     const val ECARD_FLAG = "ahxx_ecardh5_1000538"
 
+    /**
+     * 「学生请假申请」的流程 id，来自 2026-10-08 抓的 37 项服务清单里那条入口 URL
+     * （ywlz.aiit.edu.cn/mobile/#/create?processId=…）。
+     */
+    const val LEAVE_PROCESS_ID = "e77db6c3ae0a4911a42280f98ce45ebc"
+
     // FIF AI课堂
     const val BASE_FIF_SSO = "https://aiitpass.fifedu.com"
     const val BASE_FIF = "https://sttp.fifedu.com"

@@ -93,6 +93,9 @@ data class RepairDetail(
     val wxlcms: String?,
     val wxlcsm: String?,
     val sgzt: String?,
+    /** 维修员登录名 / 工号：取消申请时要原样回传 */
+    val wxry: String?,
+    val wxyDlm: String?,
     val dllx: String?,
     val dlmc: String?,
     val fileList: List<RepairFile>?,
@@ -125,4 +128,41 @@ data class RepairFlowNode(
     /** 时间，抓包里是「2026年08月31日 20:35:28」这种中文格式，原样显示 */
     val sj: String?,
     val list: List<RepairFlowNode>?,
+)
+
+/** 地点树 / 类型树：扁平节点表，靠 parent 串层级，根是 parent="0" */
+data class RepairTreeResponse(
+    val flag: Boolean?,
+    val code: String?,
+    val msg: String?,
+    val data: RepairTreeShell?,
+)
+
+data class RepairTreeShell(
+    val data: List<RepairTreeNode>?,
+)
+
+data class RepairTreeNode(
+    val name: String?,
+    val parent: String?,
+    val value: String?,
+)
+
+data class RepairContactResponse(
+    val flag: Boolean?,
+    val code: String?,
+    val msg: String?,
+    val data: RepairContact?,
+)
+
+data class RepairContact(
+    val sjh: String?,
+    val xm: String?,
+)
+
+/** 写操作的响应：只看 flag，失败时 code/msg 里是原因 */
+data class RepairWriteResponse(
+    val flag: Boolean?,
+    val code: String?,
+    val msg: String?,
 )
