@@ -97,6 +97,13 @@ fun RepairScreen(
         topBar = { LxTopBar(title = stringResource(R.string.title_repair), onBack = onBack) },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            LxButton(
+                text = stringResource(R.string.repair_new),
+                onClick = onCreate,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+            )
             when {
                 uiState.isLoading -> LxLoading(modifier = Modifier.fillMaxSize())
                 uiState.error != null && uiState.items.isEmpty() -> LxError(
@@ -107,22 +114,13 @@ fun RepairScreen(
                     message = stringResource(R.string.repair_empty),
                     modifier = Modifier.fillMaxSize(),
                 )
-                else -> Column(modifier = Modifier.fillMaxSize()) {
-                    LxButton(
-                        text = stringResource(R.string.repair_new),
-                        onClick = onCreate,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 6.dp),
-                    )
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(uiState.items, key = { it.bxdh }) { item ->
-                            RepairRowCard(item = item, onClick = { onOpenDetail(item.bxdh) })
-                        }
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(uiState.items, key = { it.bxdh }) { item ->
+                        RepairRowCard(item = item, onClick = { onOpenDetail(item.bxdh) })
                     }
                 }
             }

@@ -153,6 +153,13 @@ fun LeaveScreen(
                     onClick = { viewModel.selectTab(TAB_TODO) },
                 )
             }
+            LxButton(
+                text = stringResource(R.string.leave_new),
+                onClick = onCreate,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+            )
             when {
                 uiState.isLoading -> LxLoading(modifier = Modifier.fillMaxSize())
                 uiState.error != null && uiState.shown.isEmpty() -> LxError(
@@ -165,22 +172,13 @@ fun LeaveScreen(
                     ),
                     modifier = Modifier.fillMaxSize(),
                 )
-                else -> Column(modifier = Modifier.fillMaxSize()) {
-                    LxButton(
-                        text = stringResource(R.string.leave_new),
-                        onClick = onCreate,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 6.dp),
-                    )
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        items(uiState.shown, key = { it.id }) { item ->
-                            LeaveCard(item = item, onWithdraw = { viewModel.withdraw(item.id) })
-                        }
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(uiState.shown, key = { it.id }) { item ->
+                        LeaveCard(item = item, onWithdraw = { viewModel.withdraw(item.id) })
                     }
                 }
             }

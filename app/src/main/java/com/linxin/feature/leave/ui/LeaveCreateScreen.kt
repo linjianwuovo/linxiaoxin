@@ -3,6 +3,7 @@ package com.linxin.feature.leave.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,13 +13,13 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.res.stringResource
+import com.linxin.R
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.res.stringResource
-import com.linxin.R
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,6 +41,7 @@ import com.linxin.feature.leave.data.LeaveRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,13 +55,18 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-/** flowSheet 里要渲染的一种字段 */
+/** flowSheet 里要渲染的一种字段（结构证据来自它 H5 的 VFormItem / VAddress 组件） */
 data class LeaveField(
     val key: String,
     val label: String,
     val type: String,
     val options: List<Pair<String, String>>,
     val required: Boolean,
+    val disabled: Boolean,
+    /** dateRange 用：格式串和两个输入框的提示词 */
+    val dateFormat: String,
+    val startLabel: String,
+    val endLabel: String,
 )
 
 data class LeaveCreateUiState(
@@ -73,12 +80,18 @@ data class LeaveCreateUiState(
 )
 
 /**
- * 发起请假。表单不是写死的：字段、选项、必填全部来自 `getFlowSheet.do` 返回的那段 JSON，
- * 和 H5 用的是同一份定义（选项就在各节点的 properties.options 里，不用另查字典）。
+ * 发起请假。表单不写死：字段、选项、必填、只读、隐藏全部来自 `getFlowSheet.do` 那段 JSON，
+ * 默认值（标题/申请人/班级/学号/手机号/流水号）来自 `findDefinitionBase.do`，
+ * 和 H5 打开页面时调的两个接口一模一样。
  *
- * `QJSC`（请假时长）是 formula 字段：H5 的算法是把 flowSheet 里的 formula token 拼成表达式再 eval，
- * 其中 dateRange token 取两端的小时差。请假这张表的公式就是 QJRQ 的小时差，所以这里按小时差算，
- * 和服务端期望的数值一致；如果哪天公式里加了别的 token，这里会算不出，界面上就留空让人自己填。
+ * 树的下钻键是 `list`（card 下面）和 `columns`（grid 下面，每列再有自己的 `list`）——
+ * 不是 `children`，之前按 `children` 走所以一个字段都没渲染出来。
+ *
+ * 两个已知限制，都是"没证据就不猜"：
+ * - 附件（uploadFile）没接，抓包里那条 rules 是 required=false，不挡提交；
+ * - 地址（address）只给一个详细地址输入框。它 H5 的 VAddress 发的是
+ *   `{province, city, county, address}`，不选省市区时前三项就是空串，
+ *   所以我发空串 + 详细地址，是它本身允许的一种状态；要选省市区编码得再扒一份区划表。
  */
 @HiltViewModel
 class LeaveCreateViewModel @Inject constructor(
@@ -91,7 +104,18 @@ class LeaveCreateViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             repository.flowSheet(ApiConstants.LEAVE_PROCESS_ID).fold(
-                onSuccess = { sheet -> _uiState.update { it.copy(fields = parse(sheet), isLoading = false) } },
+                onSuccess = { sheet ->
+                    val fields = parse(sheet)
+                    _uiState.update { it.copy(fields = fields, isLoading = false) }
+                    repository.defaults(ApiConstants.LEAVE_PROCESS_ID).onSuccess { defs ->
+                        _uiState.update { st ->
+                            val merged = st.values + defs.filterKeys { key ->
+                                st.fields.any { it.key == key }
+                            }
+                            st.copy(values = merged)
+                        }
+                    }
+                },
                 onFailure = { e -> _uiState.update { it.copy(isLoading = false, error = e.message) } },
             )
         }
@@ -99,84 +123,138 @@ class LeaveCreateViewModel @Inject constructor(
 
     private fun parse(sheet: String): List<LeaveField> {
         val out = mutableListOf<LeaveField>()
-        fun walk(node: JSONObject) {
+        val wanted = setOf("input", "textarea", "radio", "select", "dateRange", "formula", "address")
+
+        fun visit(node: JSONObject) {
             val type = node.optString("type")
-            val key = node.optString("model").ifBlank { node.optString("key") }
-            if (key.isNotBlank() && type in setOf("input", "textarea", "radio", "select", "dateRange", "formula")) {
+            val model = node.optString("model")
+            val props = node.optJSONObject("properties")
+            val hidden = props?.optBoolean("hidden", false) == true
+            if (model.isNotBlank() && type in wanted && !hidden) {
                 val options = mutableListOf<Pair<String, String>>()
-                node.optJSONObject("properties")?.optJSONArray("options")?.let { arr ->
+                props?.optJSONArray("options")?.let { arr ->
                     for (i in 0 until arr.length()) {
                         val o = arr.optJSONObject(i) ?: continue
                         options += o.optString("label") to o.optString("value")
                     }
                 }
-                val required = node.optJSONArray("rules")?.let { rules ->
-                    (0 until rules.length()).any { rules.optJSONObject(it)?.optBoolean("required") == true }
-                } ?: false
+                val rangeLabels = props?.optJSONArray("rangePlaceholder")
                 out += LeaveField(
-                    key = key,
-                    label = node.optString("label").ifBlank { key },
+                    key = model,
+                    label = node.optString("label").ifBlank { model },
                     type = type,
                     options = options,
-                    required = required,
+                    // H5 的 isRequired 就是看 rules[0].required
+                    required = node.optJSONArray("rules")?.optJSONObject(0)?.optBoolean("required") == true,
+                    disabled = props?.optBoolean("disabled", false) == true,
+                    dateFormat = props?.optString("format").orEmpty().ifBlank { "YYYY-MM-DD HH:mm" },
+                    startLabel = rangeLabels?.optString(0).orEmpty().ifBlank { "开始时间" },
+                    endLabel = rangeLabels?.optString(1).orEmpty().ifBlank { "结束时间" },
                 )
+                return
             }
-            node.optJSONArray("children")?.let { children ->
-                for (i in 0 until children.length()) {
-                    children.optJSONObject(i)?.let { walk(it) }
-                }
+            node.optJSONArray("list")?.let { arr ->
+                for (i in 0 until arr.length()) arr.optJSONObject(i)?.let { visit(it) }
+            }
+            node.optJSONArray("columns")?.let { cols ->
+                for (i in 0 until cols.length()) cols.optJSONObject(i)?.let { visit(it) }
             }
         }
+
         runCatching {
-            val root = JSONArray(sheet)
-            for (i in 0 until root.length()) root.optJSONObject(i)?.let { walk(it) }
-        }.onFailure {
-            runCatching { walk(JSONObject(sheet)) }
+            val root = JSONObject(sheet)
+            root.optJSONArray("list")?.let { arr ->
+                for (i in 0 until arr.length()) arr.optJSONObject(i)?.let { visit(it) }
+            }
         }
         return out
     }
 
     fun setValue(key: String, value: String) {
-        _uiState.update { st ->
-            val values = st.values + (key to value)
-            st.copy(values = values, validation = null)
-        }
-        if (key == "QJRQ_START" || key == "QJRQ_END") recomputeHours()
+        _uiState.update { it.copy(values = it.values + (key to value), validation = null) }
+        if (key == START_KEY || key == END_KEY) recomputeHours()
     }
 
-    /** QJRQ 在 dataJson 里是 [start, end] 两个 "YYYY-MM-DD HH:mm"；界面上拆成两个输入框 */
+    /** QJSC 是 formula 字段，它 H5 的公式 token 只有一个 dateRange，即两端的小时差 */
     private fun recomputeHours() {
         val st = _uiState.value
-        val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-        val start = runCatching { LocalDateTime.parse(st.values["QJRQ_START"].orEmpty(), fmt) }.getOrNull()
-        val end = runCatching { LocalDateTime.parse(st.values["QJRQ_END"].orEmpty(), fmt) }.getOrNull()
+        val field = st.fields.firstOrNull { it.key == "QJRQ" } ?: return
+        val pattern = field.dateFormat.replace("YYYY", "yyyy").replace("DD", "dd")
+        val fmt = DateTimeFormatter.ofPattern(pattern)
+        val start = parseTime(st.values[START_KEY], fmt)
+        val end = parseTime(st.values[END_KEY], fmt)
         if (start != null && end != null && !end.isBefore(start)) {
             val hours = ChronoUnit.HOURS.between(start, end)
             _uiState.update { it.copy(values = it.values + ("QJSC" to hours.toString())) }
         }
     }
 
-    fun submit() {
+    private fun parseTime(text: String?, fmt: DateTimeFormatter): LocalDateTime? =
+        runCatching { LocalDateTime.parse(text.orEmpty(), fmt) }.getOrNull()
+
+    fun buildDataJson(): String {
+        val st = _uiState.value
+        val json = JSONObject()
+        st.fields.forEach { f ->
+            when (f.type) {
+                "dateRange" -> json.put(f.key, JSONArray().put(st.values[START_KEY].orEmpty()).put(st.values[END_KEY].orEmpty()))
+                "address" -> json.put(
+                    f.key,
+                    JSONObject()
+                        .put("province", "")
+                        .put("city", "")
+                        .put("county", "")
+                        .put("address", st.values[f.key].orEmpty()),
+                )
+                "formula" -> json.put(f.key, st.values[f.key].orEmpty().toDoubleOrNull() ?: 0)
+                else -> json.put(f.key, st.values[f.key].orEmpty())
+            }
+        }
+        return json.toString()
+    }
+
+    fun validate(): String? {
         val st = _uiState.value
         val missing = st.fields.filter { it.required && st.values[it.key].isNullOrBlank() }
         if (missing.isNotEmpty()) {
-            _uiState.update { it.copy(validation = "还有必填项没填：" + missing.joinToString("、") { f -> f.label }) }
+            return "还没填：" + missing.joinToString("、") { it.label }
+        }
+        val range = st.fields.firstOrNull { it.type == "dateRange" }
+        if (range != null) {
+            val pattern = range.dateFormat.replace("YYYY", "yyyy").replace("DD", "dd")
+            val fmt = DateTimeFormatter.ofPattern(pattern)
+            val start = parseTime(st.values[START_KEY], fmt)
+                ?: return "${range.label}的开始时间格式不对，要像 ${exampleOf(pattern)}"
+            val end = parseTime(st.values[END_KEY], fmt)
+                ?: return "${range.label}的结束时间格式不对，要像 ${exampleOf(pattern)}"
+            if (end.isBefore(start)) return "结束时间不能早于开始时间"
+        }
+        return null
+    }
+
+    private fun exampleOf(pattern: String): String =
+        if (pattern.contains("HH")) "2026-10-10 08:30" else "2026-10-10"
+
+    fun submit() {
+        val problem = validate()
+        if (problem != null) {
+            _uiState.update { it.copy(validation = problem) }
             return
         }
-        val json = JSONObject()
-        st.fields.forEach { f -> json.put(f.key, "") }
-        st.values.forEach { (k, v) -> if (k != "QJRQ_START" && k != "QJRQ_END") json.put(k, v) }
-        val range = JSONArray()
-            .put(st.values["QJRQ_START"].orEmpty())
-            .put(st.values["QJRQ_END"].orEmpty())
-        if (st.fields.any { it.key == "QJRQ" }) json.put("QJRQ", range)
+        val dataJson = buildDataJson()
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, validation = null) }
-            repository.submit(ApiConstants.LEAVE_PROCESS_ID, json.toString()).fold(
+            repository.submit(ApiConstants.LEAVE_PROCESS_ID, dataJson).fold(
                 onSuccess = { _uiState.update { it.copy(isSubmitting = false, submitted = true) } },
                 onFailure = { e -> _uiState.update { it.copy(isSubmitting = false, validation = e.message) } },
             )
         }
+    }
+
+    companion object {
+        private const val START_KEY = "QJRQ_START"
+        private const val END_KEY = "QJRQ_END"
+        private val DateTimeParseExceptionUnused: Unit = Unit
     }
 }
 
@@ -202,6 +280,11 @@ fun LeaveCreateScreen(
                 onRetry = onBack,
                 modifier = Modifier.padding(padding),
             )
+            uiState.fields.isEmpty() -> LxError(
+                message = stringResource(R.string.leave_sheet_empty),
+                onRetry = onBack,
+                modifier = Modifier.padding(padding),
+            )
             else -> Column(
                 modifier = Modifier
                     .padding(padding)
@@ -210,7 +293,11 @@ fun LeaveCreateScreen(
                     .padding(horizontal = 20.dp, vertical = 12.dp),
             ) {
                 uiState.fields.forEach { field ->
-                    LeaveFieldEditor(field = field, state = uiState, onValue = viewModel::setValue)
+                    LeaveFieldEditor(
+                        field = field,
+                        values = uiState.values,
+                        onValue = viewModel::setValue,
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
                 uiState.validation?.let {
@@ -251,7 +338,7 @@ fun LeaveCreateScreen(
 @Composable
 private fun LeaveFieldEditor(
     field: LeaveField,
-    state: LeaveCreateUiState,
+    values: Map<String, String>,
     onValue: (String, String) -> Unit,
 ) {
     Column {
@@ -269,36 +356,51 @@ private fun LeaveFieldEditor(
                 items(field.options, key = { it.second }) { (label, value) ->
                     LxFilterChip(
                         label = label,
-                        selected = state.values[field.key] == value,
+                        selected = values[field.key] == value,
                         onClick = { onValue(field.key, value) },
                     )
                 }
             }
-            "dateRange" -> {
+            "dateRange" -> Column {
                 LxTextField(
-                    value = state.values["QJRQ_START"].orEmpty(),
+                    value = values["QJRQ_START"].orEmpty(),
                     onValueChange = { onValue("QJRQ_START", it) },
-                    label = stringResource(R.string.leave_start),
+                    label = "${field.startLabel}（${field.dateFormat.replace("YYYY", "yyyy").replace("DD", "dd")}）",
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 LxTextField(
-                    value = state.values["QJRQ_END"].orEmpty(),
+                    value = values["QJRQ_END"].orEmpty(),
                     onValueChange = { onValue("QJRQ_END", it) },
-                    label = stringResource(R.string.leave_end),
+                    label = field.endLabel,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            "formula" -> Text(
-                text = state.values[field.key].orEmpty().ifBlank { "-" },
-                style = MiuixTheme.textStyles.body1,
-                fontWeight = FontWeight.SemiBold,
-                color = LxInk,
+            "formula" -> Row {
+                Text(
+                    text = values[field.key].orEmpty().ifBlank { "-" },
+                    style = MiuixTheme.textStyles.body1,
+                    fontWeight = FontWeight.SemiBold,
+                    color = LxInk,
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = " ${stringResource(R.string.leave_hours_unit)}",
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = LxInkMuted,
+                )
+            }
+            "address" -> LxTextField(
+                value = values[field.key].orEmpty(),
+                onValueChange = { onValue(field.key, it) },
+                label = stringResource(R.string.leave_address_hint),
+                modifier = Modifier.fillMaxWidth(),
             )
             else -> LxTextField(
-                value = state.values[field.key].orEmpty(),
+                value = values[field.key].orEmpty(),
                 onValueChange = { onValue(field.key, it) },
                 label = field.label,
+                enabled = !field.disabled,
                 singleLine = field.type != "textarea",
                 modifier = Modifier.fillMaxWidth(),
             )

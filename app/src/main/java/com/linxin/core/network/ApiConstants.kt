@@ -22,6 +22,14 @@ object ApiConstants {
     const val BASE_WANXIAO_HUB = "https://hub.17wanxiao.com"
     const val BASE_ECARD_H5 = "https://ecardh5.17wanxiao.com"
 
+    /**
+     * 完美校园自己的网页收银台。`pay` 回 `ecardh5type==2` 时，它 H5 调的 `epaySdk.callPay`
+     * 其实就是把 orderInfo 拼成这个地址然后 `location.href` 过去（那份 SDK 在
+     * `wapnew.17wanxiao.com` 上，里面没有任何原生桥，只有 cookie + 跳转），
+     * 所以我们在 app 内的 WebView 里打开同一个地址就是等价行为。
+     */
+    const val BASE_WAP_CASHIER = "https://wapnew.17wanxiao.com/WapCashDesk/e-pay"
+
     /** 抓包里安小信打开完美校园时用的学校标识（light.action 的 flag 参数） */
     const val ECARD_FLAG = "ahxx_ecardh5_1000538"
 

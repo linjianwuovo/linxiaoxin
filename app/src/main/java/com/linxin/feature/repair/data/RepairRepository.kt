@@ -1,6 +1,7 @@
 package com.linxin.feature.repair.data
 
 import com.linxin.core.auth.TokenManager
+import com.linxin.core.network.failureReason
 import com.linxin.core.network.RepairRetrofit
 import dagger.Module
 import dagger.Provides
@@ -45,7 +46,7 @@ class RepairRepository @Inject constructor(
             val me = identity()
             val resp = api.getMyRepairs(me.accessToken, me.xh, me.xh, me.userName, me.userType)
             if (resp.flag != true) {
-                return Result.failure(Exception(resp.msg ?: resp.code ?: "获取报修单失败"))
+                return Result.failure(Exception(failureReason(resp.msg, resp.code, fallback = "报修单没取到，服务端也没给原因")))
             }
             val rows = resp.data?.data.orEmpty()
             Result.success(
@@ -75,7 +76,7 @@ class RepairRepository @Inject constructor(
             val me = identity()
             val resp = api.getRepairDetail(bxdh, me.accessToken, me.xh, me.xh, me.userName, me.userType)
             if (resp.flag != true) {
-                return Result.failure(Exception(resp.msg ?: resp.code ?: "获取报修详情失败"))
+                return Result.failure(Exception(failureReason(resp.msg, resp.code, fallback = "报修详情没取到，服务端也没给原因")))
             }
             val d = resp.data?.data
             if (d == null) {
@@ -116,7 +117,7 @@ class RepairRepository @Inject constructor(
             val me = identity()
             val resp = api.getRepairFlow(bxdh, me.accessToken, me.xh, me.xh, me.userName, me.userType)
             if (resp.flag != true) {
-                return Result.failure(Exception(resp.msg ?: resp.code ?: "获取处理进度失败"))
+                return Result.failure(Exception(failureReason(resp.msg, resp.code, fallback = "处理进度没取到，服务端也没给原因")))
             }
             val nodes = resp.data?.data?.list.orEmpty()
             val flat = ArrayList<RepairStep>()
@@ -144,7 +145,7 @@ class RepairRepository @Inject constructor(
             val types = api.getTypes(me.accessToken, me.xh, me.xh, me.userName, me.userType)
             val contact = api.getContact(me.accessToken, me.xh, me.xh, me.userName, me.userType)
             if (places.flag != true || types.flag != true) {
-                return Result.failure(Exception(places.msg ?: types.msg ?: "报修表单数据加载失败"))
+                return Result.failure(Exception(failureReason(places.msg, types.msg, fallback = "报修表单的地点/类型树没取到")))
             }
             Result.success(
                 RepairFormInit(
@@ -182,7 +183,7 @@ class RepairRepository @Inject constructor(
                 userName = me.userName,
                 userType = me.userType,
             )
-            if (resp.flag != true) Result.failure(Exception(resp.msg ?: resp.code ?: "报修提交失败"))
+            if (resp.flag != true) Result.failure(Exception(failureReason(resp.msg, resp.code, fallback = "报修提交失败，服务端没给原因")))
             else Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(Exception(e.message ?: "报修提交失败", e))
@@ -203,7 +204,7 @@ class RepairRepository @Inject constructor(
                 userName = me.userName,
                 userType = me.userType,
             )
-            if (resp.flag != true) Result.failure(Exception(resp.msg ?: resp.code ?: "取消失败"))
+            if (resp.flag != true) Result.failure(Exception(failureReason(resp.msg, resp.code, fallback = "取消失败，服务端没给原因")))
             else Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(Exception(e.message ?: "取消失败", e))
@@ -225,7 +226,7 @@ class RepairRepository @Inject constructor(
                 userName = me.userName,
                 userType = me.userType,
             )
-            if (resp.flag != true) Result.failure(Exception(resp.msg ?: resp.code ?: "评价提交失败"))
+            if (resp.flag != true) Result.failure(Exception(failureReason(resp.msg, resp.code, fallback = "评价提交失败，服务端没给原因")))
             else Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(Exception(e.message ?: "评价提交失败", e))
