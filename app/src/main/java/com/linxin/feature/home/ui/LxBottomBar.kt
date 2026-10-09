@@ -8,6 +8,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -16,9 +19,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
@@ -31,6 +37,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -53,13 +60,18 @@ import dev.chrisbanes.haze.hazeEffect
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-data class LxTab(@StringRes val labelRes: Int, val icon: ImageVector)
+/**
+ * 一个底栏项。`pageIndex` 是它对应的 HorizontalPager 页号 —— 底栏现在只有四个 tab
+ * （中间那颗是「全部服务」按钮，不占页），所以 tab 下标和页号不再是一回事，
+ * 公告那一页还在 pager 里，只是从中间那颗进去。
+ */
+data class LxTab(@StringRes val labelRes: Int, val icon: ImageVector, val pageIndex: Int)
 
 val LxHomeTabs = listOf(
-    LxTab(R.string.tab_home, Icons.Outlined.Home),
-    LxTab(R.string.tab_schedule, Icons.Outlined.CalendarMonth),
-    LxTab(R.string.tab_news, Icons.Outlined.Campaign),
-    LxTab(R.string.tab_profile, Icons.Outlined.Person),
+    LxTab(R.string.tab_home, Icons.Outlined.Home, 0),
+    LxTab(R.string.tab_schedule, Icons.Outlined.CalendarMonth, 1),
+    LxTab(R.string.tab_messages, Icons.Outlined.Forum, 2),
+    LxTab(R.string.tab_profile, Icons.Outlined.Person, 4),
 )
 
 /**
@@ -108,6 +120,8 @@ fun LxBottomBar(
     glassDistortion: Float,
     glassDispersion: Float,
     tabs: List<LxTab> = LxHomeTabs,
+    onCenterClick: (() -> Unit)? = null,
+    centerOpen: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     if (tabs.isEmpty()) return
@@ -189,27 +203,38 @@ fun LxBottomBar(
     }
 
     val selectedColor = scheme.primary
+    // 选中图标下面垫的那块圆角方形，是照酷安底栏加的；只用主色低透明度实色，
+    // 不叠第二层玻璃采样 —— 之前那种"栏内再开一块小玻璃"在部分机型上会折成一块死灰。
+    val blockTint = selectedColor.copy(alpha = if (isDark) 0.26f else 0.14f)
+    val blockShape = RoundedCornerShape(13.dp)
+    val centerSize = 52.dp
+    val splitAt = (tabs.size + 1) / 2
 
-    Row(
-        modifier = barBody.padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        tabs.forEachIndexed { index, tab ->
-            val active = index == selectedIndex
-            val label = stringResource(tab.labelRes)
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clickable(
+    @Composable
+    fun RowScope.tabItem(index: Int) {
+        val tab = tabs[index]
+        val active = index == selectedIndex
+        val label = stringResource(tab.labelRes)
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .clickable(
                     // 玻璃栏里绝不能有触摸水波纹：indication 是一层约 10% 黑的灰色圆角矩形，
                     // 叠在折射上就变成"点哪一格哪一格发灰"，且部分机型按下后不会自动清掉。
                     interactionSource = remember(label) { MutableInteractionSource() },
                     indication = null,
                 ) { onSelected(index) }
-                    .alpha(if (active) 1f else 0.70f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                .alpha(if (active) 1f else 0.70f),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(blockShape)
+                    .background(if (active) blockTint else Color.Transparent),
             ) {
                 Icon(
                     imageVector = tab.icon,
@@ -217,14 +242,55 @@ fun LxBottomBar(
                     tint = if (active) selectedColor else LxInkFaint,
                     modifier = Modifier.size(22.dp),
                 )
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = label,
-                    fontSize = 11.sp,
-                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-                    color = if (active) selectedColor else LxInkFaint,
-                )
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = label,
+                fontSize = 11.sp,
+                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (active) selectedColor else LxInkFaint,
+            )
+        }
+    }
+
+    Row(
+        modifier = barBody.padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // 左半 + 中间那颗实心圆 + 右半：中间那颗不翻页，它开「全部服务」菜单
+        tabs.take(splitAt).forEachIndexed { i, _ -> tabItem(i) }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+        ) {
+            if (onCenterClick != null) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(centerSize)
+                        .clip(CircleShape)
+                        .background(selectedColor)
+                        .clickable(
+                            interactionSource = remember("center") { MutableInteractionSource() },
+                            indication = null,
+                        ) { onCenterClick() },
+                ) {
+                    Icon(
+                        imageVector = if (centerOpen) Icons.Outlined.Close else Icons.Outlined.Add,
+                        contentDescription = stringResource(R.string.tab_services),
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(26.dp)
+                            .graphicsLayer {
+                                // 开合时那颗加号转 45 度变成叉，比换图标顺眼，也不额外要动画资源
+                                rotationZ = if (centerOpen) 45f else 0f
+                            },
+                    )
+                }
             }
         }
+        tabs.drop(splitAt).forEachIndexed { i, _ -> tabItem(i + splitAt) }
     }
 }
