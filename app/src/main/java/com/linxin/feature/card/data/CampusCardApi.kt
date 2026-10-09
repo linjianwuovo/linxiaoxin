@@ -75,6 +75,47 @@ interface CampusCardApi {
     ): CardUserInfoResponse
 
     /**
+     * 充值：可用的第三方渠道。H5 的调用是 `card_thirdWays({})`，body 只有 gotowhere。
+     * 渠道在 `data.gateways`，是个数组（它自己 `o.gateways.forEach` 遍历），
+     * 每项读 gateway_id / gateway_type / gateway_name / gateway_icon / gateway_info（chunk 40）。
+     */
+    @FormUrlEncoded
+    @POST("ecardh5/bootcallback")
+    suspend fun payChannels(
+        @Field("gotowhere") gotowhere: String = "gateway",
+    ): CardChannelsResponse
+
+    /**
+     * 充值下单。字段照它 chunk 17/40/57 的调用点原样：`opfare` 是**以元为单位的字符串**
+     * （整份 JS 里没有 *100 / toFixed / 除 100，值本身就是 `parseFloat` 出来的）；
+     * `return_url` 在非微信环境是 `isWeixin() && openid` 求值出的布尔 false，原样发成 "false"；
+     * 它还有个 `recharge_wallet`（充补贴钱包那一档）是路由参数带过来的，没有就不发这个键 ——
+     * 我们只充主钱包，所以不发。
+     */
+    @FormUrlEncoded
+    @POST("ecardh5/bootcallback")
+    suspend fun recharge(
+        @Field("opfare") opfare: String,
+        @Field("gateway_id") gatewayId: String,
+        @Field("gateway_type") gatewayType: String,
+        @Field("return_url") returnUrl: String,
+        @Field("gotowhere") gotowhere: String = "pay",
+    ): CardPayResponse
+
+    /**
+     * 查支付结果：H5 只在结果页调一次、不轮询，body {orderNo}；
+     * 读 `data.payflag`，只有 "2" 算到账，其余（包括缺省）它自己兜成 "3" 显示失败页。
+     * 真正的轮询在厂商收银台里（`wapnew.17wanxiao.com/WapCashDesk/queryOrder`），付完会跳回带
+     * `?partnerjourno=` 的地址 —— 那个数就是这里要的 orderNo。
+     */
+    @FormUrlEncoded
+    @POST("ecardh5/bootcallback")
+    suspend fun payStatus(
+        @Field("orderNo") orderNo: String,
+        @Field("gotowhere") gotowhere: String = "payStatus",
+    ): CardPayStatusResponse
+
+    /**
      * 挂失。读它 H5 的 i18n 确认：整页只有一个 6 位查询密码输入框，
      * body 里除 `gotowhere` 外只有 `password`（RSA 加密后）。
      * `gotowhere` 按 JS 的习惯放最后一个键。
@@ -109,11 +150,32 @@ data class CardUserInfoResponse(
     val code_: Int?,
     val result_: Boolean?,
     val message_: String?,
+    val message: String?,
+    /** 它请求层的成功判据是 `code_==0 || success || result_`，三个键都可能缺席，所以都可空 */
+    val success: Boolean?,
     val data: CardUserInfoRow?,
 )
 
 data class CardUserInfoRow(
     val rsaPublicKey: String?,
+    /**
+     * 只接充值页要用的限额/预设/开关；同一份响应里的 virtualCardWeakPwd 之类一律不声明、不显示。
+     *
+     * 全部收成 String 是有意的：抓包里 `quota` 是 JSON 数字（`500.00`）、`rechargeAlertNum` 是字符串 `"20"`，
+     * 它 JS 里 `quota` 走 `Number(...)`、`moneyData` 走 `JSON.parse(...)`、`limitLowMoneySwitch` 当布尔用 ——
+     * Gson 读 `String?` 时数字、布尔、字符串都吃得下，反过来声明成 Double/Boolean 一旦服务端改了类型
+     * 就是整份响应解析失败，页面直接白屏。
+     */
+    val quota: String?,
+    /** JSON 字符串，形如 `[{"money":"10","selected":true},…]`，只用里面的 `money` */
+    val moneyData: String?,
+    val limitLowMoney: String?,
+    val limitLowMoneySwitch: String?,
+    /** `showPayWay=false` 时它不走渠道列表，直接用这份默认渠道配置（也是 JSON 字符串）下单 */
+    val showPayWay: String?,
+    val defaultPayWayCfg: String?,
+    /** 为真时它 H5 要先走短信验证页（`ecardPayQueryMobile`/`sendEcardPaySms`/`ecardPayMobileVerify`）才让下单 */
+    val ecardPayVerifyMobile: String?,
 )
 
 /**
@@ -124,6 +186,9 @@ data class CardWriteResponse(
     val code_: Int?,
     val result_: Boolean?,
     val message_: String?,
+    val message: String?,
+    /** 它请求层的成功判据是 `code_==0 || success || result_`，三个键都可能缺席，所以都可空 */
+    val success: Boolean?,
     val data: CardWriteData?,
 )
 
@@ -139,6 +204,8 @@ data class CardRedirectResponse(
     val error: Boolean?,
     val result_: Boolean?,
     val message_: String?,
+    /** 服务端出异常时这个键给原文（如 `javax.net.ssl.SSLException: Connection reset`），`message_` 给"失败" */
+    val message: String?,
 )
 
 /** `gotowhere=XYK_BASE_INFO`，抓包原样：金额是数字，`my_fare` 是字符串 */
@@ -146,6 +213,9 @@ data class CardBaseResponse(
     val code_: Int?,
     val result_: Boolean?,
     val message_: String?,
+    val message: String?,
+    /** 它请求层的成功判据是 `code_==0 || success || result_`，三个键都可能缺席，所以都可空 */
+    val success: Boolean?,
     val data: CardBaseRow?,
 )
 
@@ -163,6 +233,9 @@ data class CardTradeResponse(
     val code_: Int?,
     val result_: Boolean?,
     val message_: String?,
+    val message: String?,
+    /** 它请求层的成功判据是 `code_==0 || success || result_`，三个键都可能缺席，所以都可空 */
+    val success: Boolean?,
     val data: CardTradeShell?,
 )
 
@@ -204,4 +277,69 @@ data class CardBalance(
     val totalText: String,
     val status: Int,
     val validUntil: String,
+)
+
+/** `gotowhere=gateway`：第三方渠道列表 */
+data class CardChannelsResponse(
+    val code_: Int?,
+    val result_: Boolean?,
+    val message_: String?,
+    val message: String?,
+    /** 它请求层的成功判据是 `code_==0 || success || result_`，三个键都可能缺席，所以都可空 */
+    val success: Boolean?,
+    val data: CardChannelsShell?,
+)
+
+data class CardChannelsShell(
+    val gateways: List<CardChannel>?,
+)
+
+data class CardChannel(
+    val gateway_id: String?,
+    val gateway_type: String?,
+    val gateway_name: String?,
+    val gateway_info: String?,
+)
+
+/** `gotowhere=pay`：下单结果。ecardh5type 在信封外层（H5 取的是回调第三个参数=整个 body） */
+data class CardPayResponse(
+    val code_: Int?,
+    val result_: Boolean?,
+    val message_: String?,
+    val message: String?,
+    /** 它请求层的成功判据是 `code_==0 || success || result_`，三个键都可能缺席，所以都可空 */
+    val success: Boolean?,
+    val ecardh5type: Int?,
+    val data: CardPayData?,
+)
+
+data class CardPayData(
+    /** 有它就是付款地址：H5 干的是 self.location.href = request_content */
+    val request_content: String?,
+    /** 查支付结果要用的单号 */
+    val jourorderno: String?,
+    /**
+     * `ecardh5type==2` 时它改调 `epaySdk.callPay`，喂给 SDK 的就是下面这几个键。
+     * 全部声明成 `JsonElement`：那份 SDK 里 `orderInfo` 是「字符串就 JSON.parse、否则当对象」两种都收，
+     * 服务端给的是哪一种我们说了不算，声明成 String 或对象都有一种会当场解析炸掉。
+     */
+    val orderInfo: com.google.gson.JsonElement?,
+    val callPaywayid: com.google.gson.JsonElement?,
+    val callAccountid: com.google.gson.JsonElement?,
+    val projectPaywayList: com.google.gson.JsonElement?,
+    val extend: com.google.gson.JsonElement?,
+)
+
+data class CardPayStatusResponse(
+    val code_: Int?,
+    val result_: Boolean?,
+    val message_: String?,
+    val message: String?,
+    /** 它请求层的成功判据是 `code_==0 || success || result_`，三个键都可能缺席，所以都可空 */
+    val success: Boolean?,
+    val data: CardPayStatus?,
+)
+
+data class CardPayStatus(
+    val payflag: String?,
 )
