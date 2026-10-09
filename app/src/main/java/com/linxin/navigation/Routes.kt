@@ -62,6 +62,12 @@ object Routes {
     const val REPAIR_DETAIL = "repair/detail/{bxdh}"
     fun repairDetail(bxdh: String) = "repair/detail/${Uri.encode(bxdh)}"
 
+    // 请假（只读：我的申请 / 待办）
+    const val LEAVE_LIST = "leave/list"
+
+    // 校园卡（只读：余额与卡状态）
+    const val CAMPUS_CARD = "card"
+
     // AI Homework
     const val AICLASS_HOMEWORK_DETAIL = "aiclass/homework/{cwId}/{teachClassId}"
     fun aiClassHomeworkDetail(cwId: String, teachClassId: String) =

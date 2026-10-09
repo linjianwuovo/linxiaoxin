@@ -41,6 +41,7 @@ import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxEmpty
 import com.linxin.core.designsystem.component.LxError
+import com.linxin.core.designsystem.component.LxFilterChip
 import com.linxin.core.designsystem.component.LxLoading
 import com.linxin.core.designsystem.theme.LxInk
 import com.linxin.core.designsystem.theme.LxInkMuted
@@ -192,13 +193,13 @@ fun MessagesScreen(
                     .padding(horizontal = 20.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                FilterChip(
+                LxFilterChip(
                     label = stringResource(R.string.msg_filter_all),
                     selected = !uiState.onlyUnread,
                     onClick = { viewModel.setOnlyUnread(false) },
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                FilterChip(
+                LxFilterChip(
                     label = stringResource(R.string.msg_filter_unread),
                     selected = uiState.onlyUnread,
                     onClick = { viewModel.setOnlyUnread(true) },
@@ -232,28 +233,6 @@ fun MessagesScreen(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun FilterChip(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(if (selected) LxTerra.copy(alpha = 0.14f) else LxSand)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 7.dp),
-    ) {
-        Text(
-            text = label,
-            style = MiuixTheme.textStyles.footnote1,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (selected) LxTerra else LxInkMuted,
-        )
     }
 }
 

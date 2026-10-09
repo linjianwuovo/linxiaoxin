@@ -23,9 +23,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.BatterySaver
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.EventNote
 import androidx.compose.material.icons.outlined.Grading
 import androidx.compose.material.icons.outlined.NotificationsActive
@@ -69,6 +71,8 @@ fun MoreFeaturesScreen(
     onBack: () -> Unit,
     onNavigateLabor: () -> Unit,
     onNavigateRepair: () -> Unit,
+    onNavigateLeave: () -> Unit,
+    onNavigateCard: () -> Unit,
     onNavigateExam: () -> Unit,
     onNavigateCredit: () -> Unit,
     onNavigateHoliday: () -> Unit,
@@ -119,6 +123,18 @@ fun MoreFeaturesScreen(
                         icon = Icons.Outlined.Build,
                         title = stringResource(R.string.title_repair),
                         onClick = onNavigateRepair,
+                    )
+                    MoreMenuDivider()
+                    MoreMenuRow(
+                        icon = Icons.Outlined.EventAvailable,
+                        title = stringResource(R.string.title_leave),
+                        onClick = onNavigateLeave,
+                    )
+                    MoreMenuDivider()
+                    MoreMenuRow(
+                        icon = Icons.Outlined.AccountBalanceWallet,
+                        title = stringResource(R.string.title_card),
+                        onClick = onNavigateCard,
                     )
                     MoreMenuDivider()
                     MoreMenuRow(

@@ -503,4 +503,26 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="repair_repair_note">Repair note</string>
     <string name="repair_finish">Outcome</string>
     <string name="repair_evaluation">Rating</string>
+
+    <!-- Leave (read-only) -->
+    <string name="title_leave">Leave</string>
+    <string name="leave_tab_apply">My requests</string>
+    <string name="leave_tab_todo">Awaiting me</string>
+    <string name="leave_empty_apply">No requests submitted</string>
+    <string name="leave_empty_todo">Nothing waiting for you</string>
+    <string name="leave_untitled">Request</string>
+
+    <!-- Campus card (read-only) -->
+    <string name="title_card">Campus card</string>
+    <string name="card_total">Balance</string>
+    <string name="card_main">Main wallet</string>
+    <string name="card_subsidy">Subsidy wallet</string>
+    <string name="card_fund">Fund</string>
+    <string name="card_status">Card status</string>
+    <string name="card_status_ok">Active</string>
+    <string name="card_status_code">Status code %1$d</string>
+    <string name="card_valid_until">Valid until</string>
+    <string name="card_month_trades">This month</string>
+    <string name="card_month_trades_value">%1$d transactions</string>
+    <string name="card_readonly_hint">Balance and card status only. Top-up, freeze, password change and unbinding all touch money or credentials, so they are not built in.</string>
 </resources>
