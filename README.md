@@ -18,20 +18,26 @@
 - 移除"检测更新"功能（GitHub Release 轮询、APK 下载与安装权限整体删除）
 - 上游的内部设计文档目录 `codestable/` 不在本 fork 公开（其中含校方接口的鉴权细节）
 
-## 截图
+- 校园卡：余额 / 明细分页 / 充值走校方收银台（纯 JS 跳转，Cookie 按原域名种进 WebView）
+- 报修、请假、全校服务清单接入，写操作一律只做到确认前一步
+- 消息页一键已读（逐条 `readPushMessage.do`，真写到服务端）
+- 底栏玻璃滑块改成跟手：手指按在哪格滑块就跟到哪，抬手弹回选中格
+- 全站中英双语，文案全量抽进 `strings.xml`（每次发版跑中英键集合 diff）
+- 全站字体换成 MiSans VF，许可与合规记录见 `MISANS-NOTICE.txt`
 
-真机（ColorOS 17）实拍，个人信息已打码。
+## 界面截图
 
-| ![](screenshots/首页.png) | ![](screenshots/课程表.png) | ![](screenshots/我的.png) | ![](screenshots/ai课堂.png) |
-|:--:|:--:|:--:|:--:|
-| 首页 | 课程表 | 我的 | AI 课堂 |
+本 fork 不再放真机截图。截图里躲不开真实课表、教室和公告内容，打码也不算干净；
+想看界面自己编译一份，或者跑起来看一眼比看图快。
 
-下方保留上游原 README 正文（**截图与安装两处已按本 fork 更新**：上游原版 7 张截图不再保留，安装不再指向上游）。
+下方保留上游原 README 正文（**安装一节已按本 fork 更新**）。
 
 ## 安装
 
-> 本 fork 的安装包在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.3.0)：
-> `linxin-v1.3.0.apk`（debug 签名，minSdk 26 / Android 8.0+）。装过其它签名的版本需先卸载再装。
+> 正式版安装包在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.3.6)：
+> `linxin-1.3.6.apk`（debug 签名，minSdk 26 / Android 8.0+，arm64-v8a）。
+> 签名一直是 Android 调试 key，所以从任一 beta 版本可以直接覆盖安装；
+> 换成别的签名（比如自己 `assembleRelease` 出来的未签名包）就得先卸载再装。
 
 ```bash
 git clone https://github.com/linjianwuovo/linxiaoxin.git
