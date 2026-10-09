@@ -446,29 +446,109 @@ class CampusCardRepository @Inject constructor(
     }
 
     /**
-     * `ecardh5type==2` 那条路。它 H5 调的 `epaySdk.callPay({orderInfo, callAccountid, projectPaywayList, extend})`
-     * 看着像原生支付，其实那份 SDK（wapnew.17wanxiao.com 上的 `cap-epay-sdk-min.js`）里没有任何桥调用，
-     * 只有两件事：把 orderInfo 那几个键写成 `.17wanxiao.com` 的 cookie，然后
-     * `location.href = https://wapnew.17wanxiao.com/WapCashDesk/e-pay/payways.html?orderInfo=…&callAccountid=…`。
-     * 那就照它拼：地址给 WebView，cookie 一起带过去（收银台那几个页面两个来源都读）。
-     * 返回 Pair(地址, 要种的 cookie)。
+     * `ecardh5type==2` 那条路，逐行照 `cap-epay-sdk-min.js` 里的 `callPay` + `toPay` 翻过来。
+     * 那份 SDK 没有任何原生桥，全是 `document.cookie` + `location.href`，
+     * 所以在我们的 WebView 里做同样的事就是等价行为。
+     *
+     * 它自己的分支顺序（不能改）：
+     * 1. `orderInfo` 是字符串就先 `JSON.parse`；顶层没给 `projectPaywayList` 时，
+     *    从 orderInfo 里**摘出来并把这个键删掉**（后面几页要的是摘干净的那份）；
+     * 2. `extend` 同样可能是字符串，并进 orderInfo 的副本里 —— 它把这份合并结果叫 `userTokenInfo`，
+     *    而 URL 上的 `orderInfo` 参数装的**就是这份合并结果**，`userTokenInfo` 参数装的是空串 `""`（命名很绕，照抄）；
+     * 3. 有 `callPaywayid` → `toPay(合并结果, paywayid, accountid, "", list)`；
+     *    没有则看 `projectPaywayList` 是不是**只有一项**，是就拿那项的 paywayid/accountid 走 toPay；
+     * 4. 两条都不成才落到 `payways.html`（选择支付方式页）；
+     * 5. `toPay` 内部再分流：微信那 20 个编号 → `wechat.html`，`1205` → `icbcrel.html`，
+     *    其余 → `pay.html`（多带一个 `userTokenInfo=""`）；`1212` 在更外层，走 PayAdapterService。
+     *
+     * 上一版我一律拼 `payways.html`、还把 orderInfo 原样塞进去，服务端回
+     * `{"code_":998,"message_":"出现异常,请联系运维人员!!!null"}` 就是这么来的。
      */
     private fun wapCashierUrl(data: CardPayData?): Pair<String, List<Pair<String, String>>>? {
         val d = data ?: return null
-        val orderInfo = d.orderInfo.asJsonText() ?: return null
-        val account = d.callAccountid.asJsonText().orEmpty()
-        val list = d.projectPaywayList.asJsonText()
-        val sb = StringBuilder(ApiConstants.BASE_WAP_CASHIER)
-            .append("/payways.html?orderInfo=").append(queryEncode(orderInfo))
-            .append("&callAccountid=").append(queryEncode(account))
-        if (!list.isNullOrBlank()) sb.append("&projectPaywayList=").append(queryEncode(list))
+        val orderRaw = d.orderInfo.asJsonText() ?: return null
+        val order = runCatching { JSONObject(orderRaw) }.getOrNull() ?: return null
+
+        var list = d.projectPaywayList.asJsonText()?.takeIf { it.isNotBlank() && it != "null" }
+        if (list == null) {
+            val inner = order.opt("projectPaywayList")
+            if (inner != null) {
+                list = inner.toString()
+                order.remove("projectPaywayList")
+            }
+        }
+        val extendRaw = d.extend.asJsonText()?.takeIf { it.isNotBlank() && it != "null" }
+
+        // toPay 收到的第一个参数就是这份「orderInfo 全字段 + extend」，它内部拿它当 orderInfo 拼地址
+        val merged = JSONObject(order.toString())
+        if (extendRaw != null) runCatching { merged.put("extend", JSONObject(extendRaw)) }
+        val mergedText = merged.toString()
+
+        var paywayid = d.callPaywayid.asJsonText().orEmpty()
+        var accountid = d.callAccountid.asJsonText().orEmpty()
+        if (paywayid.isBlank()) {
+            val only = singlePayway(list)
+            if (only != null) {
+                paywayid = only.first
+                if (accountid.isBlank()) accountid = only.second
+            }
+        }
+        val base = ApiConstants.BASE_WAP_CASHIER
+
+        if (paywayid.isBlank()) {
+            val url = StringBuilder(base)
+                .append("/payways.html?orderInfo=").append(queryEncode(order.toString()))
+                .append("&callAccountid=").append(queryEncode(accountid))
+            if (!list.isNullOrBlank()) url.append("&projectPaywayList=").append(queryEncode(list))
+            val cookies = buildList {
+                add("orderInfo" to queryEncode(order.toString()))
+                add("callAccountid" to queryEncode(accountid))
+                if (!list.isNullOrBlank()) add("projectPaywayList" to queryEncode(list))
+            }
+            return url.toString() to cookies
+        }
+
+        if (paywayid == "1212") {
+            val params = JSONObject()
+                .put("callPaywayid", paywayid)
+                .put("orderInfo", order)
+                .put("callAccountid", accountid)
+            if (!list.isNullOrBlank()) runCatching { params.put("projectPaywayList", JSONArray(list)) }
+            if (extendRaw != null) runCatching { params.put("extend", JSONObject(extendRaw)) }
+            return ApiConstants.BASE_PAY_ADAPTER + "?params=" + queryEncode(params.toString()) to emptyList()
+        }
+
+        val page = when {
+            paywayid in WECHAT_PAYWAY_IDS -> "wechat.html"
+            paywayid == "1205" -> "icbcrel.html"
+            else -> "pay.html"
+        }
+        val sb = StringBuilder(base)
+            .append('/').append(page)
+            .append("?orderInfo=").append(queryEncode(mergedText))
+            .append("&callPaywayid=").append(queryEncode(paywayid))
+            .append("&callAccountid=").append(queryEncode(accountid))
+        if (page == "pay.html") {
+            sb.append("&userTokenInfo=").append(queryEncode("\"\""))
+            if (!list.isNullOrBlank()) sb.append("&projectPaywayList=").append(queryEncode(list))
+        }
         val cookies = buildList {
-            // SDK 那边是 encodeURIComponent 之后写进 document.cookie 的，这里编同样的形
-            add("orderInfo" to queryEncode(orderInfo))
-            add("callAccountid" to queryEncode(account))
+            add("orderInfo" to queryEncode(mergedText))
+            add("callPaywayid" to queryEncode(paywayid))
+            add("callAccountid" to queryEncode(accountid))
             if (!list.isNullOrBlank()) add("projectPaywayList" to queryEncode(list))
         }
         return sb.toString() to cookies
+    }
+
+    /** `projectPaywayList` 只有一项时，SDK 直接拿它下单，不进选择页 */
+    private fun singlePayway(list: String?): Pair<String, String>? {
+        val arr = runCatching { JSONArray(list.orEmpty()) }.getOrNull() ?: return null
+        if (arr.length() != 1) return null
+        val item = arr.optJSONObject(0) ?: return null
+        val id = item.optString("paywayid").trim()
+        if (id.isBlank()) return null
+        return id to item.optString("accountid").trim()
     }
 
     /** `JsonElement` 可能是字符串（里面又是一段 JSON），也可能直接是对象 —— 两种都要能拿出 JSON 文本 */
@@ -532,6 +612,12 @@ class CampusCardRepository @Inject constructor(
 
         /** `quota` 缺失或不是正数时，它 H5 自己就用 "500" */
         private const val DEFAULT_MAX = 500
+
+        /** `toPay` 里那串走 `wechat.html` 的 paywayid，一个不多一个不少照抄 */
+        private val WECHAT_PAYWAY_IDS = setOf(
+            "0201", "0204", "3101", "0209", "0210", "0211", "1016", "1216", "3205", "2402",
+            "0217", "1512", "1822", "1240", "3801", "4401", "2512", "3311", "9713", "4302",
+        )
     }
 }
 
@@ -612,27 +698,12 @@ object CampusCardModule {
     @Provides
     @Singleton
     @CardRetrofit
-    fun provideCardRetrofit(client: OkHttpClient, @CardCookieJar jar: CardCookieStore): Retrofit {
-        // TEMP-取证用：只把 bootcallback 的响应原文抄一条 logcat（标签 LxCard）。
-        // 故意不用 HttpLoggingInterceptor 的 BODY 级 —— 那会把 redirect.action 里带 access_token 的
-        // 请求体一起打出来；这里只看业务响应，抓完充值这轮就撤。
-        val trace = object : okhttp3.Interceptor {
-            override fun intercept(chain: okhttp3.Interceptor.Chain): okhttp3.Response {
-                val request = chain.request()
-                val response = chain.proceed(request)
-                if (request.url.encodedPath.endsWith("/bootcallback")) {
-                    val body = runCatching { response.peekBody(200_000L).string() }.getOrDefault("")
-                    android.util.Log.i("LxCard", "← ${body.take(20_000)}")
-                }
-                return response
-            }
-        }
-        return Retrofit.Builder()
+    fun provideCardRetrofit(client: OkHttpClient, @CardCookieJar jar: CardCookieStore): Retrofit =
+        Retrofit.Builder()
             .baseUrl(ApiConstants.BASE_ECARD_H5 + "/")
-            .client(client.newBuilder().cookieJar(jar).addInterceptor(trace).build())
+            .client(client.newBuilder().cookieJar(jar).build())
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-    }
 
     @Provides
     @Singleton
