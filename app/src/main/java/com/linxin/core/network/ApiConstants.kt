@@ -15,6 +15,16 @@ object ApiConstants {
     // 报修平台（H5 在 /dist-app/，接口挂在根路径 /bxjlSjd/ 下）
     const val BASE_REPAIR = "https://repair.aiit.edu.cn"
 
+    // 请假等审批流（业务流转引擎）。H5 页面在 /mobile/，接口挂在 /zhxy-bfc/mobile/ 下
+    const val BASE_LEAVE = "https://ywlz.aiit.edu.cn/zhxy-bfc"
+
+    // 完美校园 / 一卡通：换会话跨三个子域，业务调用都落在 ecardh5
+    const val BASE_WANXIAO_HUB = "https://hub.17wanxiao.com"
+    const val BASE_ECARD_H5 = "https://ecardh5.17wanxiao.com"
+
+    /** 抓包里安小信打开完美校园时用的学校标识（light.action 的 flag 参数） */
+    const val ECARD_FLAG = "ahxx_ecardh5_1000538"
+
     // FIF AI课堂
     const val BASE_FIF_SSO = "https://aiitpass.fifedu.com"
     const val BASE_FIF = "https://sttp.fifedu.com"
