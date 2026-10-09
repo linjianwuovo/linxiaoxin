@@ -70,6 +70,11 @@ class AuthInterceptor @Inject constructor(
                     .build()
             }
 
+            // 报修平台: 它 H5 的 body 里只有 accessToken/userName/xh/userType 四个身份字段
+            // （读它 dist-app 的 JS 确认：post() 把全局 userInfo 并进每个请求），
+            // 这四个由 RepairApi 自己显式声明。这里再注入门户那套就不是照原样发了。
+            host.contains("repair.aiit.edu.cn") -> original
+
             // 主站 & 劳动教育: Form表单追加通用参数
             else -> {
                 val credentials = runBlocking { tokenManager.snapshot() }

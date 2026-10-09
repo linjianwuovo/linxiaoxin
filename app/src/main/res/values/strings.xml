@@ -486,4 +486,21 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="msg_filter_unread">未读</string>
     <string name="msg_unread_count">未读 %1$d</string>
     <string name="msg_all_read">没有未读消息</string>
+
+    <!-- 报修（只读） -->
+    <string name="title_repair">报修</string>
+    <string name="repair_empty">还没有报修记录</string>
+    <string name="repair_untitled">报修单</string>
+    <string name="repair_detail">报修详情</string>
+    <string name="repair_flow">处理进度</string>
+    <string name="repair_flow_empty">暂无处理记录</string>
+    <string name="repair_no">单号</string>
+    <string name="repair_status">状态</string>
+    <string name="repair_place">地点</string>
+    <string name="repair_time">报修时间</string>
+    <string name="repair_expect">期望时间</string>
+    <string name="repair_desc">故障描述</string>
+    <string name="repair_repair_note">维修说明</string>
+    <string name="repair_finish">完成情况</string>
+    <string name="repair_evaluation">服务评价</string>
 </resources>

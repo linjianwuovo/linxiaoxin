@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.BatterySaver
+import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.EventNote
 import androidx.compose.material.icons.outlined.Grading
@@ -67,6 +68,7 @@ import com.linxin.core.designsystem.theme.LxSandDeep
 fun MoreFeaturesScreen(
     onBack: () -> Unit,
     onNavigateLabor: () -> Unit,
+    onNavigateRepair: () -> Unit,
     onNavigateExam: () -> Unit,
     onNavigateCredit: () -> Unit,
     onNavigateHoliday: () -> Unit,
@@ -111,6 +113,12 @@ fun MoreFeaturesScreen(
                         icon = Icons.Outlined.WorkHistory,
                         title = stringResource(R.string.title_labor),
                         onClick = onNavigateLabor,
+                    )
+                    MoreMenuDivider()
+                    MoreMenuRow(
+                        icon = Icons.Outlined.Build,
+                        title = stringResource(R.string.title_repair),
+                        onClick = onNavigateRepair,
                     )
                     MoreMenuDivider()
                     MoreMenuRow(
