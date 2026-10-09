@@ -70,3 +70,14 @@ data class LeaveSubmitResponse(
 data class LeaveSubmitData(
     val executionId: String?,
 )
+
+/**
+ * findDefinitionBase.do：表单默认值，键就是 flowSheet 里的 model。
+ * 值不一定是字符串（流水号那类服务端给的是数字），所以这里收 `Any?`，
+ * 由 `LeaveRepository.defaults()` 统一转文本 —— 直接声明 Map<String,String> 会被 Gson 顶回来。
+ */
+data class LeaveDefaultsResponse(
+    val flag: Boolean?,
+    val result: String?,
+    val data: Map<String, Any?>?,
+)
