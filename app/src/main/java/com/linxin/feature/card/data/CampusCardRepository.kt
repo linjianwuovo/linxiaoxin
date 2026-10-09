@@ -483,7 +483,11 @@ class CampusCardRepository @Inject constructor(
             val data = resp.data
             val direct = data?.request_content.orEmpty().trim()
             val sdk = wapCashierUrl(data)
-            val url = direct.ifBlank { sdk?.first.orEmpty() }
+            // 它 H5 的判断顺序是：`if (2===ecardh5type) 走 callPay; else if (request_content) location.href=request_content`。
+            // 之前我写成「request_content 优先」，结果两个都有时打开了 ecardh5 那个地址，
+            // 屏幕上就是一张 `{"code_":998,…,"message_":"出现异常,请联系运维人员!!!null"}` 的 JSON ——
+            // 那是一卡通后端的信封（`code_/result_/useTime/message_`），不是收银台那台（回 `returncode`）。
+            val url = if (resp.ecardh5type == 2) sdk?.first.orEmpty() else direct.ifBlank { sdk?.first.orEmpty() }
             if (url.isBlank()) {
                 return Result.failure(
                     Exception(
