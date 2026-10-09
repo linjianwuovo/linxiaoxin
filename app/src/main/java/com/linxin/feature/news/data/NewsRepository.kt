@@ -1,5 +1,6 @@
 package com.linxin.feature.news.data
 
+import com.linxin.core.network.loginStaleNotice
 import com.linxin.core.network.MainRetrofit
 import com.linxin.feature.news.domain.NewsArticle
 import com.linxin.feature.news.domain.NewsItem
@@ -119,7 +120,7 @@ class NewsRepository @Inject constructor(
         }
 
         is IOException -> "网络异常，请检查连接后重试"
-        else -> error.message ?: "公告加载失败"
+        else -> loginStaleNotice(error.message?.takeIf { it.isNotBlank() } ?: "公告加载失败")
     }
 
     private companion object {

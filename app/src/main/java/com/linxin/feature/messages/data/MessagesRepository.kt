@@ -1,5 +1,6 @@
 package com.linxin.feature.messages.data
 
+import com.linxin.core.network.netFail
 import com.linxin.core.auth.TokenManager
 import com.linxin.core.network.MainRetrofit
 import dagger.Module
@@ -48,7 +49,7 @@ class MessagesRepository @Inject constructor(
                 ),
             )
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "获取消息失败", e))
+            Result.failure(netFail(e, "获取消息失败"))
         }
     }
 
@@ -65,7 +66,7 @@ class MessagesRepository @Inject constructor(
             }
             Result.success(response.data?.count ?: 0)
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "获取未读数失败", e))
+            Result.failure(netFail(e, "获取未读数失败"))
         }
     }
 }

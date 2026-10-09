@@ -1,5 +1,6 @@
 package com.linxin.feature.repair.data
 
+import com.linxin.core.network.netFail
 import com.linxin.core.auth.TokenManager
 import com.linxin.core.network.failureReason
 import com.linxin.core.network.RepairRetrofit
@@ -67,7 +68,7 @@ class RepairRepository @Inject constructor(
                 },
             )
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "获取报修单失败", e))
+            Result.failure(netFail(e, "获取报修单失败"))
         }
     }
 
@@ -104,7 +105,7 @@ class RepairRepository @Inject constructor(
                 )
             }
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "获取报修详情失败", e))
+            Result.failure(netFail(e, "获取报修详情失败"))
         }
     }
 
@@ -131,7 +132,7 @@ class RepairRepository @Inject constructor(
             walk(nodes)
             Result.success(flat)
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "获取处理进度失败", e))
+            Result.failure(netFail(e, "获取处理进度失败"))
         }
     }
 
@@ -160,7 +161,7 @@ class RepairRepository @Inject constructor(
                 ),
             )
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "报修表单数据加载失败", e))
+            Result.failure(netFail(e, "报修表单数据加载失败"))
         }
     }
 
@@ -186,7 +187,7 @@ class RepairRepository @Inject constructor(
             if (resp.flag != true) Result.failure(Exception(failureReason(resp.msg, resp.code, fallback = "报修提交失败，服务端没给原因")))
             else Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "报修提交失败", e))
+            Result.failure(netFail(e, "报修提交失败"))
         }
     }
 
@@ -207,7 +208,7 @@ class RepairRepository @Inject constructor(
             if (resp.flag != true) Result.failure(Exception(failureReason(resp.msg, resp.code, fallback = "取消失败，服务端没给原因")))
             else Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "取消失败", e))
+            Result.failure(netFail(e, "取消失败"))
         }
     }
 
@@ -229,7 +230,7 @@ class RepairRepository @Inject constructor(
             if (resp.flag != true) Result.failure(Exception(failureReason(resp.msg, resp.code, fallback = "评价提交失败，服务端没给原因")))
             else Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "评价提交失败", e))
+            Result.failure(netFail(e, "评价提交失败"))
         }
     }
 
