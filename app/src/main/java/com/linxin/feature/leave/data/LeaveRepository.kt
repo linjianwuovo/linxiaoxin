@@ -2,6 +2,7 @@ package com.linxin.feature.leave.data
 
 import com.linxin.core.auth.TokenManager
 import com.linxin.core.network.failureReason
+import com.linxin.core.network.netFail
 import com.linxin.core.network.LeaveRetrofit
 import dagger.Module
 import dagger.Provides
@@ -82,7 +83,7 @@ class LeaveRepository @Inject constructor(
             val sheet = resp.data?.flowSheet
             if (sheet.isNullOrBlank()) Result.failure(Exception("请假表单是空的")) else Result.success(sheet)
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "请假表单加载失败", e))
+            Result.failure(netFail(e, "请假表单加载失败"))
         }
     }
 
@@ -103,7 +104,7 @@ class LeaveRepository @Inject constructor(
             if (resp.flag != true) return Result.failure(Exception(failureReason(resp.result, fallback = "请假提交失败，服务端没给原因")))
             Result.success(resp.data?.executionId.orEmpty())
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "请假提交失败", e))
+            Result.failure(netFail(e, "请假提交失败"))
         }
     }
 
@@ -120,7 +121,7 @@ class LeaveRepository @Inject constructor(
             )
             if (resp.flag != true) Result.failure(Exception(failureReason(resp.result, fallback = "撤回失败，服务端没给原因"))) else Result.success(Unit)
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "撤回失败", e))
+            Result.failure(netFail(e, "撤回失败"))
         }
     }
 
@@ -146,7 +147,7 @@ class LeaveRepository @Inject constructor(
             }
             Result.success(resp.data.orEmpty().mapValues { (_, v) -> v.asText() })
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "表单默认值没取到", e))
+            Result.failure(netFail(e, "表单默认值没取到"))
         }
     }
 
