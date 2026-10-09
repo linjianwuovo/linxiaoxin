@@ -486,6 +486,13 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="msg_filter_unread">未读</string>
     <string name="msg_unread_count">未读 %1$d</string>
     <string name="msg_all_read">没有未读消息</string>
+    <string name="msg_mark_all_read">一键已读</string>
+    <string name="msg_mark_all_read_busy">标记中…</string>
+    <string name="msg_mark_all_read_title">批量阅读</string>
+    <string name="msg_mark_all_read_body">把所有待阅的消息一次标成已读？这一下写的是学校服务端，安小信那边也会跟着变已读。</string>
+    <string name="msg_mark_all_read_done">已把 %1$d 条标成已读</string>
+    <string name="msg_mark_all_read_partial">标了 %1$d 条，还有 %2$d 条没成</string>
+    <string name="msg_mark_all_read_nothing">没有要标的未读消息</string>
 
     <!-- 报修（只读） -->
     <string name="title_repair">报修</string>

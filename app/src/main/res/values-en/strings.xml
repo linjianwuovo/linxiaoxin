@@ -486,6 +486,13 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="msg_filter_unread">Unread</string>
     <string name="msg_unread_count">%1$d unread</string>
     <string name="msg_all_read">Nothing unread</string>
+    <string name="msg_mark_all_read">Mark all read</string>
+    <string name="msg_mark_all_read_busy">Marking…</string>
+    <string name="msg_mark_all_read_title">Mark all as read</string>
+    <string name="msg_mark_all_read_body">Mark every pending message as read in one go? This writes to the school server, and AnXiaoXin will show them read too.</string>
+    <string name="msg_mark_all_read_done">Marked %1$d as read</string>
+    <string name="msg_mark_all_read_partial">Marked %1$d, %2$d did not go through</string>
+    <string name="msg_mark_all_read_nothing">Nothing left to mark</string>
 
     <!-- Repairs (read-only) -->
     <string name="title_repair">Repairs</string>
