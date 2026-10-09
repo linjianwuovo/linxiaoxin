@@ -25,6 +25,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxEmpty
 import com.linxin.core.designsystem.component.LxError
@@ -84,6 +85,7 @@ class RepairViewModel @Inject constructor(
 fun RepairScreen(
     onBack: () -> Unit,
     onOpenDetail: (String) -> Unit,
+    onCreate: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RepairViewModel = hiltViewModel(),
 ) {
@@ -105,13 +107,22 @@ fun RepairScreen(
                     message = stringResource(R.string.repair_empty),
                     modifier = Modifier.fillMaxSize(),
                 )
-                else -> LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(uiState.items, key = { it.bxdh }) { item ->
-                        RepairRowCard(item = item, onClick = { onOpenDetail(item.bxdh) })
+                else -> Column(modifier = Modifier.fillMaxSize()) {
+                    LxButton(
+                        text = stringResource(R.string.repair_new),
+                        onClick = onCreate,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 6.dp),
+                    )
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(uiState.items, key = { it.bxdh }) { item ->
+                            RepairRowCard(item = item, onClick = { onOpenDetail(item.bxdh) })
+                        }
                     }
                 }
             }
