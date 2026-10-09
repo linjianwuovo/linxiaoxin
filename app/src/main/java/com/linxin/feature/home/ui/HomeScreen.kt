@@ -52,6 +52,9 @@ import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
+/** pager 的页数：0 首页 1 课程表 2 消息 3 公告 4 我的 */
+private const val LxHomePages = 5
+
 // 底栏四个 tab + 中间那颗「全部服务」；公告还在 pager 里（第 3 页），
 // 但从底栏走不到它了，只能从中间那颗进 —— 照酷安那种「四 tab 一中键」的排法。
 private val tabs = LxHomeTabs
@@ -68,7 +71,9 @@ fun HomeScreen(
     // 这是用户提供的液态玻璃 demo（Kyant0 Backdrop 官方用法）的接法。
     val glassBackdrop = rememberLayerBackdrop()
     val themeSettings by themeViewModel.settings.collectAsState()
-    val pagerState = rememberPagerState(initialPage = selectedTab) { tabs.size }
+    // 页数不能跟着 tabs.size 走：底栏四个 tab + 中间那颗，公告还在 pager 里但不在底栏上，
+    // 用 tabs.size 会让最后一页（我的）被截掉，点「我的」就被夹到公告那页（2026-10-09 22:30 他报的）。
+    val pagerState = rememberPagerState(initialPage = selectedTab) { LxHomePages }
     val scope = rememberCoroutineScope()
 
     // 滑动翻页时同步高亮底栏
