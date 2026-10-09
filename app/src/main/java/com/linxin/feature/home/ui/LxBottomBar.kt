@@ -28,13 +28,22 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import top.yukonga.miuix.kmp.basic.Icon
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import kotlin.math.roundToInt
 import androidx.compose.ui.draw.alpha
@@ -214,10 +223,29 @@ fun LxBottomBar(
     val pillWidthDp = with(density) { (cellPx * 0.68f).toDp() }
     val pillHeightDp = 46.dp
     val pillShape = RoundedCornerShape(percent = 50)
-    val pillStartPx = with(density) {
+    val pillWidthPx = with(density) { pillWidthDp.toPx() }
+    val pillRestX = with(density) {
         ((selectedIndex.coerceAtLeast(0) + 0.5f) * cellPx) - (pillWidthDp.toPx() / 2f)
     }
-    val pillOffsetX by animateFloatAsState(targetValue = pillStartPx, label = "lxPill")
+    // 手指按在栏上哪一格，滑块就实时跟到哪（dragX 是手指的 x，NaN = 没人按着）；
+    // 抬手就弹回选中那格的中心。按着不动也算，所以点哪滑块就先滑到哪。
+    var dragX by remember { mutableFloatStateOf(Float.NaN) }
+    // pointerInput 的 lambda 会跨重组一直活着，直接读 selectedIndex 会读到旧值，
+    // 所以走 rememberUpdatedState，手势中途换页也不用重启手势。
+    val currentSelected by rememberUpdatedState(selectedIndex)
+    val onSelectedNow by rememberUpdatedState(onSelected)
+    val dragging = !dragX.isNaN()
+    val pillTargetX = if (dragging) {
+        (dragX - pillWidthPx / 2f).coerceIn(0f, (barWidthPx - pillWidthPx).coerceAtLeast(0f))
+    } else {
+        pillRestX
+    }
+    val pillOffsetX by animateFloatAsState(
+        targetValue = pillTargetX,
+        // 按着的时候一点都不能缓动，慢一帧就"不跟手"了；抬手才交给弹簧动画归位
+        animationSpec = if (dragging) snap() else spring(dampingRatio = 0.62f, stiffness = 900f),
+        label = "lxPill",
+    )
     val pillTint = if (isDark) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.30f)
     val pillBorder = Color.White.copy(alpha = if (isDark) 0.24f else 0.45f)
 
@@ -277,7 +305,35 @@ fun LxBottomBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .onSizeChanged { barWidthPx = it.width },
+                .onSizeChanged { barWidthPx = it.width }
+                // Initial pass：父层先看手指，但一个事件都不消费，所以每格自己的 clickable 照旧
+                // 生效（点按换页归它管），这里只负责让滑块跟手、以及横着拖的时候顺手换页。
+                .pointerInput(cellPx, tabs.size) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(pass = PointerEventPass.Initial)
+                        if (cellPx > 0f) dragX = down.position.x
+                        var lastOver = -1
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val change = event.changes.firstOrNull() ?: break
+                            if (!change.pressed || change.changedToUpIgnoreConsumed()) {
+                                dragX = Float.NaN
+                                break
+                            }
+                            if (cellPx > 0f) {
+                                // 不做 positionChange 判断：dragX 是 mutableFloatStateOf，
+                                // 值没变本来就不会重组，每个事件都写一次最省事
+                                dragX = change.position.x
+                                val over = (change.position.x / cellPx).toInt()
+                                    .coerceIn(0, tabs.size - 1)
+                                if (over != lastOver && over != currentSelected) {
+                                    lastOver = over
+                                    onSelectedNow(over)
+                                }
+                            }
+                        }
+                    }
+                },
             verticalAlignment = Alignment.CenterVertically,
         ) {
             tabs.forEachIndexed { index, tab ->
