@@ -270,7 +270,7 @@ class CampusCardRepository @Inject constructor(
      * 所以把当前能发给这个地址的会话 cookie 交出去，由界面种进 WebView；
      * 不种的话服务端认为没登录，收银台直接白屏或跳回登录。
      */
-    fun payCookiesFor(url: String): List<Pair<String, String>> = cookieStore.forUrl(url)
+    fun payCookiesFor(url: String): List<CardCookieSeed> = cookieStore.forUrl(url)
 
     private suspend fun userInfoOnce(): CardUserInfoRow {
         userInfoRow?.let { return it }
@@ -369,7 +369,7 @@ class CampusCardRepository @Inject constructor(
     data class CardPayOrder(
         val payUrl: String,
         val orderNo: String,
-        val cashierCookies: List<Pair<String, String>> = emptyList(),
+        val cashierCookies: List<CardCookieSeed> = emptyList(),
     )
 
     /** 充值页一次要用的全部信息：渠道 + 服务端给的预设和限额 */
@@ -527,7 +527,7 @@ class CampusCardRepository @Inject constructor(
      * 上一版我一律拼 `payways.html`、还把 orderInfo 原样塞进去，服务端回
      * `{"code_":998,"message_":"出现异常,请联系运维人员!!!null"}` 就是这么来的。
      */
-    private fun wapCashierUrl(data: CardPayData?): Pair<String, List<Pair<String, String>>>? {
+    private fun wapCashierUrl(data: CardPayData?): Pair<String, List<CardCookieSeed>>? {
         val d = data ?: return null
         val orderRaw = d.orderInfo.asJsonText() ?: return null
         val order = runCatching { JSONObject(orderRaw) }.getOrNull() ?: return null
@@ -564,9 +564,9 @@ class CampusCardRepository @Inject constructor(
                 .append("&callAccountid=").append(queryEncode(accountid))
             if (!list.isNullOrBlank()) url.append("&projectPaywayList=").append(queryEncode(list))
             val cookies = buildList {
-                add("orderInfo" to queryEncode(order.toString()))
-                add("callAccountid" to queryEncode(accountid))
-                if (!list.isNullOrBlank()) add("projectPaywayList" to queryEncode(list))
+                add(CardCookieSeed("orderInfo", queryEncode(order.toString()), CARD_COOKIE_DOMAIN))
+                add(CardCookieSeed("callAccountid", queryEncode(accountid), CARD_COOKIE_DOMAIN))
+                if (!list.isNullOrBlank()) add(CardCookieSeed("projectPaywayList", queryEncode(list), CARD_COOKIE_DOMAIN))
             }
             return url.toString() to cookies
         }
@@ -596,10 +596,10 @@ class CampusCardRepository @Inject constructor(
             if (!list.isNullOrBlank()) sb.append("&projectPaywayList=").append(queryEncode(list))
         }
         val cookies = buildList {
-            add("orderInfo" to queryEncode(mergedText))
-            add("callPaywayid" to queryEncode(paywayid))
-            add("callAccountid" to queryEncode(accountid))
-            if (!list.isNullOrBlank()) add("projectPaywayList" to queryEncode(list))
+            add(CardCookieSeed("orderInfo", queryEncode(mergedText), CARD_COOKIE_DOMAIN))
+            add(CardCookieSeed("callPaywayid", queryEncode(paywayid), CARD_COOKIE_DOMAIN))
+            add(CardCookieSeed("callAccountid", queryEncode(accountid), CARD_COOKIE_DOMAIN))
+            if (!list.isNullOrBlank()) add(CardCookieSeed("projectPaywayList", queryEncode(list), CARD_COOKIE_DOMAIN))
         }
         return sb.toString() to cookies
     }
@@ -676,6 +676,9 @@ class CampusCardRepository @Inject constructor(
         /** `quota` 缺失或不是正数时，它 H5 自己就用 "500" */
         private const val DEFAULT_MAX = 500
 
+        /** 收银台那几个键要种在父域上，跟它 SDK 里 getDomain() 算出来的那个一致 */
+        private const val CARD_COOKIE_DOMAIN = ".17wanxiao.com"
+
         /** 换会话最多试几次 */
         private const val SESSION_ATTEMPTS = 3
 
@@ -689,6 +692,22 @@ class CampusCardRepository @Inject constructor(
         )
     }
 }
+
+/**
+ * 要往 WebView 的 CookieManager 里种的一条 cookie。
+ *
+ * 必须连 domain / path 一起带：一卡通的会话 cookie 是 `Domain=.17wanxiao.com` 这种跨子域的，
+ * 之前只把 name=value 种到收银台那一台主机上（CookieManager 不给 domain 就是 host-only），
+ * 收银台页面再去调 ecardh5 就拿不到会话，屏幕上是一条「会话失效或前置异常」的深色提示，
+ * 页面整块空白，看着像出了大事（2026-10-09 18:50 真机）。
+ */
+data class CardCookieSeed(
+    val name: String,
+    val value: String,
+    val domain: String,
+    val path: String = "/",
+    val secure: Boolean = true,
+)
 
 /** 一卡通这条链跨三个子域，cookie 必须自己攒着，所以给它一个独立的 client。 */
 @javax.inject.Qualifier
@@ -736,7 +755,7 @@ class CardCookieStore : CookieJar {
      * 这里只需要「host 是不是 cookie 域本身或它的子域」，字符串比较就够，
      * secure/path 的取舍交给对面（收银台本来就是 https 的 17wanxiao 域）。
      */
-    fun forUrl(url: String): List<Pair<String, String>> {
+    fun forUrl(url: String): List<CardCookieSeed> {
         val host = url.substringAfter("://", "").substringBefore("/", "").substringBefore(":").lowercase()
         if (host.isBlank()) return emptyList()
         val now = System.currentTimeMillis()
@@ -744,7 +763,9 @@ class CardCookieStore : CookieJar {
             store.removeAll { it.expiresAt < now }
             store.filter { cookie ->
                 cookie.expiresAt > now && hostMatches(host, cookie.domain.lowercase())
-            }.map { it.name to it.value }
+            }.map {
+                CardCookieSeed(it.name, it.value, it.domain, it.path, it.secure)
+            }
         }
     }
 
