@@ -603,4 +603,5 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="card_recharge_busy">Creating the order...</string>
     <string name="card_close">Done</string>
     <string name="card_recharge_sms_verify">This school requires SMS verification before top-up, which this app does not implement. Please use the official entry.</string>
+    <string name="card_recharge_result">Top-up result</string>
 </resources>
