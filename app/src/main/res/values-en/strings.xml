@@ -486,4 +486,21 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="msg_filter_unread">Unread</string>
     <string name="msg_unread_count">%1$d unread</string>
     <string name="msg_all_read">Nothing unread</string>
+
+    <!-- Repairs (read-only) -->
+    <string name="title_repair">Repairs</string>
+    <string name="repair_empty">No repair records yet</string>
+    <string name="repair_untitled">Repair order</string>
+    <string name="repair_detail">Repair details</string>
+    <string name="repair_flow">Progress</string>
+    <string name="repair_flow_empty">No progress recorded</string>
+    <string name="repair_no">Order</string>
+    <string name="repair_status">Status</string>
+    <string name="repair_place">Location</string>
+    <string name="repair_time">Reported</string>
+    <string name="repair_expect">Preferred time</string>
+    <string name="repair_desc">Issue</string>
+    <string name="repair_repair_note">Repair note</string>
+    <string name="repair_finish">Outcome</string>
+    <string name="repair_evaluation">Rating</string>
 </resources>
