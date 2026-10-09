@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -21,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import com.linxin.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -213,50 +215,19 @@ fun CardRechargeSection(viewModel: CardViewModel) {
 @Composable
 fun CardPayWebView(
     target: CardViewModel.PayTarget,
-    resultText: String?,
-    onClose: () -> Unit,
-    onCheckResult: () -> Unit,
     onNavigated: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // 网页自己那一坨按钮、配色不归我们管，我们能管的是别在它上面再压一层我们的控件：
+    // 顶栏（含「查结果」）由外层 Scaffold 给，这里整块留给网页，只留一条加载进度和一句脚注。
+    var progress by remember { mutableStateOf(0) }
     Column(modifier = modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.card_recharge_cashier),
-                    style = MiuixTheme.textStyles.title4,
-                    fontWeight = FontWeight.SemiBold,
-                    color = LxInk,
-                )
-                if (target.orderNo.isNotBlank()) {
-                    Text(
-                        text = stringResource(R.string.card_recharge_order_no, target.orderNo),
-                        style = MiuixTheme.textStyles.footnote2,
-                        color = LxInkMuted,
-                    )
-                }
-            }
-            LxOutlinedButton(text = stringResource(R.string.card_recharge_check), onClick = onCheckResult)
-            LxOutlinedButton(text = stringResource(R.string.card_close), onClick = onClose)
-        }
-        Text(
-            text = stringResource(R.string.card_recharge_cashier_hint),
-            style = MiuixTheme.textStyles.footnote2,
-            color = LxInkMuted,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-        )
-        resultText?.let {
-            Text(
-                text = it,
-                style = MiuixTheme.textStyles.footnote2,
-                color = LxInk,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        if (progress < 100) {
+            LinearProgressIndicator(
+                progress = { progress / 100f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.dp),
             )
         }
         AndroidView(
@@ -274,6 +245,7 @@ fun CardPayWebView(
                     settings.domStorageEnabled = true
                     settings.allowFileAccess = false
                     settings.allowContentAccess = false
+                    isVerticalScrollBarEnabled = false
                     webViewClient = object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                             val scheme = request.url.scheme ?: return false
@@ -291,11 +263,25 @@ fun CardPayWebView(
                         override fun onPageFinished(view: WebView, url: String?) {
                             // 付完它会跳回带 ?partnerjourno= 的地址，那上面有单号
                             onNavigated(url)
+                            progress = 100
+                        }
+                    }
+                    webChromeClient = object : android.webkit.WebChromeClient() {
+                        override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                            progress = newProgress
                         }
                     }
                     loadUrl(target.url)
                 }
             },
+        )
+        Text(
+            text = stringResource(R.string.card_recharge_cashier_hint),
+            style = MiuixTheme.textStyles.footnote2,
+            color = LxInkMuted,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
         )
     }
 }
