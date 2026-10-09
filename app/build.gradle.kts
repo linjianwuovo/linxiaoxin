@@ -13,8 +13,8 @@ android {
         minSdk = 26
         targetSdk = 35
         applicationId = "com.linxin"
-        versionCode = 44
-        versionName = "1.3.6-beta22"
+        versionCode = 45
+        versionName = "1.3.6-beta23"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -39,6 +39,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
+import com.linxin.core.designsystem.component.LxDialog
 import com.linxin.core.designsystem.component.LxEmpty
 import com.linxin.core.designsystem.component.LxError
 import com.linxin.core.designsystem.component.LxFilterChip
@@ -46,11 +47,13 @@ import com.linxin.core.designsystem.component.LxLoading
 import com.linxin.core.designsystem.theme.LxInk
 import com.linxin.core.designsystem.theme.LxInkMuted
 import com.linxin.core.designsystem.theme.LxSand
+import com.linxin.core.designsystem.theme.LxSuccess
 import com.linxin.core.designsystem.theme.LxTerra
 import com.linxin.core.messages.MessagePrefs
 import com.linxin.feature.messages.data.AppMessage
 import com.linxin.feature.messages.data.MessagesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -70,8 +73,21 @@ data class MessagesUiState(
     val readIds: Set<String> = emptySet(),
     val hasMore: Boolean = false,
     val currentPage: Int = 1,
+    /** 一键已读正在跑，按钮置灰用 */
+    val isMarkingAllRead: Boolean = false,
+    /** 一键已读成功一次就置真，界面弹个提示后清掉 */
+    val markAllReadDone: Boolean = false,
+    /** 一键已读标上了几条、几条没成，提示条按这两个数说话 */
+    val markAllReadMarked: Int = 0,
+    val markAllReadFailed: Int = 0,
+    /** 标记类操作失败的原文，一条未读没标上也要说清楚 */
+    val actionError: String? = null,
 ) {
-    /** 服务端 readFlag 之外，再叠一层本地已读（门户没有标记已读的接口） */
+    /**
+     * 服务端 readFlag 之外再叠一层本地已读。
+     * 留着它有两个原因：`readPushMessage.do` 可能因为离线或登录态过期而没写成，界面不该因此
+     * 退回未读；另外之前只在本地记过的那批 id 还在 DataStore 里。
+     */
     val shown: List<AppMessage>
         get() {
             val merged = items.map { if (it.read || it.id in readIds) it.copy(read = true) else it }
@@ -94,6 +110,9 @@ class MessagesViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(MessagesUiState())
     val uiState: StateFlow<MessagesUiState> = _uiState
+
+    /** 已经成功写给服务端的 id，避免同一条重复发 `readPushMessage.do` */
+    private val markedOnServer = mutableSetOf<String>()
 
     init {
         load()
@@ -154,11 +173,57 @@ class MessagesViewModel @Inject constructor(
     }
 
     fun markRead(id: String) {
-        if (id.isBlank() || id in _uiState.value.readIds) return
-        viewModelScope.launch {
-            prefs.markRead(id)
+        if (id.isBlank()) return
+        val state = _uiState.value
+        val alreadyReadByServer = state.items.any { it.id == id && it.read }
+        if (id !in state.readIds && !alreadyReadByServer) {
             _uiState.update { it.copy(readIds = it.readIds + id) }
+            viewModelScope.launch { prefs.markRead(id) }
         }
+        // 服务端已经是已读的不用再发；这条发失败要说出来，别默默算了
+        if (alreadyReadByServer || id in markedOnServer) return
+        markedOnServer += id
+        viewModelScope.launch {
+            repository.markRead(id).onFailure { e ->
+                markedOnServer -= id
+                _uiState.update { it.copy(actionError = e.message ?: "这条没标记上") }
+            }
+        }
+    }
+
+    /**
+     * 一键已读：把服务端还记着未读的消息逐条发 `readPushMessage.do`（仓库里说了为什么不用
+     * 厂商那个 batch 接口）。跑完重新拉一次列表，让服务端的 readFlag 落地。
+     */
+    fun markAllRead() {
+        if (_uiState.value.isMarkingAllRead) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isMarkingAllRead = true, actionError = null) }
+            repository.markAllRead().fold(
+                onSuccess = { outcome ->
+                    markedOnServer.clear()
+                    _uiState.update {
+                        it.copy(
+                            isMarkingAllRead = false,
+                            markAllReadDone = true,
+                            markAllReadMarked = outcome.marked,
+                            markAllReadFailed = outcome.failed,
+                        )
+                    }
+                    load()
+                },
+                onFailure = { e ->
+                    _uiState.update {
+                        it.copy(isMarkingAllRead = false, actionError = e.message ?: "一键已读没成功")
+                    }
+                },
+            )
+        }
+    }
+
+    /** 提示弹过一次就清掉，不然重组时会重复弹 */
+    fun clearActionFeedback() {
+        _uiState.update { it.copy(markAllReadDone = false, actionError = null) }
     }
 }
 
@@ -172,6 +237,23 @@ fun MessagesScreen(
     viewModel: MessagesViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var confirmReadAll by remember { mutableStateOf(false) }
+    val marked = uiState.markAllReadMarked
+    val failed = uiState.markAllReadFailed
+    val readAllDoneText = when {
+        failed > 0 -> stringResource(R.string.msg_mark_all_read_partial, marked, failed)
+        marked == 0 -> stringResource(R.string.msg_mark_all_read_nothing)
+        else -> stringResource(R.string.msg_mark_all_read_done, marked)
+    }
+    // 提示不弹层：这页底下常驻着底栏，弹层压在上面，黑乎乎一块也难看，直接写在筛选行下面
+    val notice = uiState.actionError ?: readAllDoneText.takeIf { uiState.markAllReadDone }
+    val noticeIsError = uiState.actionError != null
+    LaunchedEffect(notice) {
+        if (notice != null) {
+            delay(3_000)
+            viewModel.clearActionFeedback()
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -210,6 +292,30 @@ fun MessagesScreen(
                     style = MiuixTheme.textStyles.footnote2,
                     color = LxInkMuted,
                 )
+                Spacer(modifier = Modifier.weight(1f))
+                // 安小信把这个入口藏在「消息」标题的点击上（它代码里那个函数拼成了 onReadPromiss），
+                // 我们放这儿，字面写清楚它干什么
+                Text(
+                    text = stringResource(
+                        if (uiState.isMarkingAllRead) R.string.msg_mark_all_read_busy else R.string.msg_mark_all_read,
+                    ),
+                    style = MiuixTheme.textStyles.footnote2,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (uiState.isMarkingAllRead) LxInkMuted else LxTerra,
+                    modifier = Modifier
+                        .clickable(enabled = !uiState.isMarkingAllRead) { confirmReadAll = true }
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                )
+            }
+
+            if (notice != null) {
+                Text(
+                    text = notice,
+                    style = MiuixTheme.textStyles.footnote2,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (noticeIsError) LxTerra else LxSuccess,
+                    modifier = Modifier.padding(start = 20.dp, top = 2.dp),
+                )
             }
 
             when {
@@ -230,6 +336,21 @@ fun MessagesScreen(
                     isLoadingMore = uiState.isLoadingMore,
                     onLoadMore = viewModel::loadMore,
                     onRead = viewModel::markRead,
+                )
+            }
+
+            if (confirmReadAll) {
+                LxDialog(
+                    title = stringResource(R.string.msg_mark_all_read_title),
+                    message = stringResource(R.string.msg_mark_all_read_body),
+                    confirmText = stringResource(R.string.action_confirm),
+                    dismissText = stringResource(R.string.action_cancel),
+                    onConfirm = {
+                        confirmReadAll = false
+                        viewModel.markAllRead()
+                    },
+                    onDismiss = { confirmReadAll = false },
+                    onDismissRequest = { confirmReadAll = false },
                 )
             }
         }

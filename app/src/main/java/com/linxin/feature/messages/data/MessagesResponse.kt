@@ -28,9 +28,21 @@ data class MessageRow(
     val systemCode: String?,
     val createUser: String?,
     val sendDate: String?,
-    /** "1" = 已读（服务端给的，没有标记已读的接口，本地另记） */
+    /** "1" = 已读。服务端有标记已读的接口（`readPushMessage.do`），本地那层只是补充记忆 */
     val readFlag: String?,
     // 抓包原样里还有 createDate，但它是 {year,month,...} 对象不是字符串，界面只用 sendDate，这里不接
+)
+
+/**
+ * `batchReadPushMessage.do` / `readPushMessage.do` 的外层。
+ * 厂商代码里判成败只看 `flag`，失败提示它读的是 `message`（列表接口那份才是 `msg`），
+ * 两个都接下来，取到哪个用哪个。
+ */
+data class MessageFlagResponse(
+    val flag: Boolean?,
+    val code: String?,
+    val msg: String?,
+    val message: String?,
 )
 
 data class UnreadCountResponse(
@@ -43,6 +55,12 @@ data class UnreadCountResponse(
 data class UnreadCountRow(
     val date: String?,
     val count: Int?,
+)
+
+/** 一键已读的结果：标上了几条、几条没成，界面按这两个数说话。 */
+data class MarkAllReadOutcome(
+    val marked: Int,
+    val failed: Int,
 )
 
 /** 界面用的一页消息。 */
