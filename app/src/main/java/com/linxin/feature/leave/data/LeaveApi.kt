@@ -49,4 +49,49 @@ interface LeaveApi {
         @Field("userCode") userCode: String,
         @Field("xh") xh: String,
     ): LeaveListResponse
+
+    /**
+     * 请假表单定义。 是一段 JSON 字符串，解开才是字段树；
+     * radio/select 的选项就在各自节点的  里，不用另外查字典。
+     */
+    @FormUrlEncoded
+    @POST("mobile/process/getFlowSheet.do")
+    suspend fun getFlowSheet(
+        @Field("processId") processId: String,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveFlowSheetResponse
+
+    /**
+     * 提交。body 只有三个业务字段：（首次为空串）、（=processId）、
+     * （表单值的 JSON 字符串，键是 flowSheet 里各节点的 model）。
+     * 暂存是同一个 body 打到 saveForm.do，这版不做暂存。
+     */
+    @FormUrlEncoded
+    @POST("mobile/process/submitForm.do")
+    suspend fun submitForm(
+        @Field("executionId") executionId: String,
+        @Field("definitionId") definitionId: String,
+        @Field("dataJson") dataJson: String,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveSubmitResponse
+
+    /** 撤回。body 只有 executionId，H5 弹的是"确定要撤回申请吗？" */
+    @FormUrlEncoded
+    @POST("mobile/flowRuTask/withdrawExecution.do")
+    suspend fun withdraw(
+        @Field("executionId") executionId: String,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveListResponse
 }

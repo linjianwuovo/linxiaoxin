@@ -56,6 +56,12 @@ data class CardUiState(
     val error: String? = null,
 )
 
+/** 写操作的一次结果：ok + 服务端原话（失败时）或重新绑定地址（解绑成功时） */
+data class CardWriteOutcome(
+    val ok: Boolean,
+    val text: String,
+)
+
 /**
  * 校园卡只读页：余额 + 卡状态 + 本月流水。
  * 余额和流水两条一起发、一起显示，不一路加载一路蹦。
@@ -68,6 +74,39 @@ class CardViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(CardUiState())
     val uiState: StateFlow<CardUiState> = _uiState.asStateFlow()
+
+    private val _writeBusy = MutableStateFlow(false)
+    val writeBusy: StateFlow<Boolean> = _writeBusy.asStateFlow()
+
+    private val _writeOutcome = MutableStateFlow<CardWriteOutcome?>(null)
+    val writeOutcome: StateFlow<CardWriteOutcome?> = _writeOutcome.asStateFlow()
+
+    fun clearWriteOutcome() {
+        _writeOutcome.value = null
+    }
+
+    fun lostCard(password: String) = runWrite { repository.lostCard(password) }
+
+    fun modifyPassword(oldPassword: String, newPassword: String) =
+        runWrite { repository.modifyPassword(oldPassword, newPassword) }
+
+    fun unbind(password: String) = runWrite { repository.unbind(password) }
+
+    private fun runWrite(block: suspend () -> Result<String>) {
+        viewModelScope.launch {
+            _writeBusy.value = true
+            block().fold(
+                onSuccess = { extra ->
+                    _writeOutcome.value = CardWriteOutcome(ok = true, text = extra)
+                    load()
+                },
+                onFailure = { e ->
+                    _writeOutcome.value = CardWriteOutcome(ok = false, text = e.message ?: "操作失败")
+                },
+            )
+            _writeBusy.value = false
+        }
+    }
 
     init {
         load()
@@ -159,6 +198,9 @@ fun CampusCardScreen(
                     else -> items(uiState.trades) { trade ->
                         TradeRow(trade)
                     }
+                }
+                item {
+                    CardActionsSection(viewModel = viewModel)
                 }
                 item {
                     Text(

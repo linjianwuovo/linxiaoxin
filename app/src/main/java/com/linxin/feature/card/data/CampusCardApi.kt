@@ -63,7 +63,75 @@ interface CampusCardApi {
         @Field("endDate") endDate: String,
         @Field("gotowhere") gotowhere: String = "XYK_TRADE_DETAIL",
     ): CardTradeResponse
+
+    /**
+     * `gotowhere=userInfo`：只为拿 `data.data.rsaPublicKey`（写操作加密用）。
+     * 响应里还有 virtualCardWeakPwd 之类的敏感配置，**一个都不接、不显示**。
+     */
+    @FormUrlEncoded
+    @POST("ecardh5/bootcallback")
+    suspend fun userInfo(
+        @Field("gotowhere") gotowhere: String = "userInfo",
+    ): CardUserInfoResponse
+
+    /**
+     * 挂失。读它 H5 的 i18n 确认：整页只有一个 6 位查询密码输入框，
+     * body 里除 `gotowhere` 外只有 `password`（RSA 加密后）。
+     * `gotowhere` 按 JS 的习惯放最后一个键。
+     */
+    @FormUrlEncoded
+    @POST("ecardh5/bootcallback")
+    suspend fun lostCard(
+        @Field("password") password: String,
+        @Field("gotowhere") gotowhere: String = "XYK_LOST_CARD_ENCRYPT",
+    ): CardWriteResponse
+
+    /** 改查询密码：加密的是 `oldpwd` 和 `newpwd` 两个字段（拦截器里写死的分支） */
+    @FormUrlEncoded
+    @POST("ecardh5/bootcallback")
+    suspend fun modifyPassword(
+        @Field("oldpwd") oldpwd: String,
+        @Field("newpwd") newpwd: String,
+        @Field("gotowhere") gotowhere: String = "XYK_MODIFY_PASSWORD_ENCRYPT",
+    ): CardWriteResponse
+
+    /** 解绑：home 页的调用就是 `{password}` 一个业务字段，身份全在 cookie */
+    @FormUrlEncoded
+    @POST("ecardh5/bootcallback")
+    suspend fun unbind(
+        @Field("password") password: String,
+        @Field("gotowhere") gotowhere: String = "XYK_UNBIND_ENCRYPT",
+    ): CardWriteResponse
 }
+
+/** `gotowhere=userInfo` 里只取公钥，其余键一律不声明 */
+data class CardUserInfoResponse(
+    val code_: Int?,
+    val result_: Boolean?,
+    val message_: String?,
+    val data: CardUserInfoRow?,
+)
+
+data class CardUserInfoRow(
+    val rsaPublicKey: String?,
+)
+
+/**
+ * 写操作的响应：外层成功看 `code_==0 || result_`，
+ * 业务层还有第二级状态 `data.result_code`（0 才算成），解绑成功时可能带 `reBindUrl`。
+ */
+data class CardWriteResponse(
+    val code_: Int?,
+    val result_: Boolean?,
+    val message_: String?,
+    val data: CardWriteData?,
+)
+
+data class CardWriteData(
+    val result_code: Int?,
+    val reBindUrl: String?,
+    val message: String?,
+)
 
 /** `redirect.action` 的响应。`ecard_customerid` 之类身份字段故意不接。 */
 data class CardRedirectResponse(

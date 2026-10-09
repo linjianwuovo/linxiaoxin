@@ -20,6 +20,9 @@ import androidx.compose.ui.res.stringResource
 import com.linxin.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +34,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linxin.core.designsystem.component.LxCard
+import com.linxin.core.designsystem.component.LxTextField
+import com.linxin.core.designsystem.component.LxOutlinedButton
+import com.linxin.core.designsystem.component.LxFilterChip
+import com.linxin.core.designsystem.component.LxDialogConfirmTone
+import com.linxin.core.designsystem.component.LxDialog
+import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxError
 import com.linxin.core.designsystem.component.LxLoading
 import com.linxin.core.designsystem.component.LxTopBar
@@ -58,6 +67,8 @@ data class RepairDetailUiState(
     val steps: List<RepairStep> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null,
+    val writeOk: Boolean? = null,
+    val writeMessage: String? = null,
 )
 
 /**
@@ -79,6 +90,34 @@ class RepairDetailViewModel @Inject constructor(
         load()
     }
 
+    /** 取消申请：H5 只在 dqzt=="1"（未接单）时给这个按钮 */
+    fun cancel() {
+        val info = _uiState.value.detail ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            repository.cancel(info.bxdh, info.workerLogin).fold(
+                onSuccess = { _uiState.update { it.copy(writeOk = true, writeMessage = null) }; load() },
+                onFailure = { e -> _uiState.update { it.copy(isLoading = false, writeOk = false, writeMessage = e.message) } },
+            )
+        }
+    }
+
+    /** 确认并评价：H5 只在 dqzt=="3" 时给这个按钮 */
+    fun evaluate(done: Boolean, score: Int?, feedback: String) {
+        val info = _uiState.value.detail ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            repository.evaluate(info.id, done, score, feedback).fold(
+                onSuccess = { _uiState.update { it.copy(writeOk = true, writeMessage = null) }; load() },
+                onFailure = { e -> _uiState.update { it.copy(isLoading = false, writeOk = false, writeMessage = e.message) } },
+            )
+        }
+    }
+
+    fun clearWriteMessage() {
+        _uiState.update { it.copy(writeOk = null, writeMessage = null) }
+    }
+
     fun load() {
         if (bxdh.isBlank()) {
             _uiState.update { it.copy(isLoading = false, error = "缺少报修单号") }
@@ -88,6 +127,7 @@ class RepairDetailViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
             val detailResult = repository.detail(bxdh)
             val flowResult = repository.flow(bxdh)
+            detailResult.getOrNull()?.let { repository.ackRead(it.id) }
             _uiState.update {
                 it.copy(
                     detail = detailResult.getOrNull(),
@@ -108,6 +148,8 @@ fun RepairDetailScreen(
     viewModel: RepairDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var showCancel by remember { mutableStateOf(false) }
+    var showEval by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -129,6 +171,22 @@ fun RepairDetailScreen(
             ) {
                 uiState.detail?.let { info ->
                     item { RepairInfoCard(info) }
+                    if (info.statusCode == "1") {
+                        item {
+                            LxOutlinedButton(
+                                text = stringResource(R.string.repair_cancel),
+                                onClick = { showCancel = true },
+                            )
+                        }
+                    }
+                    if (info.statusCode == "3") {
+                        item {
+                            LxButton(
+                                text = stringResource(R.string.repair_eval),
+                                onClick = { showEval = true },
+                            )
+                        }
+                    }
                 }
                 item {
                     Text(
@@ -152,6 +210,133 @@ fun RepairDetailScreen(
                         RepairStepRow(step = step, isLast = index == uiState.steps.lastIndex)
                     }
                 }
+            }
+        }
+    }
+
+    if (showCancel) {
+        LxDialog(
+            title = stringResource(R.string.repair_cancel),
+            message = stringResource(R.string.repair_cancel_warn),
+            confirmText = stringResource(R.string.action_confirm),
+            confirmTone = LxDialogConfirmTone.Destructive,
+            onConfirm = {
+                showCancel = false
+                viewModel.cancel()
+            },
+            onDismissRequest = { showCancel = false },
+        )
+    }
+    if (showEval) {
+        EvaluateDialog(
+            busy = uiState.isLoading,
+            onDismiss = { showEval = false },
+            onSubmit = { done, score, feedback ->
+                showEval = false
+                viewModel.evaluate(done, score, feedback)
+            },
+        )
+    }
+    uiState.writeOk?.let { ok ->
+        LxDialog(
+            title = stringResource(if (ok) R.string.repair_write_ok else R.string.repair_write_fail),
+            message = uiState.writeMessage,
+            confirmText = stringResource(R.string.action_confirm),
+            onConfirm = viewModel::clearWriteMessage,
+            onDismissRequest = viewModel::clearWriteMessage,
+        )
+    }
+}
+
+/** 确认并评价：完成情况二选一；选"已完成"才要 1-4 星；选"未完成"时意见反馈必填 */
+@Composable
+private fun EvaluateDialog(
+    busy: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (Boolean, Int?, String) -> Unit,
+) {
+    var done by remember { mutableStateOf(true) }
+    var score by remember { mutableStateOf(1) }
+    var feedback by remember { mutableStateOf("") }
+    var invalid by remember { mutableStateOf(false) }
+    LxDialog(
+        title = stringResource(R.string.repair_eval),
+        confirmText = stringResource(R.string.action_confirm),
+        onConfirm = {
+            if (!done && feedback.isBlank()) {
+                invalid = true
+            } else {
+                invalid = false
+                onSubmit(done, if (done) score else null, feedback)
+            }
+        },
+        onDismissRequest = onDismiss,
+    ) {
+        Column {
+            Text(
+                text = stringResource(R.string.repair_eval_done),
+                style = MiuixTheme.textStyles.footnote1,
+                color = LxInkMuted,
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                LxFilterChip(
+                    label = stringResource(R.string.repair_eval_yes),
+                    selected = done,
+                    onClick = { done = true },
+                )
+                LxFilterChip(
+                    label = stringResource(R.string.repair_eval_no),
+                    selected = !done,
+                    onClick = { done = false },
+                )
+            }
+            if (done) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = stringResource(R.string.repair_eval_score),
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = LxInkMuted,
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        1 to R.string.repair_score_1,
+                        2 to R.string.repair_score_2,
+                        3 to R.string.repair_score_3,
+                        4 to R.string.repair_score_4,
+                    ).forEach { (value, label) ->
+                        LxFilterChip(
+                            label = stringResource(label),
+                            selected = score == value,
+                            onClick = { score = value },
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            LxTextField(
+                value = feedback,
+                onValueChange = { feedback = it.take(50) },
+                label = stringResource(R.string.repair_eval_fb),
+                singleLine = false,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (invalid) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = stringResource(R.string.repair_eval_fb_required),
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = LxInkMuted,
+                )
+            }
+            if (busy) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = stringResource(R.string.card_write_busy),
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = LxInkMuted,
+                )
             }
         }
     }
