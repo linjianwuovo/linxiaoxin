@@ -1,6 +1,7 @@
 package com.linxin.feature.card.data
 
-import okhttp3.Response
+import okhttp3.ResponseBody
+import retrofit2.Response
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
@@ -31,15 +32,20 @@ import retrofit2.http.Url
  */
 interface CampusCardApi {
 
+    /**
+     * 只为拿 hub 的 cookie，返回的是那段引导 HTML。
+     * 这里必须用 `Response<ResponseBody>` 而不是 `String`：Retrofit 只挂了 Gson 转换器，
+     * 声明成 String 会拿 HTML 去当 JSON 解析，直接 "malformed JSON at line 1 column 1"。
+     */
     @GET
-    suspend fun openBootstrap(@Url url: String): String
+    suspend fun openBootstrap(@Url url: String): Response<ResponseBody>
 
     @FormUrlEncoded
     @POST
     suspend fun redirect(@Url url: String, @Field("userData") userData: String): CardRedirectResponse
 
     @GET
-    suspend fun followAuthorize(@Url url: String): Response
+    suspend fun followAuthorize(@Url url: String): Response<ResponseBody>
 
     @FormUrlEncoded
     @POST("ecardh5/bootcallback")
@@ -94,6 +100,32 @@ data class CardTradeResponse(
 
 data class CardTradeShell(
     val size: Int?,
+    /** 2026-10-09 在电脑上跑通整条链后拿到的真实行，字段名照它原样 */
+    val data: List<CardTradeRow>?,
+)
+
+data class CardTradeRow(
+    /** 摘要，如「餐费支出-支付宝4」 */
+    val accdscrp: String?,
+    val amount: Double?,
+    /** 业务时间，已经是「2026-10-09 08:26:30」这种可读格式 */
+    val businessopdt: String?,
+    val description: String?,
+    /** 终端名，如「人脸1号」 */
+    val term_name: String?,
+    val orderno: String?,
+    val type: String?,
+    val flag: String?,
+    val isdelay: String?,
+)
+
+/** 界面用的一行流水 */
+data class CardTrade(
+    val time: String,
+    val title: String,
+    val place: String,
+    /** 正数是入账，负数是消费；服务端给的就是带符号的金额 */
+    val amount: Double,
 )
 
 /** 界面用的余额卡 */
