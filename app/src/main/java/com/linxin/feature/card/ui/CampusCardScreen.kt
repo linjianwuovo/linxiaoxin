@@ -25,6 +25,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.linxin.core.designsystem.component.LxCard
+import com.linxin.core.designsystem.component.LxDialog
+import com.linxin.core.designsystem.component.LxTextButton
 import com.linxin.core.designsystem.component.LxError
 import com.linxin.core.designsystem.component.LxLoading
 import com.linxin.core.designsystem.component.LxTopBar
@@ -225,6 +227,11 @@ class CardViewModel @Inject constructor(
         }
     }
 
+    /** 查完结果弹了窗，关掉就别再把上一条结果重复弹出来 */
+    fun clearPayResult() {
+        _payResult.value = null
+    }
+
     fun closePay() {
         _payTarget.value = null
         _payResult.value = null
@@ -318,26 +325,41 @@ fun CampusCardScreen(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
         topBar = {
-            LxTopBar(
-                title = if (payTarget == null) {
-                    stringResource(R.string.title_card)
-                } else {
-                    stringResource(R.string.card_recharge_cashier)
-                },
-                onBack = if (payTarget == null) onBack else viewModel::closePay,
-            )
+            if (payTarget == null) {
+                LxTopBar(title = stringResource(R.string.title_card), onBack = onBack)
+            } else {
+                // 收银台的「查结果」放在顶栏右边，页面本体整块留给网页，不再挤一排按钮
+                LxTopBar(
+                    title = stringResource(R.string.card_recharge_cashier),
+                    onBack = viewModel::closePay,
+                    actions = {
+                        LxTextButton(
+                            text = stringResource(R.string.card_recharge_check),
+                            onClick = viewModel::checkPayResult,
+                        )
+                    },
+                )
+            }
         },
     ) { padding ->
         val target = payTarget
         if (target != null) {
             CardPayWebView(
                 target = target,
-                resultText = resultText,
-                onClose = viewModel::closePay,
-                onCheckResult = viewModel::checkPayResult,
                 onNavigated = viewModel::onCashierUrl,
                 modifier = Modifier.padding(padding),
             )
+            // 到账与否以前只写在页面下面一行小字，真机上被收银台页面盖住，点了像没反应（2026-10-09 18:30）。
+            // 改成对话框：跟「确认下单」那个弹窗同一个组件，跑不掉。
+            resultText?.let {
+                LxDialog(
+                    title = stringResource(R.string.card_recharge_result),
+                    message = it,
+                    confirmText = stringResource(R.string.action_confirm),
+                    onConfirm = viewModel::clearPayResult,
+                    onDismissRequest = viewModel::clearPayResult,
+                )
+            }
             return@Scaffold
         }
         when {
