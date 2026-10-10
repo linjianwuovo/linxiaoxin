@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -32,6 +33,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.linxin.core.auth.SessionManager
+import com.linxin.core.compat.rememberLxBackProgress
 import com.linxin.core.designsystem.component.LxLoading
 import com.linxin.feature.aiclass.ui.AiClassHomeScreen
 import com.linxin.feature.aiclass.ui.AiClassCourseDetailScreen
@@ -150,9 +152,17 @@ fun LinXinNavHost(
         currentOnShortcutConsumed()
     }
 
+    val backProgress = rememberLxBackProgress(navController)
+
     NavHost(
         navController = navController,
         startDestination = resolvedStartRoute,
+        // 侧滑返回时整页跟着手势缩下去，见 rememberLxBackProgress 的注释
+        modifier = androidx.compose.ui.Modifier.graphicsLayer {
+            scaleX = 1f - 0.06f * backProgress
+            scaleY = 1f - 0.06f * backProgress
+            alpha = 1f - 0.22f * backProgress
+        },
         enterTransition = {
             if (suppressTransitions) EnterTransition.None
             else fadeIn(tween(300)) + slideInHorizontally(tween(300)) { it / 4 }
