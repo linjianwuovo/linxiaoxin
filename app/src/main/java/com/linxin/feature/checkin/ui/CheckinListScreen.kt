@@ -159,11 +159,6 @@ private fun TaskList(
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // 临时：侧滑返回调参面板，参数定稿后连同 core/compat/LxBackTuning.kt 一起删掉
-        item(key = "back_tuning") {
-            com.linxin.core.compat.LxBackTuningCard()
-        }
-
         // 本月概览：统计 + 签到日历（有红点的日期可以点，点中就筛那天）
         val summaryError = uiState.summaryError
         if (summaryError != null) {
