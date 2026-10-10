@@ -17,6 +17,8 @@ data class SignInPageResponse(
 
 data class SignInPageData(
     val list: List<SignInTaskRow>?,
+    /** 历史端点（collectionStudentPage / signin/queryPage）把数组放在这里，不是 list */
+    val rows: List<SignInTaskRow>?,
     val totalPage: Int?,
     val totalCount: Int?,
 )
