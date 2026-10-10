@@ -1,5 +1,6 @@
 package com.linxin.feature.running.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.linxin.R
 import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxDialog
@@ -73,11 +75,11 @@ fun RouteTemplateDetailScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "模板详情", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_template_detail), onBack = onBack) },
     ) { padding ->
         if (template == null) {
             LxEmpty(
-                message = "模板不存在或已被删除",
+                message = stringResource(R.string.tpl_missing),
                 modifier = Modifier.padding(padding).fillMaxSize(),
             )
             return@Scaffold
@@ -98,19 +100,19 @@ fun RouteTemplateDetailScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (!template.isDefault) {
                         LxButton(
-                            text = "设为默认",
+                            text = stringResource(R.string.tpl_set_default),
                             onClick = { viewModel.setDefault(template.id) },
                         )
                     }
                     LxOutlinedButton(
-                        text = "重命名",
+                        text = stringResource(R.string.tpl_rename),
                         onClick = {
                             renameInput = template.name
                             renameVisible = true
                         },
                     )
                     LxOutlinedButton(
-                        text = "删除模板",
+                        text = stringResource(R.string.tpl_delete),
                         onClick = { deleteVisible = true },
                     )
                 }
@@ -120,9 +122,9 @@ fun RouteTemplateDetailScreen(
 
     if (renameVisible && template != null) {
         LxDialog(
-            title = "重命名模板",
-            confirmText = "确定",
-            dismissText = "取消",
+            title = stringResource(R.string.tpl_rename_title),
+            confirmText = stringResource(R.string.action_confirm),
+            dismissText = stringResource(R.string.action_cancel),
             onDismissRequest = { renameVisible = false },
             onDismiss = { renameVisible = false },
             onConfirm = {
@@ -133,7 +135,7 @@ fun RouteTemplateDetailScreen(
                 LxTextField(
                     value = renameInput,
                     onValueChange = { renameInput = it },
-                    label = "模板名称",
+                    label = stringResource(R.string.tpl_name),
                     keyboardOptions = KeyboardOptions.Default,
                 )
             },
@@ -142,10 +144,10 @@ fun RouteTemplateDetailScreen(
 
     if (deleteVisible && template != null) {
         LxDialog(
-            title = "删除模板",
-            message = "确定删除「${template.name}」？此操作不可撤销。",
-            confirmText = "删除",
-            dismissText = "取消",
+            title = stringResource(R.string.tpl_delete),
+            message = stringResource(R.string.tpl_delete_confirm, template.name),
+            confirmText = stringResource(R.string.action_delete),
+            dismissText = stringResource(R.string.action_cancel),
             onDismissRequest = { deleteVisible = false },
             onDismiss = { deleteVisible = false },
             onConfirm = {
@@ -163,7 +165,7 @@ private fun PreviewCard(points: List<TrackPoint>) {
     LxCard {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "轨迹预览",
+                text = stringResource(R.string.tpl_preview),
                 style = MiuixTheme.textStyles.footnote1,
                 color = LxInkMuted,
             )
@@ -179,7 +181,7 @@ private fun PreviewCard(points: List<TrackPoint>) {
                     TrackCanvas(points = points, modifier = Modifier.fillMaxSize().padding(12.dp))
                 } else {
                     Text(
-                        text = "点数过少，无法绘制",
+                        text = stringResource(R.string.tpl_too_few_points),
                         color = LxInkMuted,
                         modifier = Modifier.align(Alignment.Center),
                     )
@@ -251,9 +253,9 @@ private fun StatsCard(template: RouteTemplate) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                StatCell("距离", String.format("%.2f km", template.totalDistanceMeters / 1000.0))
-                StatCell("点数", "${template.pointCount}")
-                StatCell("录制时长", formatSeconds(template.durationSeconds))
+                StatCell(stringResource(R.string.tpl_stat_distance), String.format("%.2f km", template.totalDistanceMeters / 1000.0))
+                StatCell(stringResource(R.string.tpl_stat_points), "${template.pointCount}")
+                StatCell(stringResource(R.string.tpl_stat_duration), formatSeconds(template.durationSeconds))
             }
         }
     }
@@ -272,17 +274,17 @@ private fun StatCell(label: String, value: String) {
 private fun MetaCard(template: RouteTemplate) {
     LxCard {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
-            MetaRow("来源", template.source.displayName())
+            MetaRow(stringResource(R.string.tpl_meta_source), template.source.displayName())
             Spacer(modifier = Modifier.height(10.dp))
-            MetaRow("录制时间", formatDate(template.createdAtMillis))
+            MetaRow(stringResource(R.string.tpl_meta_recorded_at), formatDate(template.createdAtMillis))
             Spacer(modifier = Modifier.height(10.dp))
             MetaRow(
-                "最近使用",
-                template.lastUsedAtMillis?.let { formatDate(it) } ?: "尚未使用",
+                stringResource(R.string.tpl_meta_last_used),
+                template.lastUsedAtMillis?.let { formatDate(it) } ?: stringResource(R.string.tpl_meta_never_used),
             )
             Spacer(modifier = Modifier.height(10.dp))
             MetaRow(
-                "质量",
+                stringResource(R.string.tpl_meta_quality),
                 template.qualityStatus.displayName(),
                 valueColor = when (template.qualityStatus) {
                     RouteQualityStatus.PASS -> LxSage
@@ -292,7 +294,7 @@ private fun MetaCard(template: RouteTemplate) {
             )
             if (template.isDefault) {
                 Spacer(modifier = Modifier.height(10.dp))
-                MetaRow("默认", "是", valueColor = LxTerra)
+                MetaRow(stringResource(R.string.tpl_default), stringResource(R.string.state_yes), valueColor = LxTerra)
             }
         }
     }
@@ -318,20 +320,20 @@ private fun QualityCard(template: RouteTemplate) {
     LxCard {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
             Text(
-                text = "质量提示",
+                text = stringResource(R.string.tpl_quality_notes),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = LxWarning,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = template.qualityMessage ?: "存在质量问题但未记录原因",
+                text = template.qualityMessage ?: stringResource(R.string.tpl_quality_unrecorded),
                 fontSize = 13.sp,
                 color = LxInkMuted,
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "警告模板仍可作为默认模板使用，但建议重新录制。",
+                text = stringResource(R.string.tpl_warning_hint),
                 fontSize = 12.sp,
                 color = LxSandDeep,
             )

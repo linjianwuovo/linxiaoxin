@@ -1,4 +1,6 @@
 package com.linxin.feature.aiclass.ui
+import androidx.compose.ui.res.stringResource
+import com.linxin.R
 import com.linxin.core.designsystem.theme.LxShapes
 import com.linxin.core.designsystem.theme.RLg
 
@@ -84,7 +86,7 @@ fun AiClassHomeScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "AI课堂", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_ai_class), onBack = onBack) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             if (!uiState.isLoading && error == null) {
@@ -93,7 +95,7 @@ fun AiClassHomeScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.CameraAlt,
-                        contentDescription = "扫码签到",
+                        contentDescription = stringResource(R.string.ui_006),
                         tint = MiuixTheme.colorScheme.onPrimary,
                     )
                 }
@@ -113,7 +115,7 @@ fun AiClassHomeScreen(
                         if (uiState.isSsoInProgress) {
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "正在连接 AI课堂...",
+                                text = stringResource(R.string.ui_007),
                                 style = MiuixTheme.textStyles.body2,
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             )
@@ -185,7 +187,7 @@ private fun SignResultSheet(
         }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "签到结果",
+            text = stringResource(R.string.ui_008),
             style = MiuixTheme.textStyles.title2,
             fontWeight = FontWeight.SemiBold,
         )
@@ -197,7 +199,7 @@ private fun SignResultSheet(
         )
         Spacer(modifier = Modifier.height(24.dp))
         LxButton(
-            text = "知道了",
+            text = stringResource(R.string.ui_009),
             onClick = onConfirm,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -237,7 +239,7 @@ private fun AiClassContent(
         if (uiState.courses.isNotEmpty()) {
             item(key = "courses_title") {
                 Text(
-                    text = "我的课程",
+                    text = stringResource(R.string.ui_010),
                     style = MiuixTheme.textStyles.title3,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
@@ -271,7 +273,7 @@ private fun WorkingClassCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "正在上课",
+                    text = stringResource(R.string.ui_011),
                     style = MiuixTheme.textStyles.title4,
                     fontWeight = FontWeight.SemiBold,
                     color = MiuixTheme.colorScheme.primary,
@@ -313,7 +315,7 @@ private fun SignInCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "数字码签到",
+                    text = stringResource(R.string.ui_012),
                     style = MiuixTheme.textStyles.title4,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -324,7 +326,7 @@ private fun SignInCard(
             LxTextField(
                 value = signCode,
                 onValueChange = { if (it.length <= 6) signCode = it },
-                label = "输入6位签到码",
+                label = stringResource(R.string.ui_013),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Done,
@@ -347,7 +349,7 @@ private fun SignInCard(
             if (!hasWorkingClass) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "当前没有正在进行的课堂",
+                    text = stringResource(R.string.ui_014),
                     style = MiuixTheme.textStyles.footnote1,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
@@ -385,7 +387,7 @@ private fun CourseCard(
             }
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "查看课程详情",
+                contentDescription = stringResource(R.string.ui_015),
                 tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
         }

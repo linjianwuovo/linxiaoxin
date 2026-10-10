@@ -1,5 +1,8 @@
 package com.linxin
 
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
+import com.linxin.core.locale.AppText
 import android.app.Application
 import com.linxin.navigation.ShortcutRegistrar
 import dagger.hilt.android.HiltAndroidApp
@@ -12,10 +15,16 @@ import java.util.Locale
 import javax.inject.Inject
 
 @HiltAndroidApp
-class LinXinApp : Application() {
+class LinXinApp : Application(), Configuration.Provider {
 
+
+    @Inject lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
     override fun onCreate() {
+        AppText.init(this)
         super.onCreate()
         installCrashLogger()
         ShortcutRegistrar.register(this)

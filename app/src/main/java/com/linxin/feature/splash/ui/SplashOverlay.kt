@@ -1,5 +1,6 @@
 package com.linxin.feature.splash.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,7 +45,7 @@ fun SplashOverlay(modifier: Modifier = Modifier) {
             )
             Spacer(Modifier.height(18.dp))
             BasicText(
-                text = "林小信",
+                text = stringResource(R.string.ui_074),
                 style = TextStyle(
                     color = Color.White,
                     fontSize = 24.sp,
