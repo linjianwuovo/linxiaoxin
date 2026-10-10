@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.BlurOn
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Swipe
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -203,6 +204,26 @@ fun ThemeScreen(
                         }
                     }
                 }
+            }
+
+            Spacer(Modifier.height(22.dp))
+
+            SectionLabel(stringResource(R.string.section_motion))
+            LxCard {
+                SettingRow(
+                    icon = Icons.Filled.Swipe,
+                    title = stringResource(R.string.setting_preview_back),
+                    subtitle = stringResource(R.string.setting_preview_back_summary),
+                    trailing = {
+                        Switch(
+                            checked = settings.previewBackGesture,
+                            onCheckedChange = { viewModel.setPreviewBackGesture(it) },
+                            colors = SwitchDefaults.switchColors(
+                                uncheckedTrackColor = LxSandDeep,
+                            ),
+                        )
+                    },
+                )
             }
 
             Spacer(Modifier.height(16.dp))
