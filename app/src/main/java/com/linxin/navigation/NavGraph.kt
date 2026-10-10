@@ -33,7 +33,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.linxin.core.auth.SessionManager
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import com.linxin.core.compat.rememberLxBackMotion
+import com.linxin.core.compat.rememberSystemBackProbe
 import com.linxin.core.designsystem.component.LxLoading
 import com.linxin.feature.aiclass.ui.AiClassHomeScreen
 import com.linxin.feature.aiclass.ui.AiClassCourseDetailScreen
@@ -82,6 +92,8 @@ fun LinXinNavHost(
     pendingDormTaskId: String? = null,
     isDormShortcutResolved: Boolean = false,
     pendingNotificationRoute: String? = null,
+    /** 主题页「动效 → 侧滑返回预示」的开关 */
+    previewBackGesture: Boolean = true,
     onShortcutConsumed: () -> Unit = {},
 ) {
     // 合并 onboarded + loggedIn 两态决定起始页
@@ -152,7 +164,7 @@ fun LinXinNavHost(
         currentOnShortcutConsumed()
     }
 
-    val back = rememberLxBackMotion(navController)
+    val back = rememberLxBackMotion(navController, previewBackGesture)
     val backProgress = back.progress
 
     NavHost(
@@ -163,10 +175,15 @@ fun LinXinNavHost(
         // 边缘手势的 pointerInput 则必须一直挂着，不能在这上面做条件，否则拖到一半会断。
         modifier = back.modifier.then(
             if (backProgress > 0f) androidx.compose.ui.Modifier.graphicsLayer {
-                // 缩到 0.9、淡到 0.75：Material 侧滑返回的惯例量级，AppShare 那套也是这个档
-                scaleX = 1f - 0.10f * backProgress
-                scaleY = 1f - 0.10f * backProgress
-                alpha = 1f - 0.25f * backProgress
+                // 数值默认抄 AppShare 实测那套：scaleOut 0.85、回弹 300ms FastOutSlowIn；
+                // 位移是它整屏滑出的一个分数（我们只画当前这一页，滑不出上一页，所以给得小）
+                val toScale = com.linxin.core.compat.LxBackTuning.scaleTo.floatValue
+                val toAlpha = com.linxin.core.compat.LxBackTuning.alphaTo.floatValue
+                val slide = com.linxin.core.compat.LxBackTuning.slideFraction.floatValue
+                scaleX = 1f - (1f - toScale) * backProgress
+                scaleY = 1f - (1f - toScale) * backProgress
+                alpha = 1f - (1f - toAlpha) * backProgress
+                translationX = -size.width * slide * backProgress
             } else androidx.compose.ui.Modifier
         ),
         enterTransition = {
@@ -192,25 +209,47 @@ fun LinXinNavHost(
             exitTransition = { fadeOut(tween(300)) },
         ) {
             val context = LocalContext.current
-            OnboardingScreen(
-                onAcknowledge = {
-                    scope.launch {
-                        sessionManager.markOnboarded()
-                        navController.navigate(Routes.LOGIN) {
-                            popUpTo(Routes.ONBOARDING) { inclusive = true }
-                        }
+            // TEMP-PROBE：这台机器给不给应用派发返回手势进度，看右上角那个峰值。
+            // 放在开屏页是因为不用登录就能测，不碰任何账号上的东西。
+            val probe = rememberSystemBackProbe {
+                context.findActivity()?.let { activity ->
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        activity.finishAndRemoveTask()
+                    } else {
+                        activity.finishAffinity()
                     }
-                },
-                onDismiss = {
-                    context.findActivity()?.let { activity ->
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                            activity.finishAndRemoveTask()
-                        } else {
-                            activity.finishAffinity()
+                }
+            }
+            Box(Modifier.fillMaxSize()) {
+                OnboardingScreen(
+                    onAcknowledge = {
+                        scope.launch {
+                            sessionManager.markOnboarded()
+                            navController.navigate(Routes.LOGIN) {
+                                popUpTo(Routes.ONBOARDING) { inclusive = true }
+                            }
                         }
-                    }
-                },
-            )
+                    },
+                    onDismiss = {
+                        context.findActivity()?.let { activity ->
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                activity.finishAndRemoveTask()
+                            } else {
+                                activity.finishAffinity()
+                            }
+                        }
+                    },
+                )
+                top.yukonga.miuix.kmp.basic.Text(
+                    text = "系统进度 %.2f / 峰值 %.2f".format(probe.progress, probe.max),
+                    color = Color.Red,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 60.dp, end = 24.dp)
+                        .background(Color.White, RoundedCornerShape(10.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
         }
 
         composable(
