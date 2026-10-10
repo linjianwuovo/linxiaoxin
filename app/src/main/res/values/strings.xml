@@ -57,6 +57,9 @@
     <string name="setting_language_unavailable">需要 Android 13 及以上</string>
 
     <string name="section_bar_material">底栏材质</string>
+    <string name="section_motion">动效</string>
+    <string name="setting_preview_back">侧滑返回预示</string>
+    <string name="setting_preview_back_summary">从左边缘横滑返回时，当前页跟着手指缩进去</string>
     <string name="bar_liquid">液态玻璃</string>
     <string name="bar_frosted">毛玻璃</string>
     <string name="bar_solid">纯色</string>

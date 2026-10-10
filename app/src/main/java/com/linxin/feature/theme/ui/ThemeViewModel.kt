@@ -59,4 +59,8 @@ class ThemeViewModel @Inject constructor(
     fun setGlassDistortion(distortion: Float) {
         viewModelScope.launch { themePrefs.setGlassDistortion(distortion) }
     }
+
+    fun setPreviewBackGesture(enabled: Boolean) {
+        viewModelScope.launch { themePrefs.setPreviewBackGesture(enabled) }
+    }
 }
