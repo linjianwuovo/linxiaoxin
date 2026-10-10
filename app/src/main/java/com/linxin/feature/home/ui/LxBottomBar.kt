@@ -21,6 +21,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -223,24 +224,14 @@ fun LxBottomBar(
 
     val selectedColor = scheme.primary
 
-    // ── 玻璃滑块 ──
-    // 选中项底下那块会左右滑的胶囊。
-    //
-    // 这个指示器以前废过一次，原因写在栏体那段注释里：把栏体那套折射参数原样搬到一块 46dp 高的
-    // 小胶囊上，折射带最宽 28dp、位移最大 24dp，两个加起来比胶囊本身还高，整块被折平，
-    // 采样一失败就剩"一格死灰"。所以这次按胶囊自己的尺寸重算，不吃设置页那三根折射滑杆，
-    // 只跟模糊强度联动；折射带锁在胶囊高度的一半以内，位移给到 7dp。
+    // ── 水球滑块 ──
+    // 这块 2026-10-10 整体对齐 SukiSU Ultra 的 FloatingBottomBar：一整格宽、56dp 高、CircleShape，
+    // 位置 = value * 格宽，静止是一块 10% 平色，按住才长出折射和高光。
+    // 它以前废过一次的原因还留着（栏体那套折射参数原样搬到小胶囊上会被折成平灰），
+    // 现在水球自己的折射只给 10dp 带 / 14dp 位移，比栏体小得多，安全。
     var barWidthPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val cellPx: Float = if (tabs.isEmpty()) 0f else barWidthPx.toFloat() / tabs.size
-    // 酷安那块的效果不是"占格子 68% 的等宽胶囊"，而是按选中项自己的图标+文字收边，
-    // 所以每格内容宽度要实测；没测到之前先按 0.68 格宽兜底，第一帧就有东西可画。
-    val contentWidthPx = remember { mutableStateMapOf<Int, Int>() }
-    val pillPadPx = with(density) { 14.dp.toPx() }
-    fun halfWidthOf(index: Int): Float {
-        val content = contentWidthPx[index]?.toFloat() ?: (cellPx * 0.68f)
-        return (content + pillPadPx * 2f) / 2f
-    }
     // 滑块的运动整个交给 LxDampedDragAnimation（Miuix 官方示例那份 Apache-2.0 实现，
     // 出处和改动写在 core/designsystem/drag/LxDampedDrag.kt 顶上）：value 是"连续浮点的第几格"
     // 带阻尼弹簧，pressProgress / scaleX / scaleY 各一根弹簧且阻尼不同 —— 按住时横纵不同步地涨，
@@ -259,7 +250,6 @@ fun LxBottomBar(
         }
     }
     var currentIndex by remember { mutableIntStateOf(selectedIndex) }
-    var pressIndex by remember { mutableIntStateOf(-1) }
     val onSelectedNow by rememberUpdatedState(onSelected)
 
     fun cellAt(x: Float): Int {
@@ -277,10 +267,7 @@ fun LxBottomBar(
             initialScale = 1f,
             pressedScale = 78f / 56f,
             canDrag = { offset -> offset.x in 0f..barWidthPx.toFloat() },
-            onDragStarted = { position ->
-                pressIndex = cellAt(position.x)
-                updateValue(pressIndex.toFloat())
-            },
+            onDragStarted = { position -> updateValue(cellAt(position.x).toFloat()) },
             onDragStopped = {
                 val target = targetValue.roundToInt().coerceIn(0, tabs.size - 1)
                 if (currentIndex != target) {
@@ -312,26 +299,23 @@ fun LxBottomBar(
         }
     }
 
+    // 水球的几何和参数对齐 SukiSU 的 FloatingBottomBar（那份文件是 GPL-3.0，我们只取数值和逻辑，
+    // 代码是自己在 Kyant0 Backdrop 上重写的）：一整格宽、56dp 高、CircleShape，
+    // 位置 = value * tabWidth，不做居中偏移，也不按内容收边 —— 所以拖动中它永远不会跳大小。
     val press = drag.pressProgress.coerceIn(0f, 1f)
-    val safeIndex = selectedIndex.coerceIn(0, (tabs.size - 1).coerceAtLeast(0))
-    // 一次按压里宽度钉死在按下那一刻那格的内容宽，不然拖过半格换页会让水球在手里跳大小
-    val sizeIndex = if (press > 0.02f && pressIndex >= 0) pressIndex else safeIndex
-    val baseHalfPx = halfWidthOf(sizeIndex)
-    val pillHeightDp = 46.dp
-    val pillWidthDp = with(density) { (baseHalfPx * 2f).toDp() }
-    val pillShape = RoundedCornerShape(16.dp)
+    val pillHeightDp = 56.dp
+    val pillWidthDp = with(density) { cellPx.toDp() }
+    val pillShape = CircleShape
+    // 速度也参与形变：拖起来 scaleX 被压扁、scaleY 被拉长，停手弹簧自己收回 —— 就是"加速变化"
+    val squash = drag.velocity / 10f
+    val pillScaleX = drag.scaleX / (1f - (squash * 0.75f).coerceIn(-0.2f, 0.2f))
+    val pillScaleY = drag.scaleY * (1f - (squash * 0.25f).coerceIn(-0.2f, 0.2f))
     val pillLeft = (
-        ((drag.value + 0.5f) * cellPx - baseHalfPx)
-            .coerceIn(0f, (barWidthPx.toFloat() - baseHalfPx * 2f).coerceAtLeast(0f))
+        (drag.value * cellPx + panelOffset)
+            .coerceIn(0f, (barWidthPx.toFloat() - cellPx).coerceAtLeast(0f))
         )
-    // 玻璃一直在，按得越实它越"有货"：面色更亮、描边更亮、折射更强、模糊更通透。
-    val pillTint = Color.White.copy(
-        alpha = (if (isDark) 0.12f else 0.24f) + 0.10f * press,
-    )
-    val pillBorder = Color.White.copy(
-        alpha = (if (isDark) 0.24f else 0.45f) + 0.25f * press,
-    )
-    val pillBorderWidth = (1f + 0.5f * press).dp
+    // 静止时它就是一块 10% 的平色（浅色用黑、深色用白），按住把平色淡出、换成折射和高光
+    val pillRestTint = if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.1f)
 
     Box(modifier = barBody.padding(horizontal = 4.dp)) {
         // 滑块画在 tab 底下，自己不吃点击
@@ -346,8 +330,8 @@ fun LxBottomBar(
                 // 阻尼的弹簧，所以按住时它是"被捏一下"地长，不是等比缩放。
                 .graphicsLayer {
                     translationX = pillLeft
-                    scaleX = drag.scaleX
-                    scaleY = drag.scaleY
+                    scaleX = pillScaleX
+                    scaleY = pillScaleY
                 }
                 .size(width = pillWidthDp, height = pillHeightDp)
                 .clip(pillShape)
@@ -358,44 +342,46 @@ fun LxBottomBar(
                             shape = { pillShape },
                             effects = {
                                 vibrancy()
-                                // 折射要看得见：位移从 7dp 提到 12dp（按住 18dp），色散也抬起来。
-                                // 之前"看不到折射"一半原因是他设置里模糊度拉到 0，栏体本身几乎不糊，
-                                // 那块又只有 7dp 位移 + 0.5 色散，折出来的东西和没折一样。
-                                // 折射带宽度按"胶囊高度的 42%→48%"给，永远不超过它自己的一半。
-                                blur((blurDp * (0.75f - 0.22f * press)).dp.toPx())
+                                // SukiSU 的水球不带模糊，只有按住才出现的折射：
+                                // lens(10dp·p, 14dp·p, depthEffect = true, chromaticAberration = 0.5)。
+                                // 我们那份 AGSL 会拿 refractionHeight 做除数，所以留 0.001dp 的地板，
+                                // 静止时视觉上等于没有。
                                 lensWithDispersion(
-                                    refractionHeight = (pillHeightDp * (0.42f + 0.06f * press)).toPx(),
-                                    refractionAmount = (12f + 6f * press).dp.toPx(),
-                                    dispersion = (dispersion.coerceAtLeast(0.85f) + 0.15f * press).coerceAtMost(1f),
+                                    refractionHeight = (10f * press).coerceAtLeast(0.001f).dp.toPx(),
+                                    refractionAmount = (14f * press).coerceAtLeast(0.001f).dp.toPx(),
+                                    dispersion = 0.5f,
                                     depthEffect = true,
                                 )
                             },
                             highlight = {
+                                // 它的高光是 alpha = pressProgress，静止等于没有；我们的 Highlight 没有
+                                // alpha 通道，就拿宽度当强度，0 宽就是不画。
                                 Highlight(
-                                    width = LxGlass.HighlightWidth * (1.6f + 1.2f * press),
+                                    width = LxGlass.HighlightWidth * 2f * press,
                                     style = HighlightStyle.Default(
                                         angle = LxGlass.HighlightAngle,
                                         falloff = LxGlass.HighlightFalloff,
                                     ),
                                 )
                             },
-                            onDrawSurface = { drawRect(pillTint) },
+                            onDrawSurface = {
+                                // 静止：一块 10% 平色；按住：平色淡出，换成 3% 的黑垫在折射下面
+                                drawRect(pillRestTint, alpha = 1f - press)
+                                drawRect(Color.Black.copy(alpha = 0.03f * press))
+                            },
                         )
                         BarMaterial.FROSTED -> Modifier
                             .hazeEffect(state = hazeState) {
-                                blurRadius = (frostBlurDp * (0.6f - 0.18f * press)).dp
+                                blurRadius = (frostBlurDp * 0.6f).dp
                                 noiseFactor = 0.10f
-                                backgroundColor = parchment.copy(alpha = 0.34f + 0.16f * press)
+                                backgroundColor = parchment.copy(alpha = 0.34f)
                             }
-                            .background(pillTint)
+                            .background(pillRestTint)
                         BarMaterial.SOLID -> Modifier.background(
-                            selectedColor.copy(
-                                alpha = (if (isDark) 0.22f else 0.12f) + 0.10f * press,
-                            ),
+                            selectedColor.copy(alpha = 0.15f),
                         )
                     },
-                )
-                .border(pillBorderWidth, pillBorder, pillShape),
+                ),
         )
 
         Row(
@@ -412,10 +398,17 @@ fun LxBottomBar(
             tabs.forEachIndexed { index, tab ->
                 val active = index == selectedIndex
                 val label = stringResource(tab.labelRes)
+                // 选中那格的图标+文字按按压力度放大到 1.2 倍（SukiSU 那个
+                // LocalFloatingBottomBarTabScale = lerp(1f, 1.2f, pressProgress)）
+                val tabScale = if (active) 1f + 0.2f * press else 1f
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
+                        .graphicsLayer {
+                            scaleX = tabScale
+                            scaleY = tabScale
+                        }
                         .clickable(
                             // 玻璃栏里绝不能有触摸水波纹：indication 是一层约 10% 黑的灰色圆角矩形，
                             // 叠在折射上就变成"点哪一格哪一格发灰"，且部分机型按下后不会自动清掉。
@@ -425,28 +418,19 @@ fun LxBottomBar(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    // 这一层只干一件事：把"图标+文字"实际占多宽量出来给滑块用。
-                    // 外层那格是等宽的 weight(1f)，量它等于没量。
-                    Column(
-                        modifier = Modifier
-                            .wrapContentWidth()
-                            .onSizeChanged { contentWidthPx[index] = it.width },
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Icon(
-                            imageVector = tab.icon,
-                            contentDescription = label,
-                            tint = if (active) selectedColor else LxInkFaint,
-                            modifier = Modifier.size(22.dp),
-                        )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = label,
-                            fontSize = 11.sp,
-                            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-                            color = if (active) selectedColor else LxInkFaint,
-                        )
-                    }
+                    Icon(
+                        imageVector = tab.icon,
+                        contentDescription = label,
+                        tint = if (active) selectedColor else LxInkFaint,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = label,
+                        fontSize = 11.sp,
+                        fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                        color = if (active) selectedColor else LxInkFaint,
+                    )
                 }
             }
         }
