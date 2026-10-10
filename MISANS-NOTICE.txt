@@ -1,7 +1,7 @@
 # MiSans 字体使用说明与合规记录
 
-本应用（林小信）界面全站使用 **MiSans VF** 字体。按《MiSans 字体知识产权许可协议》
-第 1 条「您应在软件中特别注明使用了 MiSans 字体」，App 内「关于 → 林小信」卡片已署名。
+本应用（安大信）界面全站使用 **MiSans VF** 字体。按《MiSans 字体知识产权许可协议》
+第 1 条「您应在软件中特别注明使用了 MiSans 字体」，App 内「关于 → 安大信」卡片已署名。
 
 MiSans 版权归 **北京小米移动软件有限公司**（Copyright © 2020-2023 Beijing Xiaomi Mobile
 Software Co., Ltd.），字体由小米与汉仪字库（Hanyi Fonts）等共同制作。
