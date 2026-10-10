@@ -46,6 +46,11 @@ data class ThemeSettings(
     val glassDistortion: Float = 1f,
     /** 液态玻璃色散 0..1：AGSL 的 chromaticAberration 均匀量，0=无色散，1=官方强度。仅作用于 LIQUID 底栏。 */
     val glassDispersion: Float = 1f,
+    /**
+     * 侧滑返回预示：开着时，从左边缘 28dp 内横滑会把当前页跟手缩/淡/左移，划过阈值就返回。
+     * 关掉就完全交回系统那套（或不带动画直接返回）。
+     */
+    val previewBackGesture: Boolean = true,
 )
 
 private val Context.themeDataStore: DataStore<Preferences> by preferencesDataStore(name = "linxin_theme")
@@ -64,6 +69,7 @@ class ThemePrefs @Inject constructor(
         private val KEY_GLASS_REFRACTION = floatPreferencesKey("glass_refraction")
         private val KEY_GLASS_DISPERSION = floatPreferencesKey("glass_dispersion")
         private val KEY_GLASS_DISTORTION = floatPreferencesKey("glass_distortion")
+        private val KEY_PREVIEW_BACK = booleanPreferencesKey("preview_back_gesture")
     }
 
     val settings: Flow<ThemeSettings> = context.themeDataStore.data.map { prefs ->
@@ -81,7 +87,12 @@ class ThemePrefs @Inject constructor(
             glassRefraction = prefs[KEY_GLASS_REFRACTION] ?: 0.5f,
             glassDistortion = prefs[KEY_GLASS_DISTORTION] ?: 1f,
             glassDispersion = prefs[KEY_GLASS_DISPERSION] ?: 1f,
+            previewBackGesture = prefs[KEY_PREVIEW_BACK] ?: true,
         )
+    }
+
+    suspend fun setPreviewBackGesture(enabled: Boolean) {
+        context.themeDataStore.edit { it[KEY_PREVIEW_BACK] = enabled }
     }
 
     suspend fun setMode(mode: ThemeMode) {
