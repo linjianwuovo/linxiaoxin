@@ -70,12 +70,22 @@ fun HomeScreen(
     val pagerState = rememberPagerState(initialPage = selectedTab) { tabs.size }
     val scope = rememberCoroutineScope()
 
-    // 滑动翻页时同步高亮底栏
-    LaunchedEffect(pagerState.currentPage) {
-        selectedTab = pagerState.currentPage
+    // 翻页动画途中 pagerState.currentPage 会依次经过中间页（0→3 会变成 1、2、3）。
+    // 直接拿它回灌 selectedTab，底栏水球就会被着一格格往回追 —— 他报的"无论什么页切换
+    // 只要经过消息水滴都会卡一下"就是这么来的（消息是五格正中间，大多数跨页路线都路过）。
+    // 所以自己发起的翻页，动画途中只认目标页；用户自己横向滑页面时不拦，照旧实时跟随。
+    var pendingTab by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress) {
+        val page = pagerState.currentPage
+        if (pendingTab >= 0) {
+            if (page != pendingTab && pagerState.isScrollInProgress) return@LaunchedEffect
+            pendingTab = -1
+        }
+        selectedTab = page
     }
 
     fun goToTab(index: Int) {
+        pendingTab = index
         selectedTab = index
         scope.launch { pagerState.animateScrollToPage(index) }
     }
