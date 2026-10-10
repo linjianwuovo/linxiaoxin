@@ -32,4 +32,15 @@ interface NewsApi {
     suspend fun getNewsDetail(
         @Field("id") id: String,
     ): NewsDetailResponse
+
+    /**
+     * 公告搜索。字段名与取值照抄安小信：`name` = 关键词、`type` = "3"，
+     * 通用鉴权字段由 AuthInterceptor 的默认分支补上，和它 addCommonParams 那套一致。
+     */
+    @FormUrlEncoded
+    @POST("appService/homeQuery.do")
+    suspend fun searchHome(
+        @Field("name") keyword: String,
+        @Field("type") type: String = "3",
+    ): HomeQueryResponse
 }

@@ -1,5 +1,7 @@
 package com.linxin
 
+import kotlinx.coroutines.runBlocking
+import com.linxin.core.locale.ProvideAppLanguage
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
@@ -104,7 +106,12 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = navigationBarStyle,
         )
         setContent {
-            val settings by themePrefs.settings.collectAsState(initial = ThemeSettings())
+            // 语言用同步读到的值做起点：否则第一帧按 FOLLOW_SYSTEM 组合，
+            // 读到真值后再刷一遍，会看到中文闪成英文。
+            val startLanguage = runBlocking { themePrefs.currentLanguage() }
+            val settings by themePrefs.settings.collectAsState(
+                initial = ThemeSettings(language = startLanguage),
+            )
             val systemDark = isSystemInDarkTheme()
             val darkTheme = when (settings.mode) {
                 ThemeMode.SYSTEM -> systemDark
@@ -129,7 +136,9 @@ class MainActivity : ComponentActivity() {
                 darkTheme = darkTheme,
                 accent = accent,
             ) {
-                Box(Modifier.fillMaxSize()) {
+                // 语言在组合内换 Resources，不重启进程，所以切换不闪开屏。见 ProvideAppLanguage。
+                ProvideAppLanguage(language = settings.language) {
+                    Box(Modifier.fillMaxSize()) {
                     LinXinNavHost(
                         sessionManager = sessionManager,
                         shortcutTarget = shortcutTarget,
@@ -150,6 +159,7 @@ class MainActivity : ComponentActivity() {
                         exit = fadeOut(tween(320)),
                     ) {
                         SplashOverlay()
+                    }
                     }
                 }
             }

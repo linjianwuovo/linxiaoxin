@@ -125,6 +125,7 @@ class CheckinRepository @Inject constructor(
                 startTime = row.timedStartTime ?: row.startTime ?: row.collectionStartTime ?: "",
                 endTime = row.timedEndTime ?: row.endTime ?: row.collectionEndTime ?: "",
                 statusText = row.executionedStatusTxt.orEmpty(),
+                taskDate = row.taskDate.orEmpty().trim(),
             )
         }
 

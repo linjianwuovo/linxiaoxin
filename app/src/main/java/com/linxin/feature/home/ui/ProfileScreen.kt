@@ -1,5 +1,7 @@
 package com.linxin.feature.home.ui
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -48,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.linxin.core.designsystem.component.LxCard
+import com.linxin.feature.messages.ui.MessagesCard
 import com.linxin.core.designsystem.component.LxDialog
 import com.linxin.core.designsystem.component.LxDialogConfirmTone
 import com.linxin.core.designsystem.theme.LxCream
@@ -91,7 +94,7 @@ fun ProfileScreen(
     ) {
         // ── 顶部标题（陶土衬线；本屏陶土色用法 1/2，头像字色用法 2/2）──
         Text(
-            text = "我的",
+            text = stringResource(R.string.tab_profile),
             fontWeight = FontWeight.Medium,
             fontSize = 28.sp,
             lineHeight = 34.sp,
@@ -114,7 +117,7 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
                     Text(
-                        text = uiState.userName.ifBlank { "未知用户" },
+                        text = uiState.userName.ifBlank { stringResource(R.string.profile_unknown_user) },
                         fontWeight = FontWeight.Medium,
                         fontSize = 20.sp,
                         lineHeight = 24.sp,
@@ -138,27 +141,27 @@ fun ProfileScreen(
             Column {
                 ProfileMenuRow(
                     icon = Icons.Outlined.Bed,
-                    title = "查寝签到",
+                    title = stringResource(R.string.title_dorm_checkin),
                     onClick = onNavigateCheckin,
                 )
                 MenuDivider()
                 ProfileMenuRow(
                     icon = Icons.Outlined.School,
-                    title = "AI课堂",
+                    title = stringResource(R.string.title_ai_class),
                     onClick = onNavigateAiClass,
                 )
                 if (uiState.advancedEnabled) {
                     MenuDivider()
                     ProfileMenuRow(
                         icon = Icons.Outlined.Route,
-                        title = "路线模拟",
+                        title = stringResource(R.string.title_route_mock),
                         onClick = onNavigateRouteSimulation,
                     )
                 }
                 MenuDivider()
                 ProfileMenuRow(
                     icon = Icons.Outlined.Apps,
-                    title = "更多功能",
+                    title = stringResource(R.string.title_more_functions),
                     onClick = onNavigateMore,
                 )
             }
@@ -166,17 +169,22 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(22.dp))
 
+        // ── 消息提醒（本地轮询，开关与来源在卡片里）──
+        MessagesCard()
+
+        Spacer(modifier = Modifier.height(22.dp))
+
         // ── 其他组 ──
         LxCard {
             ProfileMenuRow(
                 icon = Icons.Outlined.Palette,
-                title = "主题外观",
+                title = stringResource(R.string.profile_appearance),
                 onClick = onNavigateTheme,
             )
             MenuDivider()
             ProfileMenuRow(
                 icon = Icons.Outlined.Info,
-                title = "关于林小信",
+                title = stringResource(R.string.title_about),
                 hint = versionName.takeIf { it.isNotBlank() }?.let { "v$it" },
                 onClick = onNavigateAbout,
             )
@@ -193,10 +201,10 @@ fun ProfileScreen(
 
     if (showLogoutDialog) {
         LxDialog(
-            title = "退出登录",
-            message = "确定要退出登录吗？",
-            confirmText = "确定",
-            dismissText = "取消",
+            title = stringResource(R.string.profile_logout),
+            message = stringResource(R.string.profile_logout_confirm),
+            confirmText = stringResource(R.string.action_confirm),
+            dismissText = stringResource(R.string.action_cancel),
             onDismissRequest = { showLogoutDialog = false },
             onDismiss = { showLogoutDialog = false },
             onConfirm = {
@@ -319,7 +327,7 @@ private fun LogoutOutlinedButton(isLoggingOut: Boolean, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = if (isLoggingOut) "退出中..." else "退出登录",
+            text = if (isLoggingOut) stringResource(R.string.profile_logging_out) else stringResource(R.string.profile_logout),
             fontSize = 15.sp,
             fontWeight = FontWeight.Medium,
             color = LxTerra,

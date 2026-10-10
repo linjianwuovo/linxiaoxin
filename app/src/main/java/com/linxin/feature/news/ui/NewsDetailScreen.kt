@@ -1,5 +1,6 @@
 package com.linxin.feature.news.ui
 
+import androidx.compose.ui.res.stringResource
 import android.annotation.SuppressLint
 
 import android.view.ViewGroup
@@ -18,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.linxin.R
 import com.linxin.core.network.ApiConstants
 import com.linxin.core.designsystem.component.LxError
 import com.linxin.core.designsystem.component.LxLoading
@@ -45,7 +47,7 @@ fun NewsDetailScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "公告详情", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_news_detail), onBack = onBack) },
     ) { padding ->
         val box = Modifier.padding(padding)
         when {

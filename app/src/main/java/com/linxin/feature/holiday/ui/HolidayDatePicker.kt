@@ -1,5 +1,7 @@
 package com.linxin.feature.holiday.ui
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -182,7 +184,7 @@ private fun CalendarContent(state: HolidayDatePickerState) {
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             )
             Text(
-                text = "${month.year}年${month.monthValue}月",
+                text = stringResource(R.string.ui_026, month.year.toString(), month.monthValue.toString()),
                 fontWeight = FontWeight.Medium,
                 fontSize = 20.sp,
                 color = LxInk,
@@ -394,7 +396,7 @@ private fun TimeContent(state: HolidayDatePickerState) {
             ),
         ) {
             Text(
-                text = "确认",
+                text = stringResource(R.string.ui_027),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
             )
