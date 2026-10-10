@@ -185,12 +185,14 @@ fun LxBottomBar(
         )
     }
 
+    // 栏体自己的样式（不含 frame 的外边距）：frame 单独包一层，水球才能做它的兄弟节点，
+    // 不被栏体那圈 clip 剪掉，按下去可以鼓出格子和栏的边界
     val barBody = when (material) {
-        BarMaterial.SOLID -> barShadow(frame)
+        BarMaterial.SOLID -> barShadow(Modifier)
             .clip(shape)
             .background(LxParchment, shape)
             .height(64.dp)
-        BarMaterial.FROSTED -> barShadow(frame)
+        BarMaterial.FROSTED -> barShadow(Modifier)
             .clip(shape)
             .hazeEffect(state = hazeState) {
                 blurRadius = frostBlurDp.dp
@@ -199,7 +201,7 @@ fun LxBottomBar(
             }
             .border(1.dp, Color.White.copy(alpha = 0.28f), shape)
             .height(64.dp)
-        BarMaterial.LIQUID -> frame
+        BarMaterial.LIQUID -> Modifier
             .height(64.dp)
             .drawBackdrop(
                 backdrop = backdrop,
@@ -270,7 +272,9 @@ fun LxBottomBar(
             valueRange = 0f..(tabs.size - 1).toFloat(),
             visibilityThreshold = 0.001f,
             initialScale = 1f,
-            pressedScale = 78f / 56f,
+            // 按住鼓到 90dp：栏才 64dp，所以这颗泡会顶出栏子的上下边界 ——
+            // 他给的第二张酷安截图就是这个样子（数码那颗白泡明显凸出栏顶）
+            pressedScale = 90f / 56f,
             canDrag = { offset -> offset.x in 0f..barWidthPx.toFloat() },
             onDragStarted = { position -> updateValue(cellAt(position.x).toFloat()) },
             onDragStopped = {
@@ -320,13 +324,93 @@ fun LxBottomBar(
             .coerceIn(0f, (barWidthPx.toFloat() - cellPx).coerceAtLeast(0f))
         )
     // 静止时它就是一块 10% 的平色（浅色用黑、深色用白），按住把平色淡出、换成折射和高光
-    val pillRestTint = if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.1f)
+    val pillRestTint = if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.07f)
+    // 按住时它不是"更透明的玻璃"，而是一颗几乎不透明的浮起白泡（深色下是深灰），
+    // 酷安那张截图里数码那颗就是实心白的
+    val pillPressTint = if (isDark) Color(0xFF26262A).copy(alpha = 0.94f) else Color.White.copy(alpha = 0.94f)
     // 水球的采样源 = 页面背景 + 一层看不见的标签副本。少了后半截，玻璃里只会折到页面，
     // 图标和文字不会被"盖"进水滴里（SukiSU 那份就是这么叠的）
     val tabsBackdrop = rememberLayerBackdrop()
     val combinedBackdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop)
 
-    Box(modifier = barBody.padding(horizontal = 4.dp)) {
+    // 外层只管位置和留白。三个兄弟节点的绘制顺序很关键：
+    // 栏体（只当背景）→ 水球 → 标签（画在最上面）。
+    // 上一版水球是最后一个节点，按住时那颗近不透明的白泡把图标和文字糊掉了；他给的第二张
+    // 酷安截图层次是反过来的 —— 泡鼓出栏顶，绿色的图标和文字仍然清清楚楚压在泡上。
+    Box(modifier = frame) {
+      Box(modifier = barBody.fillMaxWidth())
+
+      // 水球是栏体的兄弟节点，画在栏体之上、标签之下：不被栏体那圈 clip 剪掉，
+      // 所以按下去既能鼓出一格、也能鼓出栏子的上下边界
+      Box(
+          modifier = Modifier
+              .align(Alignment.CenterStart)
+              // 这里不能用 Modifier.offset { IntOffset(...) }：那个 lambda 只在重新测量的时候取值，
+              // 滑块的尺寸又不随选中项变，Compose 就不重测，读到的永远是上一帧的位置 ——
+              // 真机上表现成"滑块慢一格"（点公告它停在消息那格）。
+              // graphicsLayer 的 translationX 在绘制阶段每帧都读，跟着动画走，不会滞后。
+              .graphicsLayer {
+                  translationX = pillLeft
+                  scaleX = pillScaleX
+                  scaleY = pillScaleY
+              }
+              .size(width = pillWidthDp, height = pillHeightDp)
+              // 按住浮起来：影子跟着按压进度长，这颗泡才像离出栏面。clip = false，
+              // 只借它的形状画阴影，别把水球自己剪了
+              .shadow(elevation = (2f + 12f * press).dp, shape = pillShape, clip = false)
+              .clip(pillShape)
+              .then(
+                  when (material) {
+                      BarMaterial.LIQUID -> Modifier.drawBackdrop(
+                          backdrop = combinedBackdrop,
+                          shape = { pillShape },
+                          effects = {
+                              vibrancy()
+                              // SukiSU 的水球不带模糊，只有按住才出现的折射：
+                              // lens(10dp·p, 14dp·p, depthEffect = true, chromaticAberration = 0.5)。
+                              // 我们那份 AGSL 会拿 refractionHeight 做除数，所以留 0.001dp 的地板。
+                              lensWithDispersion(
+                                  refractionHeight = (10f * press).coerceAtLeast(0.001f).dp.toPx(),
+                                  refractionAmount = (14f * press).coerceAtLeast(0.001f).dp.toPx(),
+                                  dispersion = 0.5f,
+                                  depthEffect = true,
+                              )
+                          },
+                          highlight = {
+                              // 它的高光是 alpha = pressProgress，静止等于没有；我们的 Highlight 没有
+                              // alpha 通道，就拿宽度当强度，0 宽就是不画。
+                              Highlight(
+                                  width = LxGlass.HighlightWidth * 2f * press,
+                                  style = HighlightStyle.Default(
+                                      angle = LxGlass.HighlightAngle,
+                                      falloff = LxGlass.HighlightFalloff,
+                                  ),
+                              )
+                          },
+                          onDrawSurface = {
+                              // 静止是很淡的一块平色；按住淡色退掉、几乎不透明的白泡浮上来，
+                              // 边缘那圈折射留着，才有玻璃边而不是贴纸
+                              drawRect(pillRestTint, alpha = 1f - press)
+                              drawRect(pillPressTint, alpha = press)
+                          },
+                      )
+                      BarMaterial.FROSTED -> Modifier
+                          .hazeEffect(state = hazeState) {
+                              blurRadius = (frostBlurDp * 0.6f).dp
+                              noiseFactor = 0.10f
+                              backgroundColor = parchment.copy(alpha = 0.34f)
+                          }
+                          .background(pillRestTint)
+                      BarMaterial.SOLID -> Modifier.background(
+                          selectedColor.copy(alpha = 0.15f),
+                      )
+                  },
+              ),
+      )
+
+      // 标签层还是原来那层 4dp 内缩的壳：barWidthPx（一格多宽）和水球起点对齐都靠它，
+      // 数值和上一版逐字一致，只是从栏体的子里挪出来成了兄弟，好排在泡上面。
+      Box(modifier = Modifier.matchParentSize().padding(horizontal = 4.dp)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -371,69 +455,7 @@ fun LxBottomBar(
                 )
             }
         }
-
-        // 水球画在最上面：图标和文字在它底下，所以既被它盖住、又被它折射
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                // 这里不能用 Modifier.offset { IntOffset(...) }：那个 lambda 只在重新测量的时候取值，
-                // 滑块的尺寸又不随选中项变，Compose 就不重测，读到的永远是上一帧的位置 ——
-                // 真机上表现成"滑块慢一格"（点公告它停在消息那格）。
-                // graphicsLayer 的 translationX 在绘制阶段每帧都读，跟着动画走，不会滞后。
-                .graphicsLayer {
-                    translationX = pillLeft
-                    scaleX = pillScaleX
-                    scaleY = pillScaleY
-                }
-                .size(width = pillWidthDp, height = pillHeightDp)
-                .clip(pillShape)
-                .then(
-                    when (material) {
-                        BarMaterial.LIQUID -> Modifier.drawBackdrop(
-                            backdrop = combinedBackdrop,
-                            shape = { pillShape },
-                            effects = {
-                                vibrancy()
-                                // SukiSU 的水球不带模糊，只有按住才出现的折射：
-                                // lens(10dp·p, 14dp·p, depthEffect = true, chromaticAberration = 0.5)。
-                                // 我们那份 AGSL 会拿 refractionHeight 做除数，所以留 0.001dp 的地板。
-                                lensWithDispersion(
-                                    refractionHeight = (10f * press).coerceAtLeast(0.001f).dp.toPx(),
-                                    refractionAmount = (14f * press).coerceAtLeast(0.001f).dp.toPx(),
-                                    dispersion = 0.5f,
-                                    depthEffect = true,
-                                )
-                            },
-                            highlight = {
-                                // 它的高光是 alpha = pressProgress，静止等于没有；我们的 Highlight 没有
-                                // alpha 通道，就拿宽度当强度，0 宽就是不画。
-                                Highlight(
-                                    width = LxGlass.HighlightWidth * 2f * press,
-                                    style = HighlightStyle.Default(
-                                        angle = LxGlass.HighlightAngle,
-                                        falloff = LxGlass.HighlightFalloff,
-                                    ),
-                                )
-                            },
-                            onDrawSurface = {
-                                // 静止：一块 10% 平色；按住：平色淡出，换成 3% 的黑垫在折射下面
-                                drawRect(pillRestTint, alpha = 1f - press)
-                                drawRect(Color.Black.copy(alpha = 0.03f * press))
-                            },
-                        )
-                        BarMaterial.FROSTED -> Modifier
-                            .hazeEffect(state = hazeState) {
-                                blurRadius = (frostBlurDp * 0.6f).dp
-                                noiseFactor = 0.10f
-                                backgroundColor = parchment.copy(alpha = 0.34f)
-                            }
-                            .background(pillRestTint)
-                        BarMaterial.SOLID -> Modifier.background(
-                            selectedColor.copy(alpha = 0.15f),
-                        )
-                    },
-                ),
-        )
+      }
     }
 }
 
