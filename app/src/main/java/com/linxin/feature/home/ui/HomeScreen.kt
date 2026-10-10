@@ -107,7 +107,13 @@ fun HomeScreen(
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
-                beyondViewportPageCount = 1,
+                // 五页全部常驻，别改回 1。Pager 会把超出窗口的页销毁，回去要重新组一次：
+                // 实测每屏首次组页 NewsScreen 350ms、ScheduleScreen 250ms、消息/我的各 69ms，
+                // 跨页动画一路都在做这件事，p99 从相邻页的 32~46ms 涨到 117ms，一次掉 5~7 帧 ——
+                // 他报的"无论什么页切换只要经过消息水滴都会卡一下"就是这么来的（消息在五格正中间，
+                // 多数跨页路线都要路过它）。常驻之后同一批路线最长帧回到 32~44ms。
+                // 代价：冷启动 968ms、TOTAL PSS 259MB（米11 实测），都能接受。
+                beyondViewportPageCount = tabs.size - 1,
             ) { page ->
                 when (page) {
                     0 -> HomeDashboard(
