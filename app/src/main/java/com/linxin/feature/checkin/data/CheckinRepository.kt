@@ -27,6 +27,68 @@ class CheckinRepository @Inject constructor(
     private val fileApi: FileUploadApi,
     private val tokenManager: TokenManager,
 ) {
+    /**
+     * 历史查寝任务 —— 官方 H5「历史查寝任务」那个 tab 走的就是这个端点：
+     * type=2 + 单日 startTime，一页 20 条。pageStudentSignIn 只管当天待办，
+     * 历史那批它一条都不返回，所以点月历上的日子必须改走这里，
+     * 否则就是 10/8 那个现象：日历有红点、统计有数字，列表却是空的。
+     */
+    suspend fun getHistoryTasks(
+        date: String,
+        page: Int = 1,
+        pageSize: Int = HISTORY_PAGE_SIZE,
+    ): Result<List<CheckinTask>> {
+        return try {
+            val body = mapOf<String, Any>(
+                "pageNum" to page,
+                "pageSize" to pageSize,
+                "type" to "2",
+                "taskMajorType" to "3",
+                "startTime" to date,
+            )
+            val response = api.collectionStudentPage(body)
+            if (!response.isSuccess()) {
+                return Result.failure(Exception(response.msg ?: "获取历史查寝失败"))
+            }
+            Result.success(response.toTasks())
+        } catch (e: Exception) {
+            Result.failure(Exception(mapError("获取历史查寝", e), e))
+        }
+    }
+
+    /**
+     * 历史主题签到（晚点名那套）。官方 /studentEvent/signIn/history 用
+     * app/signin/queryPage，比查寝多一个 releaseStatus=2（已发布/已结束）。
+     */
+    suspend fun getSubjectHistoryTasks(
+        date: String,
+        page: Int = 1,
+        pageSize: Int = HISTORY_PAGE_SIZE,
+    ): Result<List<CheckinTask>> {
+        return try {
+            val body = mapOf<String, Any>(
+                "pageNum" to page,
+                "pageSize" to pageSize,
+                "releaseStatus" to "2",
+                "type" to "2",
+                "startTime" to date,
+                "endTime" to date,
+            )
+            val response = api.subjectHistoryPage(body)
+            if (!response.isSuccess()) {
+                return Result.failure(Exception(response.msg ?: "获取历史主题签到失败"))
+            }
+            Result.success(response.toTasks())
+        } catch (e: Exception) {
+            Result.failure(Exception(mapError("获取历史主题签到", e), e))
+        }
+    }
+
+    private companion object {
+        /** 官方历史 tab 一页 20 条，跟它保持一致 */
+        const val HISTORY_PAGE_SIZE = 20
+    }
+
     suspend fun getTasks(page: Int, pageSize: Int = 10): Result<List<CheckinTask>> {
         return try {
             val body = mapOf<String, Any>(

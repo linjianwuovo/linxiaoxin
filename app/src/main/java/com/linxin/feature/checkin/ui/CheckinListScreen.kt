@@ -109,6 +109,7 @@ fun CheckinListScreen(
                 onRetryTasks = viewModel::retry,
                 onRetrySubject = viewModel::retrySubject,
                 onRetrySummary = viewModel::retrySummary,
+                onRetryHistory = viewModel::retryHistory,
                 onSelectDate = viewModel::selectDate,
                 modifier = Modifier.padding(padding),
             )
@@ -124,6 +125,7 @@ private fun TaskList(
     onRetryTasks: () -> Unit,
     onRetrySubject: () -> Unit,
     onRetrySummary: () -> Unit,
+    onRetryHistory: () -> Unit,
     onSelectDate: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -133,7 +135,8 @@ private fun TaskList(
         derivedStateOf {
             val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
             val totalItems = listState.layoutInfo.totalItemsCount
-            lastVisible >= totalItems - 3 && uiState.hasMore && !uiState.isLoadingMore
+            lastVisible >= totalItems - 3 && uiState.canLoadMore &&
+                !uiState.isLoadingMore && !uiState.isLoadingHistory
         }
     }
 
@@ -142,9 +145,10 @@ private fun TaskList(
     }
 
     val selectedDate = uiState.selectedDate
-    // 点中某天但任务还没翻到：要么正在翻页，要么已经翻过上限/翻到底了
-    val dayPending = selectedDate != null && !uiState.hasSelectedDay && uiState.isLoadingMore
-    val dayMissing = selectedDate != null && !uiState.hasSelectedDay && !uiState.isLoadingMore
+    // 点中某天：历史两路还在拉就是"正在找"；拉完了什么都没回来、又没报错，才是"这天确实没有"
+    val dayPending = selectedDate != null && uiState.isLoadingHistory
+    val dayMissing = selectedDate != null && !uiState.isLoadingHistory &&
+        !uiState.hasSelectedDay && uiState.historyError == null && uiState.subjectHistoryError == null
 
     LazyColumn(
         state = listState,
@@ -194,14 +198,19 @@ private fun TaskList(
             }
         }
 
-        // 查寝签到 section
-        if (uiState.visibleTasks.isNotEmpty() || uiState.error != null) {
+        // 查寝签到 section：待办 + 点中那天的历史，历史挂了也要出声，不能装成"这天没有"
+        if (uiState.visibleTasks.isNotEmpty() || uiState.error != null || uiState.historyError != null) {
             item(key = "section_checkin") {
                 SectionHeader(stringResource(R.string.title_dorm_checkin))
             }
             uiState.error?.let { tasksError ->
                 item(key = "checkin_error") {
                     LxInlineErrorCard(message = tasksError, onRetry = onRetryTasks)
+                }
+            }
+            uiState.historyError?.let { historyError ->
+                item(key = "history_error") {
+                    LxInlineErrorCard(message = historyError, onRetry = onRetryHistory)
                 }
             }
             items(uiState.visibleTasks, key = { "c_${it.taskDateId}" }) { task ->
@@ -214,13 +223,20 @@ private fun TaskList(
         }
 
         // 主题签到 section
-        if (uiState.visibleSubjectTasks.isNotEmpty() || uiState.subjectError != null) {
+        if (uiState.visibleSubjectTasks.isNotEmpty() || uiState.subjectError != null ||
+            uiState.subjectHistoryError != null
+        ) {
             item(key = "section_subject") {
                 SectionHeader(stringResource(R.string.checkin_section_theme))
             }
             uiState.subjectError?.let { subjectError ->
                 item(key = "subject_error") {
                     LxInlineErrorCard(message = subjectError, onRetry = onRetrySubject)
+                }
+            }
+            uiState.subjectHistoryError?.let { subjectHistoryError ->
+                item(key = "subject_history_error") {
+                    LxInlineErrorCard(message = subjectHistoryError, onRetry = onRetryHistory)
                 }
             }
             items(uiState.visibleSubjectTasks, key = { "s_${it.taskDateId}" }) { task ->
@@ -235,7 +251,7 @@ private fun TaskList(
         // 节假日登记与历史登记已挪到独立的「节假日离返校」页（Routes.HOLIDAY_LIST），
         // 和安小信一致：查寝和节假日是学工应用里两个互不相干的入口。
 
-        if (uiState.isLoadingMore) {
+        if (uiState.isLoadingMore || uiState.isLoadingHistory) {
             item(key = "loading_more") {
                 Box(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
