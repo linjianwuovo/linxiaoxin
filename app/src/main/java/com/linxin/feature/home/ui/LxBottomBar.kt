@@ -76,6 +76,7 @@ import com.kyant.backdrop.highlight.HighlightStyle
 import com.kyant.shapes.Capsule
 import com.linxin.R
 import com.linxin.core.designsystem.drag.LxDampedDragAnimation
+import com.linxin.core.designsystem.liquid.LxDropletShape
 import com.linxin.core.designsystem.liquid.lensWithDispersion
 import com.linxin.core.designsystem.theme.LxInkFaint
 import com.linxin.core.designsystem.theme.LxParchment
@@ -239,6 +240,8 @@ fun LxBottomBar(
     // 换页只在抬手那一刻发生（onDragStopped 里），拖动途中页面不动，这是他要的口径。
     val animationScope = rememberCoroutineScope()
     val offsetAnimation = remember { Animatable(0f) }
+    // 水滴尾巴的锚点：比头软一档的弹簧，头先走它后到，中间就拉出脖子
+    val anchorAnim = remember { Animatable(selectedIndex.toFloat()) }
     val rubberBandPx = with(density) { 4.dp.toPx() }
     val panelOffset by remember(rubberBandPx) {
         derivedStateOf {
@@ -276,10 +279,17 @@ fun LxBottomBar(
                 }
                 updateValue(target.toFloat())
                 animationScope.launch { offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f)) }
+                // 尾巴追上来，脖子收回去
+                animationScope.launch {
+                    anchorAnim.animateTo(target.toFloat(), spring(dampingRatio = 1f, stiffness = 380f))
+                }
             },
             onDragCancelled = {
                 updateValue(currentIndex.toFloat())
                 animationScope.launch { offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f)) }
+                animationScope.launch {
+                    anchorAnim.animateTo(currentIndex.toFloat(), spring(dampingRatio = 1f, stiffness = 380f))
+                }
             },
             onDrag = { _, dragAmount ->
                 val cell = barWidthPx.toFloat() / tabs.size
@@ -296,6 +306,9 @@ fun LxBottomBar(
         if (currentIndex != selectedIndex) {
             currentIndex = selectedIndex
             drag.animateToValue(selectedIndex.toFloat())
+            animationScope.launch {
+                anchorAnim.animateTo(selectedIndex.toFloat(), spring(dampingRatio = 1f, stiffness = 380f))
+            }
         }
     }
 
@@ -303,37 +316,33 @@ fun LxBottomBar(
     // 代码是自己在 Kyant0 Backdrop 上重写的）：一整格宽、56dp 高、CircleShape，
     // 位置 = value * tabWidth，不做居中偏移，也不按内容收边 —— 所以拖动中它永远不会跳大小。
     val press = drag.pressProgress.coerceIn(0f, 1f)
-    val pillHeightDp = 56.dp
-    val pillWidthDp = with(density) { cellPx.toDp() }
-    val pillShape = CircleShape
-    // 速度也参与形变：拖起来 scaleX 被压扁、scaleY 被拉长，停手弹簧自己收回 —— 就是"加速变化"
+    // 水滴的头 = 阻尼动画那个连续位置；尾巴锚点 anchorAnim 在上面声明，比头软一档
+    val headX = (drag.value + 0.5f) * cellPx + panelOffset
+    val anchorX = (anchorAnim.value + 0.5f) * cellPx + panelOffset
+    val stretch = (abs(headX - anchorX) / cellPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
+    val baseRadiusPx = with(density) { 28.dp.toPx() }
+    // 速度形变（SukiSU 那份）：拖起来横压纵拉，停手弹回。折进半径里，因为整块横向缩放
+    // 会把水滴的 x 坐标一起拖跑
     val squash = drag.velocity / 10f
-    val pillScaleX = drag.scaleX / (1f - (squash * 0.75f).coerceIn(-0.2f, 0.2f))
-    val pillScaleY = drag.scaleY * (1f - (squash * 0.25f).coerceIn(-0.2f, 0.2f))
-    val pillLeft = (
-        (drag.value * cellPx + panelOffset)
-            .coerceIn(0f, (barWidthPx.toFloat() - cellPx).coerceAtLeast(0f))
-        )
+    val sx = drag.scaleX / (1f - (squash * 0.75f).coerceIn(-0.2f, 0.2f))
+    val sy = drag.scaleY * (1f - (squash * 0.25f).coerceIn(-0.2f, 0.2f))
+    val headRadiusPx = baseRadiusPx * (0.5f * sx + 0.5f * sy)
+    val pillShape = LxDropletShape(
+        anchorX = anchorX,
+        headX = headX,
+        centerY = 0f,
+        headRadius = headRadiusPx,
+        anchorScale = 1f - 0.6f * stretch,
+    )
     // 静止时它就是一块 10% 的平色（浅色用黑、深色用白），按住把平色淡出、换成折射和高光
     val pillRestTint = if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.1f)
 
     Box(modifier = barBody.padding(horizontal = 4.dp)) {
-        // 滑块画在 tab 底下，自己不吃点击
+        // 水滴画在 tab 底下，自己不吃点击。整块铺满栏宽，位置和形状都在 Shape 里算，
+        // 所以它不再被"一格宽"框住 —— 拖出去就是带脖子的连体，追上才并回一颗圆。
         Box(
             modifier = Modifier
-                .align(Alignment.CenterStart)
-                // 这里不能用 Modifier.offset { IntOffset(...) }：那个 lambda 只在重新测量的时候取值，
-                // 滑块的尺寸又不随选中项变，Compose 就不重测，读到的永远是上一帧的位置 ——
-                // 真机上表现成"滑块慢一格"（点公告它停在消息那格）。
-                // graphicsLayer 的 translationX 在绘制阶段每帧都读，跟着动画走，不会滞后。
-                // 位置/挤压全交给阻尼动画：translationX 每帧读，scaleX 和 scaleY 是两根不同
-                // 阻尼的弹簧，所以按住时它是"被捏一下"地长，不是等比缩放。
-                .graphicsLayer {
-                    translationX = pillLeft
-                    scaleX = pillScaleX
-                    scaleY = pillScaleY
-                }
-                .size(width = pillWidthDp, height = pillHeightDp)
+                .matchParentSize()
                 .clip(pillShape)
                 .then(
                     when (material) {
@@ -376,9 +385,9 @@ fun LxBottomBar(
                                 noiseFactor = 0.10f
                                 backgroundColor = parchment.copy(alpha = 0.34f)
                             }
-                            .background(pillRestTint)
+                            .background(pillRestTint, pillShape)
                         BarMaterial.SOLID -> Modifier.background(
-                            selectedColor.copy(alpha = 0.15f),
+                            selectedColor.copy(alpha = 0.15f), pillShape,
                         )
                     },
                 ),
