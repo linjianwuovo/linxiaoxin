@@ -43,6 +43,17 @@ data class CheckinUiState(
     /** 离校/返校登记，用来回答"这天我到底算什么事" —— 6 号那种就是离校，不是查寝任务 */
     val leaves: List<HolidayHistory> = emptyList(),
     val leavesError: String? = null,
+    /** 点中那天的历史查寝（collectionStudentPage）；待办端点不返回历史，只能单独拉 */
+    val historyTasks: List<CheckinTask> = emptyList(),
+    val historyError: String? = null,
+    /** 历史主题签到（app/signin/queryPage），和查寝历史并列两路 */
+    val subjectHistory: List<CheckinTask> = emptyList(),
+    val subjectHistoryError: String? = null,
+    /** 这批历史是为哪天拉的，用来判断"还在翻"还是"真没有" */
+    val historyLoadedFor: String? = null,
+    val isLoadingHistory: Boolean = false,
+    val historyPage: Int = 1,
+    val historyHasMore: Boolean = true,
 ) {
     val isPreparing: Boolean
         get() = isLoading || !secondaryReady
@@ -53,12 +64,25 @@ data class CheckinUiState(
             statics == null && days.isEmpty() &&
             error == null && subjectError == null && summaryError == null
 
-    /** 点中某天后，两路任务都只留那天的；没点就是原样 */
+    /**
+     * 没点日子：显示待办两路。点中某天：待办里那天的 + 那天的历史，按 taskDateId 去重
+     * （当天没签完的任务两边都会出现）。
+     */
     val visibleTasks: List<CheckinTask>
-        get() = filterBySelected(tasks)
+        get() {
+            val date = selectedDate ?: return tasks
+            return (filterBySelected(tasks) + historyTasks).distinctBy { it.taskDateId }
+        }
 
     val visibleSubjectTasks: List<CheckinTask>
-        get() = filterBySelected(subjectTasks)
+        get() {
+            val date = selectedDate ?: return subjectTasks
+            return (filterBySelected(subjectTasks) + subjectHistory).distinctBy { it.taskDateId }
+        }
+
+    /** 这天到底还有没有得翻：点了日子就走历史翻页，没点才翻待办 */
+    val canLoadMore: Boolean
+        get() = if (selectedDate != null) historyHasMore else hasMore
 
     /** 这天落在哪些离校区间里（离校日 <= 当天 < 返校日） */
     val visibleLeaves: List<HolidayHistory>
@@ -67,12 +91,10 @@ data class CheckinUiState(
             return leaves.filter { it.covers(day) }
         }
 
-    /** 已加载的页里是否已经有这一天的内容（任务两路 + 离校区间都算，免得白翻页） */
+    /** 这天到底有没有东西：历史两路 + 当天待办 + 离校区间，任一有就不算空 */
     val hasSelectedDay: Boolean
         get() = selectedDate != null &&
-            (tasks.any { it.taskDate == selectedDate } ||
-                subjectTasks.any { it.taskDate == selectedDate } ||
-                visibleLeaves.isNotEmpty())
+            (visibleTasks.isNotEmpty() || visibleSubjectTasks.isNotEmpty() || visibleLeaves.isNotEmpty())
 
     private fun filterBySelected(list: List<CheckinTask>): List<CheckinTask> {
         val date = selectedDate ?: return list
@@ -213,15 +235,17 @@ class CheckinViewModel @Inject constructor(
         /** pageStudentSignIn 每页 10 条，和 loadInitial 里的判据一致 */
         const val PAGE_SIZE = 10
 
-        /** 点日历找某天时最多往后翻 8 页（80 条），翻不到就告诉用户没查到 */
-        const val DAY_SEARCH_PAGE_CAP = 8
+        /** 历史两路每页 20 条，跟官方 H5 的历史 tab 一致 */
+        const val HISTORY_PAGE_SIZE = 20
     }
 
     fun loadMore() {
-        viewModelScope.launch { fetchNextPage() }
+        viewModelScope.launch {
+            if (_uiState.value.selectedDate != null) fetchNextHistoryPage() else fetchNextPage()
+        }
     }
 
-    /** 往后翻一页；返回是否真的翻到了新数据。滚动加载和"找某天"共用，避免两套翻页状态打架 */
+    /** 往后翻一页待办；返回是否真的翻到了新数据 */
     private suspend fun fetchNextPage(): Boolean {
         val state = _uiState.value
         if (state.isLoading || state.isLoadingMore || !state.hasMore) return false
@@ -246,24 +270,89 @@ class CheckinViewModel @Inject constructor(
     }
 
     /**
-     * 点月历上的某天：立刻按 taskDate 筛已加载的任务，
-     * 那天还没翻到就继续往后翻页找（安小信的日历点日期能看当天，我们原来只有红点）。
+     * 点月历上的某天：待办端点（pageStudentSignIn）只给当天，历史得按天单独拉，
+     * 所以这里改走 collectionStudentPage + signin/queryPage 两路，串行打
+     * （理由同 loadSecondary：fdygl 每条响应都 Connection: close，并发容易整路挂掉）。
      */
     fun selectDate(date: String?) {
         findDayJob?.cancel()
-        _uiState.update { it.copy(selectedDate = date) }
+        _uiState.update {
+            it.copy(
+                selectedDate = date,
+                historyTasks = emptyList(),
+                subjectHistory = emptyList(),
+                historyError = null,
+                subjectHistoryError = null,
+                historyLoadedFor = null,
+                historyPage = 1,
+                historyHasMore = true,
+                isLoadingHistory = date != null,
+            )
+        }
         if (date == null) return
-        findDayJob = viewModelScope.launch {
-            var pages = 0
-            while (_uiState.value.selectedDate == date && !_uiState.value.hasSelectedDay) {
-                if (pages >= DAY_SEARCH_PAGE_CAP) break
-                if (!fetchNextPage()) break
-                pages++
-            }
+        findDayJob = viewModelScope.launch { loadHistoryFor(date) }
+    }
+
+    private suspend fun loadHistoryFor(date: String) {
+        _uiState.update { it.copy(isLoadingHistory = true, historyError = null, subjectHistoryError = null) }
+        val dorm = withNetworkRetry { repository.getHistoryTasks(date) }
+        _uiState.update {
+            it.copy(
+                historyTasks = dorm.getOrNull().orEmpty(),
+                historyError = dorm.exceptionOrNull()?.message,
+            )
+        }
+        val subject = withNetworkRetry { repository.getSubjectHistoryTasks(date) }
+        _uiState.update {
+            it.copy(
+                subjectHistory = subject.getOrNull().orEmpty(),
+                subjectHistoryError = subject.exceptionOrNull()?.message,
+                historyLoadedFor = date,
+                isLoadingHistory = false,
+                historyHasMore = (dorm.getOrNull()?.size ?: 0) >= HISTORY_PAGE_SIZE ||
+                    (subject.getOrNull()?.size ?: 0) >= HISTORY_PAGE_SIZE,
+            )
+        }
+    }
+
+    /** 翻了这天第一页还不够就接着翻：两路一起往后走，页码共用一个 */
+    private suspend fun fetchNextHistoryPage() {
+        val state = _uiState.value
+        val date = state.selectedDate ?: return
+        if (state.isLoadingHistory || !state.historyHasMore) return
+
+        _uiState.update { it.copy(isLoadingHistory = true) }
+        val nextPage = state.historyPage + 1
+        val dorm = withNetworkRetry { repository.getHistoryTasks(date, nextPage) }
+        val subject = withNetworkRetry { repository.getSubjectHistoryTasks(date, nextPage) }
+        if (dorm.isFailure && subject.isFailure) {
+            // 两路都失败才停，且只停这一次，用户再滚还能试
+            _uiState.update { it.copy(isLoadingHistory = false) }
+            return
+        }
+        val dormList = dorm.getOrNull().orEmpty()
+        val subjectList = subject.getOrNull().orEmpty()
+        _uiState.update {
+            it.copy(
+                historyTasks = it.historyTasks + dormList,
+                subjectHistory = it.subjectHistory + subjectList,
+                historyError = dorm.exceptionOrNull()?.message ?: it.historyError,
+                subjectHistoryError = subject.exceptionOrNull()?.message ?: it.subjectHistoryError,
+                historyPage = nextPage,
+                historyHasMore = dormList.size >= HISTORY_PAGE_SIZE || subjectList.size >= HISTORY_PAGE_SIZE,
+                isLoadingHistory = false,
+            )
         }
     }
 
     fun clearDateFilter() = selectDate(null)
+
+    /** 历史两路的重试：只重拉选中的这天，不把整页（含月历、统计）重来 */
+    fun retryHistory() {
+        val date = _uiState.value.selectedDate ?: return
+        findDayJob?.cancel()
+        findDayJob = viewModelScope.launch { loadHistoryFor(date) }
+    }
 
     fun retry() {
         loadInitial()

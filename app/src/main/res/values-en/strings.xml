@@ -461,7 +461,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="news_no_match">Nothing matches “%1$s”</string>
     <string name="checkin_day_tasks">Tasks on %1$d/%2$d</string>
     <string name="checkin_show_all">Show all</string>
-    <string name="checkin_finding_day">Paging back to find this day…</string>
+    <string name="checkin_finding_day">Loading this day\'s history…</string>
     <string name="checkin_day_none">No dorm check-in this day</string>
     <string name="checkin_section_leave">Off-campus registration</string>
     <string name="checkin_day_leave">Off campus · %1$s</string>
