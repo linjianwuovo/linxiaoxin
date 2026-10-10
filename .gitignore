@@ -38,3 +38,8 @@ frida-server*
 /s*.png
 /logcat*.txt
 *.pb
+
+# release 签名：口令文件和密钥库本体都不许进仓（keystore 在仓外的 ../signing/）
+keystore.properties
+*.keystore
+*.jks
