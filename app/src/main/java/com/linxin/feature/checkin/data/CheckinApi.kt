@@ -18,6 +18,25 @@ interface CheckinApi {
         @Body body: Map<String, @JvmSuppressWildcards Any>,
     ): SignInPageResponse
 
+    /**
+     * 历史查寝任务。官方 H5（fdygl/swp-app 的 /studentEvent/bedCheck）里「历史查寝任务」
+     * 那个 tab 走的就是这个端点：type=2 + 单日 startTime，pageSize 20。
+     * pageStudentSignIn 只管当天待办，历史那批它根本不返回 —— 10/8 看不见就是这么来的。
+     */
+    @POST("app/dorm/collectionStudentPage")
+    suspend fun collectionStudentPage(
+        @Body body: Map<String, @JvmSuppressWildcards Any>,
+    ): SignInPageResponse
+
+    /**
+     * 历史主题签到（晚点名那套）。官方 /studentEvent/signIn/history 用
+     * app/signin/queryPage，带 releaseStatus=2 + 日期区间。
+     */
+    @POST("app/signin/queryPage")
+    suspend fun subjectHistoryPage(
+        @Body body: Map<String, @JvmSuppressWildcards Any>,
+    ): SignInPageResponse
+
     /** 获取任务详情 */
     @POST("app/dorm/getTaskInfoByDateId")
     suspend fun getTaskInfoByDateId(
