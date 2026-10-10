@@ -19,7 +19,9 @@
  * - 栏体那层玻璃吃设置页的四根滑杆（模糊度/折射度/扭曲度/色散），上游是写死的
  *   vibrancy + blur(8dp) + lens(24dp, 24dp)；
  * - 多了 SOLID / FROSTED 两种非玻璃材质分支；
- * - 换页时机：上游是"球先弹到位、再换页"，我们保持"抬手就换页"（他验收过的手感）。
+ * - 换页时机：上游是"球先弹到位、再换页"，我们保持"抬手就换页"（他验收过的手感）；
+ * - 上游那份 alpha=0 的隐形标签副本我们删掉了，水球只采页面 backdrop（原因见 [LxBottomBar]
+ *   的注释：会在球里再画一份标签，和外面那份错开成重影）。
  */
 package com.linxin.feature.home.ui
 
@@ -59,7 +61,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
@@ -67,7 +68,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -76,9 +76,6 @@ import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
@@ -145,15 +142,19 @@ private object LxGlass {
 }
 
 /**
- * 首页底栏。三层兄弟节点，写下来的顺序就是层级：
- * ① 栏体 Row（可见标签 + 玻璃底板）→ ② 隐形标签副本（alpha=0，专门录进 tabsBackdrop
- * 给水球当采样源）→ ③ 水球（采"页面 + 那排标签"合成的 backdrop）。
+ * 首页底栏。三个兄弟节点，写下来的顺序就是层级：
+ * ① 栏体玻璃底板（只有底板）→ ② 水球 → ③ 那一排标签（画在最上面，永远清晰）。
  *
- * 两条是踩过才知道的：
+ * 上游是两层（栏体 Row 里玻璃和标签在一起，球画在最后），我们不能照搬，原因写在第 ① 层
+ * 那段注释里：球会把一块不透明的页面画在标签上面，字会被盖没。
+ *
+ * 三条是踩过才知道的：
  * 1. 缩放只能写在 [drawBackdrop] 的 `layerBlock` 里，不能自己套 `graphicsLayer { scaleX }`。
  *    库在采样背景时会对 layerBlock 做一次逆仿射（LayerBackdrop 的 inverseTransform），
  *    于是玻璃变大而背景比例不变；写在外层就没有那次逆运算，球里全是放大的字 —— 放大镜。
  * 2. 水球必须是栏体的兄弟节点，否则被栏体那层 clip 剪住，鼓不出栏外。
+ * 3. 上游那份 alpha=0 的隐形标签副本不能要：它让球里再出现一份标签，和上面那份错开几十
+ *    像素成重影（逆仿射的锚点在这层的左上角，不是中心）。
  */
 @Composable
 fun LxBottomBar(
@@ -192,9 +193,8 @@ fun LxBottomBar(
     val density = LocalDensity.current
     val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
 
-    // 采样源：页面内容（外层录的 backdrop）+ 这排标签（tabsBackdrop）合成一份给水球
-    val tabsBackdrop = rememberLayerBackdrop()
-    val combinedBackdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop)
+    // 采样源就是页面那一层（外层 HomeScaffold 录的 backdrop）。
+    // 上游还合了一份"隐形标签副本"进来，我们不能要，原因写在水球那段注释里。
 
     BoxWithConstraints(
         modifier = modifier
@@ -227,7 +227,10 @@ fun LxBottomBar(
 
         fun indexAt(x: Float): Int {
             if (tabWidth <= 0f) return currentIndex
-            return ((x - padPx) / tabWidth).fastRoundToInt().fastCoerceIn(0, tabsCount - 1)
+            // 必须是 floor，不能是 roundToInt：一格的范围是 [padPx + i·tabWidth, +tabWidth)，
+            // round 会把格心右侧的每一个点都算到下一格去 —— 首页格中心 (196-12)/264 = 0.697，
+            // round 完就是第 1 格，表现成"按住首页水球往右飘"（他 2026-10-10 深夜报的）。
+            return ((x - padPx) / tabWidth).toInt().fastCoerceIn(0, tabsCount - 1)
         }
 
         // 阻尼拖拽引擎（Miuix 官方示例的 Apache-2.0 副本）：value 是"第几格"的连续浮点，
@@ -285,17 +288,17 @@ fun LxBottomBar(
         // pressProgress 每帧都在变，包成 lambda 传下去，别引起整排格 recompose
         val press = { drag.pressProgress }
 
-        // ──  栏体：可见的那一排标签 + 玻璃底板 ──
+        // ── ① 栏体玻璃底板（只有底板，标签不在这里，见下面第 ③ 层）──
+        // 为什么把玻璃和标签拆成两层：水球采的是页面那层 backdrop，它会连着一块**不透明的
+        // 页面像素**画出来。球画在标签上面的时候（上游就是这个顺序）会把"消息"那格整个盖没
+        // —— 米11 上实测到的。上游不会丢字是因为它另外录了一份隐形标签副本再画回玻璃里，
+        // 而那份副本和上面清晰的标签错开就是重影。拆成 底板 → 球 → 标签 三层，两个毛病都没有。
+        //
         // drawBackdrop 排在 height/fillMaxWidth 之前：玻璃层是 64dp，内容区被最后那个
         // padding(4dp) 收成 56dp，按压缩放时才有 4dp 余量、不会被自己剪到。
-        Row(
+        Box(
             modifier = Modifier
                 .graphicsLayer { translationX = panelOffset }
-                // 手势挂在整条栏上，不挂在球上。上游是挂在 pill 上的，那样只有"按在球上"
-                // 才有反馈；他要的是"手按在哪滑块跟着去哪"（原话），所以整条栏收事件。
-                // 这个 pointerInput 走 PointerEventPass.Initial 且不消费，所以每格自己的
-                // clickable 照旧管点按。
-                .then(drag.modifier)
                 .then(
                     when (material) {
                         BarMaterial.LIQUID -> Modifier.drawBackdrop(
@@ -322,71 +325,18 @@ fun LxBottomBar(
                     },
                 )
                 .height(64f.dp)
-                .fillMaxWidth()
-                .padding(4f.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            tabs.forEachIndexed { index, tab ->
-                LxTabCell(
-                    tab = tab,
-                    active = index == selectedIndex,
-                    scale = { if (index == currentIndex) lerp(1f, 1.2f, press()) else 1f },
-                    selectedColor = selectedColor,
-                    clickable = true,
-                    onClick = { onSelected(index) },
-                )
-            }
-        }
+                .fillMaxWidth(),
+        )
 
-        // ── ② 隐形标签副本：alpha=0，只为把"这一排标签"录进 tabsBackdrop 给水球采 ──
-        // 没有它，球里能折到的只有页面背景，图标和文字不会被"盖"进玻璃里。
-        // 它自己也铺一层和栏体同参数的玻璃：球采的是"页面 + 这一整层"。
-        Row(
-            modifier = Modifier
-                .clearAndSetSemantics { }
-                .alpha(0f)
-                .layerBackdrop(tabsBackdrop)
-                .graphicsLayer { translationX = panelOffset }
-                .then(
-                    when (material) {
-                        BarMaterial.LIQUID -> Modifier.drawBackdrop(
-                            backdrop = backdrop,
-                            shape = { Capsule() },
-                            effects = {
-                                val p = press()
-                                vibrancy()
-                                blur(blurDp.dp.toPx())
-                                lens(lensHeightDp.dp.toPx() * p, lensAmountDp.dp.toPx() * p)
-                            },
-                            highlight = { Highlight.Default.copy(alpha = press()) },
-                            onDrawSurface = { drawRect(containerColor) },
-                        )
-                        BarMaterial.FROSTED -> Modifier.lxFrost(hazeState, frostBlurDp, frostTint)
-                        BarMaterial.SOLID -> Modifier.background(LxParchment, Capsule())
-                    },
-                )
-                .height(LxGlass.PillHeightDp.dp)
-                .fillMaxWidth()
-                .padding(horizontal = 4f.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            tabs.forEachIndexed { index, tab ->
-                LxTabCell(
-                    tab = tab,
-                    active = index == selectedIndex,
-                    scale = { if (index == currentIndex) lerp(1f, 1.2f, press()) else 1f },
-                    selectedColor = selectedColor,
-                    clickable = false,
-                    onClick = {},
-                )
-            }
-        }
-
-        // ── ③ 水球 ──
+        // ── ② 水球 ──
         // 位移走 graphicsLayer（绘制阶段每帧读，不会慢一格），形变走 layerBlock（会被逆仿射，
         // 背景不跟着放大）。形状是 Capsule 不是 CircleShape：一格宽、56dp 高、两端半圆，
         // 这才是酷安/SukiSU 那颗；CircleShape 在非正方形上会画成扁椭圆。
         // 阴影/内阴影/高光都是 drawBackdrop 的参数，库自己 clip，不用再加 .clip/.shadow。
+        //
+        // 采样源只用页面 backdrop，不用上游那份 combined(页面 + 隐形标签副本)：上游只在玻璃里
+        // 画一份字，我们按他的要求还要在泡上面压一份清晰的，两层就会重影 —— layerBlock 的逆仿射
+        // 锚点在这层的左上角而不是中心，放大 1.39 倍后采到的标签会和上面的错开几十像素。
         Box(
             modifier = Modifier
                 .padding(horizontal = 4f.dp)
@@ -398,7 +348,7 @@ fun LxBottomBar(
                 .then(
                     when (material) {
                         BarMaterial.LIQUID -> Modifier.drawBackdrop(
-                            backdrop = combinedBackdrop,
+                            backdrop = backdrop,
                             shape = { Capsule() },
                             effects = {
                                 // 上游：球只有 lens，不 blur、不 vibrancy。静止时 p=0
@@ -448,6 +398,32 @@ fun LxBottomBar(
                 .height(LxGlass.PillHeightDp.dp)
                 .fillMaxWidth(1f / tabsCount),
         )
+
+        // ──  标签层：画在最上面，永远清晰 ──
+        // 手势挂在这一层而不是球上。上游是把 pointerInput 挂在 pill 上的，那样只有"按在球上"
+        // 才有反馈；他要的是"手按在哪滑块跟着去哪"（原话），所以整条栏收事件。
+        // 这个 pointerInput 走 PointerEventPass.Initial 且不消费，所以每格自己的 clickable
+        // 照旧管点按。几何和第 ① 层逐字一致（64dp 高 + 4dp 内缩），两层才对得齐。
+        Row(
+            modifier = Modifier
+                .graphicsLayer { translationX = panelOffset }
+                .then(drag.modifier)
+                .height(64f.dp)
+                .fillMaxWidth()
+                .padding(4f.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            tabs.forEachIndexed { index, tab ->
+                LxTabCell(
+                    tab = tab,
+                    active = index == selectedIndex,
+                    scale = { if (index == currentIndex) lerp(1f, 1.2f, press()) else 1f },
+                    selectedColor = selectedColor,
+                    clickable = true,
+                    onClick = { onSelected(index) },
+                )
+            }
+        }
     }
 }
 
@@ -460,9 +436,8 @@ private fun Modifier.lxFrost(hazeState: HazeState, frostBlurDp: Float, tint: Col
     }
 
 /**
- * 底栏一格：图标 + 文字。抽出来是因为水球要采样一份一模一样的隐形副本
- * （见 [LxBottomBar] 里那层 `alpha(0f)` 的 Row），不能再抄一遍代码。
- * [scale] 收 lambda 而不是 Float：pressProgress 每帧都变，传裸值会让整排格 recompose。
+ * 底栏一格：图标 + 文字。[scale] 收 lambda 而不是 Float：pressProgress 每帧都在变，
+ * 传裸值会让整排格跟着 recompose。
  */
 @Composable
 private fun RowScope.LxTabCell(
