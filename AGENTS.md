@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-This repository is a single-module Android app named 林小信 (applicationId `com.linxin`). Main code lives in `app/src/main/java/com/linxin`, with shared infrastructure under `core/`, navigation in `navigation/`, and product features under `feature/<feature>/data|domain|ui` (for example `feature/login/ui/LoginScreen.kt`). Resources are in `app/src/main/res`. Historical tests still sit under `app/src/test/java/com/lightxin/` (upstream package name) — keep new tests in sync with the package they exercise. The planning notes, reverse-engineering writeups (`codestable/`, `docs/`), UI mockups (`prototype/`) and captures (`HAR/`, `captures/`) are deliberately gitignored and **not in this repo**; never add anything like a HAR, a token, or a real-device screenshot to the public tree.
+This repository is a single-module Android app named 安大信 (applicationId `com.linxin`). Main code lives in `app/src/main/java/com/linxin`, with shared infrastructure under `core/`, navigation in `navigation/`, and product features under `feature/<feature>/data|domain|ui` (for example `feature/login/ui/LoginScreen.kt`). Resources are in `app/src/main/res`. Historical tests still sit under `app/src/test/java/com/lightxin/` (upstream package name) — keep new tests in sync with the package they exercise. The planning notes, reverse-engineering writeups (`codestable/`, `docs/`), UI mockups (`prototype/`) and captures (`HAR/`, `captures/`) are deliberately gitignored and **not in this repo**; never add anything like a HAR, a token, or a real-device screenshot to the public tree.
 
 ## Build, Test, and Development Commands
 Use the Gradle wrapper from the repo root:
