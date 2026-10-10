@@ -124,6 +124,16 @@ private object LxGlass {
     const val SurfaceAlphaDark = 0.16f
     /** 滑块按住时整体放大到多少倍（高、宽、圆角同一个系数），抬手回到 1.0 */
     const val PressScale = 1.18f
+    /**
+     * 水球里那层"被折进来的 tab 文字"有多浓。隐形副本录进 backdrop 时按这个不透明度录，
+     * 1.0 = 和屏幕上的字一样实（残影重到能读笔画），0.35 ≈ 只剩一层灰。折射本身不受影响。
+     */
+    const val GhostAlpha = 0.35f
+    /**
+     * 按住那颗泡的不透明度。酷安那张实测内部亮度范围 246..252（基本全不透明），
+     * 这里留 3% 给边缘那圈折射，免得变成一块纯贴纸。
+     */
+    const val PressOpacity = 0.97f
     val HighlightWidth = 0.75.dp
     const val HighlightAngle = 60f
     const val HighlightFalloff = 1.2f
@@ -323,11 +333,13 @@ fun LxBottomBar(
         (drag.value * cellPx + panelOffset)
             .coerceIn(0f, (barWidthPx.toFloat() - cellPx).coerceAtLeast(0f))
         )
-    // 静止时它就是一块 10% 的平色（浅色用黑、深色用白），按住把平色淡出、换成折射和高光
+    // 静止时它就是一块 10% 的平色（浅色用黑、深色用白），按住把平色淡出、换成折射和高光。
+    // 这一层刻意不动：他抱怨的残影只在按住那一态出现，静止那颗 beta31 的样子他没说改。
     val pillRestTint = if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.07f)
-    // 按住时它不是"更透明的玻璃"，而是一颗几乎不透明的浮起白泡（深色下是深灰），
-    // 酷安那张截图里数码那颗就是实心白的
-    val pillPressTint = if (isDark) Color(0xFF26262A).copy(alpha = 0.94f) else Color.White.copy(alpha = 0.94f)
+    // 按住那颗 = 酷安那张实测 #FCFCFC（那颗泡内部亮度范围只有 246..252，等于不透明，
+    // 字全在泡上面、泡里面读不出内容）。以前这里是 0.94 的白，剩下 6% 会把页面标题的
+    // 笔画透出来，就是他说"那个残影太明显了，调淡一点"要压掉的东西。
+    val pillPressTint = if (isDark) Color(0xFF26262A) else Color(0xFFFCFCFC)
     // 水球的采样源 = 页面背景 + 一层看不见的标签副本。少了后半截，玻璃里只会折到页面，
     // 图标和文字不会被"盖"进水滴里（SukiSU 那份就是这么叠的）
     val tabsBackdrop = rememberLayerBackdrop()
@@ -388,10 +400,10 @@ fun LxBottomBar(
                               )
                           },
                           onDrawSurface = {
-                              // 静止是很淡的一块平色；按住淡色退掉、几乎不透明的白泡浮上来，
-                              // 边缘那圈折射留着，才有玻璃边而不是贴纸
+                              // 平色是最后一层，压在折射上面。按住那层从 0.94 收到 PressOpacity，
+                              // 页面标题的笔画就漏不出来了；边缘的折射和高光仍然照 pressProgress 长。
                               drawRect(pillRestTint, alpha = 1f - press)
-                              drawRect(pillPressTint, alpha = press)
+                              drawRect(pillPressTint, alpha = press * LxGlass.PressOpacity)
                           },
                       )
                       BarMaterial.FROSTED -> Modifier
@@ -436,12 +448,16 @@ fun LxBottomBar(
 
         // 一层看不见的标签副本，专门录进 tabsBackdrop 给水球当采样源。
         // 没有它，水球能折射到的只有页面背景，文字不会被"盖"进玻璃里 —— 他要的就是这个。
+        // 注意 alpha 的写法：外层那个 alpha(0f) 只负责让这一排在屏幕上不可见，
+        // 里面这层 graphicsLayer 才是"录进 backdrop 的字有多浓"。水球里那层字的残影太明显
+        // （2026-10-10 他的原话），所以采样进去的这一层只给 GhostAlpha，折射本身不动。
         Row(
             modifier = Modifier
                 .matchParentSize()
                 .alpha(0f)
                 .clearAndSetSemantics { }
-                .layerBackdrop(tabsBackdrop),
+                .layerBackdrop(tabsBackdrop)
+                .graphicsLayer { alpha = LxGlass.GhostAlpha },
             verticalAlignment = Alignment.CenterVertically,
         ) {
             tabs.forEachIndexed { index, tab ->
