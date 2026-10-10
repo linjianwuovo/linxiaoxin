@@ -51,8 +51,11 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // 混淆和资源压缩都关着：这不是用户要的东西，而且它会让 release 包和
+            // 他每天在跑的 40 个 debug beta 行为不一致（Gson 靠反射，规则一改就可能偏）。
+            // release 与 debug 的差别只留一个：签名钥匙。
+            isMinifyEnabled = false
+            isShrinkResources = false
             ndk {
                 abiFilters += "arm64-v8a"
             }
