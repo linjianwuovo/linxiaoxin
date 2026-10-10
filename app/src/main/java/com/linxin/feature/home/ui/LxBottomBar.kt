@@ -378,6 +378,12 @@ fun LxBottomBar(
                           shape = { pillShape },
                           effects = {
                               vibrancy()
+                              // 液态玻璃，不是放大镜。这颗泡被 graphicsLayer 放大到 90dp，
+                              // 采样进来的内容跟着放大 1.6 倍，笔画又没被平色压住，看着就是凸透镜
+                              // （他原话"你是放大镜还是液态玻璃"）。所以泡里必须先糊一层：
+                              // 静止就吃设置页那根"模糊度"（和栏体同源，0.7 倍），按住再加深 8dp。
+                              // 只能透光、不能透字，折射和高光照旧。
+                              blur(((blurDp * 0.7f) + 8f * press).dp.toPx())
                               // SukiSU 的水球不带模糊，只有按住才出现的折射：
                               // lens(10dp·p, 14dp·p, depthEffect = true, chromaticAberration = 0.5)。
                               // 我们那份 AGSL 会拿 refractionHeight 做除数，所以留 0.001dp 的地板。
