@@ -76,6 +76,9 @@ import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.lens
@@ -143,18 +146,18 @@ private object LxGlass {
 
 /**
  * 首页底栏。三个兄弟节点，写下来的顺序就是层级：
- * ① 栏体玻璃底板（只有底板）→ ② 水球 → ③ 那一排标签（画在最上面，永远清晰）。
- *
- * 上游是两层（栏体 Row 里玻璃和标签在一起，球画在最后），我们不能照搬，原因写在第 ① 层
- * 那段注释里：球会把一块不透明的页面画在标签上面，字会被盖没。
+ * ① 栏体玻璃底板（只放底板，不放标签）→ ② 标签 Row → ③ 水球（画在最上面）。
+ * 球在最后是他要的："几个 tab 页的图标也要被水滴作用折射，我要水滴图层在最上面"。
+ * 标签层用 layerBackdrop 把自己录给水球，所以图标和文字会连页面一起被折进玻璃里；
+ * 只需要一份标签，不用上游那份 alpha=0 的隐形副本（抄一份出来就是两份，错开就是重影）。
+ * 玻璃和标签拆成两层，是因为球自己那层玻璃会盖住底板。
  *
  * 三条是踩过才知道的：
  * 1. 缩放只能写在 [drawBackdrop] 的 `layerBlock` 里，不能自己套 `graphicsLayer { scaleX }`。
  *    库在采样背景时会对 layerBlock 做一次逆仿射（LayerBackdrop 的 inverseTransform），
  *    于是玻璃变大而背景比例不变；写在外层就没有那次逆运算，球里全是放大的字 —— 放大镜。
  * 2. 水球必须是栏体的兄弟节点，否则被栏体那层 clip 剪住，鼓不出栏外。
- * 3. 上游那份 alpha=0 的隐形标签副本不能要：它让球里再出现一份标签，和上面那份错开几十
- *    像素成重影（逆仿射的锚点在这层的左上角，不是中心）。
+ * 3. 判"手指按在哪一格"用 floor，不是 roundToInt（round 会把格心右侧全算到下一格去）。
  */
 @Composable
 fun LxBottomBar(
@@ -193,8 +196,11 @@ fun LxBottomBar(
     val density = LocalDensity.current
     val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
 
-    // 采样源就是页面那一层（外层 HomeScaffold 录的 backdrop）。
-    // 上游还合了一份"隐形标签副本"进来，我们不能要，原因写在水球那段注释里。
+    // 水球要连图标和文字一起折：标签那一层自己录进 labelsBackdrop，球采的是"页面 + 标签"。
+    // 上游是再画一份 alpha=0 的隐形副本来录，我们不用 —— 标签已经单独成层，直接录它，
+    // 也就没有两份标签错开成重影的可能。
+    val labelsBackdrop = rememberLayerBackdrop()
+    val pillBackdrop = rememberCombinedBackdrop(backdrop, labelsBackdrop)
 
     BoxWithConstraints(
         modifier = modifier
@@ -288,11 +294,10 @@ fun LxBottomBar(
         // pressProgress 每帧都在变，包成 lambda 传下去，别引起整排格 recompose
         val press = { drag.pressProgress }
 
-        // ── ① 栏体玻璃底板（只有底板，标签不在这里，见下面第 ③ 层）──
-        // 为什么把玻璃和标签拆成两层：水球采的是页面那层 backdrop，它会连着一块**不透明的
-        // 页面像素**画出来。球画在标签上面的时候（上游就是这个顺序）会把"消息"那格整个盖没
-        // —— 米11 上实测到的。上游不会丢字是因为它另外录了一份隐形标签副本再画回玻璃里，
-        // 而那份副本和上面清晰的标签错开就是重影。拆成 底板 → 球 → 标签 三层，两个毛病都没有。
+        // ── ① 栏体玻璃底板（只有底板，标签在第 ② 层）──
+        // 为什么不和标签放在一起：水球画在最上面，会把自己采到的"页面 + 标签"重画一遍盖上来，
+        // 图标和文字就是在这一步被折射带弯到的（他要的）。底板和标签分开，标签层才好整层
+        // 录给水球，不用像上游那样再抄一份 alpha=0 的隐形副本 —— 抄出来就是两份，错开就重影。
         //
         // drawBackdrop 排在 height/fillMaxWidth 之前：玻璃层是 64dp，内容区被最后那个
         // padding(4dp) 收成 56dp，按压缩放时才有 4dp 余量、不会被自己剪到。
@@ -328,15 +333,41 @@ fun LxBottomBar(
                 .fillMaxWidth(),
         )
 
-        // ── ② 水球 ──
+        // ──  标签层 ──
+        // 手势挂在这一层而不是球上。上游是把 pointerInput 挂在 pill 上的，那样只有"按在球上"
+        // 才有反馈；他要的是"手按在哪滑块跟着去哪"（原话），所以整条栏收事件。
+        // 这个 pointerInput 走 PointerEventPass.Initial 且不消费，所以每格自己的 clickable
+        // 照旧管点按。几何和第 ① 层一致（64dp 高 + 4dp 内缩），两层才对得齐。
+        //
+        // layerBackdrop 把这一层自己录进去给水球采样：水球画在它上面，图标和文字才会被折射。
+        // 这就是上游那份"隐形副本"的作用，但我们不用抄一份 —— 标签已经单独成层了，直接录它。
+        Row(
+            modifier = Modifier
+                .graphicsLayer { translationX = panelOffset }
+                .then(drag.modifier)
+                .layerBackdrop(labelsBackdrop)
+                .height(64f.dp)
+                .fillMaxWidth()
+                .padding(4f.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            tabs.forEachIndexed { index, tab ->
+                LxTabCell(
+                    tab = tab,
+                    active = index == selectedIndex,
+                    scale = { if (index == currentIndex) lerp(1f, 1.2f, press()) else 1f },
+                    selectedColor = selectedColor,
+                    clickable = true,
+                    onClick = { onSelected(index) },
+                )
+            }
+        }
+
+        // ──  水球：画在最上面，把标签一起折进玻璃里 ──
         // 位移走 graphicsLayer（绘制阶段每帧读，不会慢一格），形变走 layerBlock（会被逆仿射，
         // 背景不跟着放大）。形状是 Capsule 不是 CircleShape：一格宽、56dp 高、两端半圆，
         // 这才是酷安/SukiSU 那颗；CircleShape 在非正方形上会画成扁椭圆。
         // 阴影/内阴影/高光都是 drawBackdrop 的参数，库自己 clip，不用再加 .clip/.shadow。
-        //
-        // 采样源只用页面 backdrop，不用上游那份 combined(页面 + 隐形标签副本)：上游只在玻璃里
-        // 画一份字，我们按他的要求还要在泡上面压一份清晰的，两层就会重影 —— layerBlock 的逆仿射
-        // 锚点在这层的左上角而不是中心，放大 1.39 倍后采到的标签会和上面的错开几十像素。
         Box(
             modifier = Modifier
                 .padding(horizontal = 4f.dp)
@@ -348,7 +379,7 @@ fun LxBottomBar(
                 .then(
                     when (material) {
                         BarMaterial.LIQUID -> Modifier.drawBackdrop(
-                            backdrop = backdrop,
+                            backdrop = pillBackdrop,
                             shape = { Capsule() },
                             effects = {
                                 // 上游：球只有 lens，不 blur、不 vibrancy。静止时 p=0
@@ -398,32 +429,6 @@ fun LxBottomBar(
                 .height(LxGlass.PillHeightDp.dp)
                 .fillMaxWidth(1f / tabsCount),
         )
-
-        // ──  标签层：画在最上面，永远清晰 ──
-        // 手势挂在这一层而不是球上。上游是把 pointerInput 挂在 pill 上的，那样只有"按在球上"
-        // 才有反馈；他要的是"手按在哪滑块跟着去哪"（原话），所以整条栏收事件。
-        // 这个 pointerInput 走 PointerEventPass.Initial 且不消费，所以每格自己的 clickable
-        // 照旧管点按。几何和第 ① 层逐字一致（64dp 高 + 4dp 内缩），两层才对得齐。
-        Row(
-            modifier = Modifier
-                .graphicsLayer { translationX = panelOffset }
-                .then(drag.modifier)
-                .height(64f.dp)
-                .fillMaxWidth()
-                .padding(4f.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            tabs.forEachIndexed { index, tab ->
-                LxTabCell(
-                    tab = tab,
-                    active = index == selectedIndex,
-                    scale = { if (index == currentIndex) lerp(1f, 1.2f, press()) else 1f },
-                    selectedColor = selectedColor,
-                    clickable = true,
-                    onClick = { onSelected(index) },
-                )
-            }
-        }
     }
 }
 
