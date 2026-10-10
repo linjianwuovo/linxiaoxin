@@ -33,7 +33,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.linxin.core.auth.SessionManager
-import com.linxin.core.compat.rememberLxBackProgress
+import com.linxin.core.compat.rememberLxBackMotion
 import com.linxin.core.designsystem.component.LxLoading
 import com.linxin.feature.aiclass.ui.AiClassHomeScreen
 import com.linxin.feature.aiclass.ui.AiClassCourseDetailScreen
@@ -152,17 +152,22 @@ fun LinXinNavHost(
         currentOnShortcutConsumed()
     }
 
-    val backProgress = rememberLxBackProgress(navController)
+    val back = rememberLxBackMotion(navController)
+    val backProgress = back.progress
 
     NavHost(
         navController = navController,
         startDestination = resolvedStartRoute,
-        // 侧滑返回时整页跟着手势缩下去，见 rememberLxBackProgress 的注释
-        modifier = androidx.compose.ui.Modifier.graphicsLayer {
-            scaleX = 1f - 0.06f * backProgress
-            scaleY = 1f - 0.06f * backProgress
-            alpha = 1f - 0.22f * backProgress
-        },
+        // 侧滑返回时整页跟着手势缩下去，见 rememberLxBackMotion 的注释。
+        // 没手势的时候不加 graphicsLayer：常驻一层图层会改变子树的重绘边界，
+        // 边缘手势的 pointerInput 则必须一直挂着，不能在这上面做条件，否则拖到一半会断。
+        modifier = back.modifier.then(
+            if (backProgress > 0f) androidx.compose.ui.Modifier.graphicsLayer {
+                scaleX = 1f - 0.06f * backProgress
+                scaleY = 1f - 0.06f * backProgress
+                alpha = 1f - 0.22f * backProgress
+            } else androidx.compose.ui.Modifier
+        ),
         enterTransition = {
             if (suppressTransitions) EnterTransition.None
             else fadeIn(tween(300)) + slideInHorizontally(tween(300)) { it / 4 }
