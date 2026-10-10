@@ -82,6 +82,8 @@ fun LinXinNavHost(
     pendingDormTaskId: String? = null,
     isDormShortcutResolved: Boolean = false,
     pendingNotificationRoute: String? = null,
+    /** 主题页「动效 → 侧滑返回预示」的开关 */
+    previewBackGesture: Boolean = true,
     onShortcutConsumed: () -> Unit = {},
 ) {
     // 合并 onboarded + loggedIn 两态决定起始页
@@ -152,7 +154,7 @@ fun LinXinNavHost(
         currentOnShortcutConsumed()
     }
 
-    val back = rememberLxBackMotion(navController)
+    val back = rememberLxBackMotion(navController, previewBackGesture)
     val backProgress = back.progress
 
     NavHost(
@@ -163,10 +165,12 @@ fun LinXinNavHost(
         // 边缘手势的 pointerInput 则必须一直挂着，不能在这上面做条件，否则拖到一半会断。
         modifier = back.modifier.then(
             if (backProgress > 0f) androidx.compose.ui.Modifier.graphicsLayer {
-                // 缩到 0.9、淡到 0.75：Material 侧滑返回的惯例量级，AppShare 那套也是这个档
-                scaleX = 1f - 0.10f * backProgress
-                scaleY = 1f - 0.10f * backProgress
+                // 缩到 0.85 / 淡到 0.75 / 左移 8% 屏宽：AppShare 实测那套量级（它 scaleOut 就是 0.85）。
+                // 我们只画当前这一页，画不出上一页，所以位移给得小；曲线和时长在 rememberLxBackMotion 里
+                scaleX = 1f - 0.15f * backProgress
+                scaleY = 1f - 0.15f * backProgress
                 alpha = 1f - 0.25f * backProgress
+                translationX = -size.width * 0.08f * backProgress
             } else androidx.compose.ui.Modifier
         ),
         enterTransition = {
