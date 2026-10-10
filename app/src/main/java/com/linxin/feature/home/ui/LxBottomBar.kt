@@ -89,7 +89,7 @@ import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.Capsule
 import com.linxin.R
 import com.linxin.core.designsystem.drag.LxDampedDragAnimation
-import com.linxin.core.designsystem.theme.LxInkFaint
+import com.linxin.core.designsystem.theme.LxInk
 import com.linxin.core.designsystem.theme.LxParchment
 import com.linxin.core.settings.BarMaterial
 import dev.chrisbanes.haze.HazeState
@@ -481,7 +481,9 @@ private fun RowScope.LxTabCell(
         Icon(
             imageVector = tab.icon,
             contentDescription = label,
-            tint = if (active) selectedColor else LxInkFaint,
+            // 未选中那几格：他要"tab 标签的灰色改成黑色"，所以用最重的一级墨色 LxInk
+            // （浅色下 #191C22，深色主题里它自己会翻成亮色，不会变看不见）。
+            tint = if (active) selectedColor else LxInk,
             modifier = Modifier.width(22.dp).height(22.dp),
         )
         Spacer(modifier = Modifier.height(3.dp))
@@ -489,7 +491,7 @@ private fun RowScope.LxTabCell(
             text = label,
             fontSize = 11.sp,
             fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (active) selectedColor else LxInkFaint,
+            color = if (active) selectedColor else LxInk,
         )
     }
 }
