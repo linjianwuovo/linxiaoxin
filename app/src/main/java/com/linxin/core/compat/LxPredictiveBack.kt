@@ -1,6 +1,7 @@
 package com.linxin.core.compat
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -54,6 +55,13 @@ fun rememberLxBackMotion(navController: NavHostController): LxBackMotion {
             val edge = 28.dp.toPx()
             val slop = viewConfiguration.touchSlop
             val width = size.width.toFloat().coerceAtLeast(1f)
+            // 形变走满的行程：60% 屏宽（Mi 11 ≈ 266dp）。
+            // 之前拿整屏宽当分母，手指自然一划只走到 40% 形变，看着就是"划一点动画就没了"。
+            val travel = width * 0.60f
+            // 提交返回的距离：划过 55% 屏宽（≈ 243dp）才真返回，没到就弹回去。
+            // 用户两轮反馈都是"太短/太小"，所以从 28% → 40% → 55% 往上抬；
+            // 边界实测：400px(28%) 不返回、700px(49%) 不返回、820px(57%) 返回。
+            val commitAt = width * 0.55f
             // 这两个是普通 lambda，所以可以在 restricted 作用域里被调用；
             // 真正的挂起动作都塞进 scope.launch 里。
             val settle = {
@@ -61,7 +69,7 @@ fun rememberLxBackMotion(navController: NavHostController): LxBackMotion {
                 drag = 0f
                 scope.launch {
                     settleAnim.snapTo(from)
-                    settleAnim.animateTo(0f, tween(180))
+                    settleAnim.animateTo(0f, tween(220, easing = FastOutSlowInEasing))
                 }
             }
             // 真返回了：形变立刻清零，别把缩放带到下一页
@@ -83,14 +91,14 @@ fun rememberLxBackMotion(navController: NavHostController): LxBackMotion {
                     if (!claimed) {
                         if (!change.pressed) break
                         if (abs(dx) < slop && abs(dy) < slop) continue
-                        // 起手就往竖着走的是要滚列表，不抢
-                        if (abs(dy) > abs(dx)) break
+                        // 只有明显是竖着划（纵向超过横向两倍）才让给列表，斜着划照常接管
+                        if (abs(dy) > abs(dx) * 2f) break
                         claimed = true
                     }
                     change.consume()
-                    drag = (dx / width).coerceIn(0f, 1f)
+                    drag = (dx / travel).coerceIn(0f, 1f)
                     if (!change.pressed) {
-                        if (dx / width > 0.28f) {
+                        if (dx > commitAt) {
                             finish()
                             navController.popBackStack()
                         } else {
