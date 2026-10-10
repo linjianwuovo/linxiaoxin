@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">林小信</string>
+    <string name="app_name">安大信</string>
     <string name="shortcut_scan_checkin">扫码签到</string>
     <string name="shortcut_scan_checkin_long">扫码签到</string>
     <string name="shortcut_dorm_checkin">查寝签到</string>
@@ -18,7 +18,7 @@
     <string name="title_homework_detail">作业详情</string>
     <string name="title_club_detail">俱乐部详情</string>
     <string name="title_news_detail">公告详情</string>
-    <string name="title_about">关于林小信</string>
+    <string name="title_about">关于安大信</string>
     <string name="title_labor">劳动教育</string>
     <string name="title_route_template">录制模板</string>
     <string name="title_scan_checkin">扫码签到</string>
@@ -365,7 +365,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ui_035">公告</string>
     <string name="ui_036">暂无公告</string>
     <string name="ui_037">更轻量，更舒适的校园体验</string>
-    <string name="ui_038">林小信基于轻小信重新设计，去掉繁琐，保留核心。整合课程、运动与宿舍提醒，让校园日常更自然、更从容地流动。</string>
+    <string name="ui_038">安大信基于轻小信重新设计，去掉繁琐，保留核心。整合课程、运动与宿舍提醒，让校园日常更自然、更从容地流动。</string>
     <string name="ui_039">我已知晓</string>
     <string name="ui_040">暂不进入</string>
     <string name="ui_041">开始锻炼</string>
@@ -401,7 +401,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ui_071">%1$s 秒</string>
     <string name="ui_072">轨迹点</string>
     <string name="ui_073">%1$s 个</string>
-    <string name="ui_074">林小信</string>
+    <string name="ui_074">安大信</string>
     <string name="ui_075">选择主题色</string>
     <string name="ui_076">影响全站主色调、首页底部氛围光等</string>
     <string name="ui_077">拖动上方色块与色相条取色</string>
