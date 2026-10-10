@@ -163,9 +163,10 @@ fun LinXinNavHost(
         // 边缘手势的 pointerInput 则必须一直挂着，不能在这上面做条件，否则拖到一半会断。
         modifier = back.modifier.then(
             if (backProgress > 0f) androidx.compose.ui.Modifier.graphicsLayer {
-                scaleX = 1f - 0.06f * backProgress
-                scaleY = 1f - 0.06f * backProgress
-                alpha = 1f - 0.22f * backProgress
+                // 缩到 0.9、淡到 0.75：Material 侧滑返回的惯例量级，AppShare 那套也是这个档
+                scaleX = 1f - 0.10f * backProgress
+                scaleY = 1f - 0.10f * backProgress
+                alpha = 1f - 0.25f * backProgress
             } else androidx.compose.ui.Modifier
         ),
         enterTransition = {
