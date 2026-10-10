@@ -34,10 +34,10 @@
 
 ## 安装
 
-> 正式版安装包在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.3.7)：
-> `andaxin-1.3.7.apk`（debug 签名，minSdk 26 / Android 8.0+，arm64-v8a）。
-> 签名一直是 Android 调试 key，所以从任一 beta 版本可以直接覆盖安装；
-> 换成别的签名（比如自己 `assembleRelease` 出来的未签名包）就得先卸载再装。
+> 正式版安装包在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.3.8)：
+> `andaxin-1.3.8.apk`（正式签名，minSdk 26 / Android 8.0+，arm64-v8a）。
+> **v1.3.7 及更早的包是 Android 调试 key 签的，1.3.8 起换成正式签名，两者不能互相覆盖安装**：
+> 装 1.3.8 要先卸载旧包，登录态会丢。以后各版都是同一把钥匙，可以直接覆盖安装。
 > 应用显示名从 v1.3.7 起是「安大信」，包名仍是 `com.linxin`，历史 release 的包名也照旧。
 
 ```bash
