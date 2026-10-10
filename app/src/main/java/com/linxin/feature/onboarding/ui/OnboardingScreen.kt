@@ -1,5 +1,7 @@
 package com.linxin.feature.onboarding.ui
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -52,7 +54,7 @@ fun OnboardingScreen(
         ) {
             StaggerItem(index = 0) {
                 Text(
-                    text = "更轻量，更舒适的校园体验",
+                    text = stringResource(R.string.ui_037),
                     fontWeight = FontWeight.Medium,
                     fontSize = 22.sp,
                     lineHeight = 29.sp,
@@ -65,7 +67,7 @@ fun OnboardingScreen(
 
             StaggerItem(index = 1) {
                 Text(
-                    text = "林小信基于轻小信重新设计，去掉繁琐，保留核心。整合课程、运动与宿舍提醒，让校园日常更自然、更从容地流动。",
+                    text = stringResource(R.string.ui_038),
                     fontSize = 13.5.sp,
                     lineHeight = 24.sp,
                     color = LxInkMuted,
@@ -76,8 +78,8 @@ fun OnboardingScreen(
 
             StaggerItem(index = 2) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    LxButton(text = "我已知晓", onClick = onAcknowledge)
-                    LxSecondaryButton(text = "暂不进入", onClick = onDismiss)
+                    LxButton(text = stringResource(R.string.ui_039), onClick = onAcknowledge)
+                    LxSecondaryButton(text = stringResource(R.string.ui_040), onClick = onDismiss)
                 }
             }
         }

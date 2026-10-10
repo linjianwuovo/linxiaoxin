@@ -1,4 +1,6 @@
 package com.linxin.feature.login.ui
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import com.linxin.core.designsystem.theme.LxShapes
 
 import androidx.compose.animation.AnimatedVisibility
@@ -117,7 +119,7 @@ fun LoginScreen(
                     LxTextField(
                         value = uiState.userCode,
                         onValueChange = viewModel::onUserCodeChange,
-                        label = "学号",
+                        label = stringResource(R.string.ui_031),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Number,
                             imeAction = ImeAction.Next,
@@ -131,7 +133,7 @@ fun LoginScreen(
                     LxTextField(
                         value = uiState.password,
                         onValueChange = viewModel::onPasswordChange,
-                        label = "密码",
+                        label = stringResource(R.string.ui_032),
                         visualTransformation = if (passwordVisible) {
                             VisualTransformation.None
                         } else {
@@ -196,7 +198,7 @@ fun LoginScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "记住密码",
+                            text = stringResource(R.string.ui_033),
                             style = MiuixTheme.textStyles.body2,
                             color = LxInk,
                         )
@@ -228,7 +230,7 @@ fun LoginScreen(
                         }
                     } else {
                         LxButton(
-                            text = "登 录",
+                            text = stringResource(R.string.ui_034),
                             onClick = {
                                 focusManager.clearFocus()
                                 viewModel.login()

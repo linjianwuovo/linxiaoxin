@@ -1,5 +1,6 @@
 package com.linxin.feature.running.exercise.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -44,6 +45,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.linxin.R
 import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxError
@@ -71,7 +73,7 @@ fun ClubDetailScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "俱乐部详情", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_club_detail), onBack = onBack) },
     ) { padding ->
         when {
             uiState.isLoading -> LxLoading(modifier = Modifier.padding(padding))
@@ -143,7 +145,7 @@ private fun TaskCard(
                     if (task.canCheck) {
                         Spacer(modifier = Modifier.height(20.dp))
                         LxButton(
-                            text = "开始锻炼",
+                            text = stringResource(R.string.ui_041),
                             onClick = { onStartCheck(task.autoId, task.memberId) },
                         )
                     }
@@ -180,9 +182,9 @@ private fun DurationBar(completed: Int, required: Int) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text("记录时长", style = MiuixTheme.textStyles.footnote1, color = LxInkMuted)
+            Text(stringResource(R.string.ui_042), style = MiuixTheme.textStyles.footnote1, color = LxInkMuted)
             Text(
-                text = "$completed / $required 分钟",
+                text = stringResource(R.string.ui_043, completed.toString(), required.toString()),
                 style = MiuixTheme.textStyles.footnote1,
                 color = LxInkSoft,
             )

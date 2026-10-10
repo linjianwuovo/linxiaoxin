@@ -1,4 +1,6 @@
 package com.linxin.feature.aiclass.ui
+import androidx.compose.ui.res.stringResource
+import com.linxin.R
 import com.linxin.core.designsystem.theme.LxShapes
 import com.linxin.core.designsystem.theme.RLg
 
@@ -73,7 +75,7 @@ fun AiHomeworkDetailScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "作业详情", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_homework_detail), onBack = onBack) },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         when {
@@ -146,12 +148,12 @@ private fun HomeworkDetailContent(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "教师: ${detail.teacherName}",
+                            text = stringResource(R.string.ui_019, detail.teacherName.toString()),
                             style = MiuixTheme.textStyles.footnote2,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         )
                         Text(
-                            text = "截止: ${detail.deadline}",
+                            text = stringResource(R.string.ui_020, detail.deadline.toString()),
                             style = MiuixTheme.textStyles.footnote2,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         )
@@ -165,7 +167,7 @@ private fun HomeworkDetailContent(
                     LxCard {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "作业要求",
+                                text = stringResource(R.string.ui_021),
                                 style = MiuixTheme.textStyles.title4,
                                 fontWeight = FontWeight.Bold,
                             )
@@ -183,7 +185,7 @@ private fun HomeworkDetailContent(
             if (!isDeadlinePassed(detail.deadline)) {
                 item(key = "submit_btn") {
                     LxButton(
-                        text = "提交作业",
+                        text = stringResource(R.string.ui_022),
                         onClick = onSubmitClick,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -194,7 +196,7 @@ private fun HomeworkDetailContent(
             if (uiState.studentWorks.isNotEmpty()) {
                 item(key = "works_title") {
                     Text(
-                        text = "提交列表",
+                        text = stringResource(R.string.ui_023),
                         style = MiuixTheme.textStyles.title3,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
@@ -231,7 +233,7 @@ private fun StudentWorkCard(work: AiStudentWork) {
                 )
                 if (work.score.isNotBlank() && work.score != "-") {
                     Text(
-                        text = "${work.score}分",
+                        text = stringResource(R.string.ui_024, work.score.toString()),
                         style = MiuixTheme.textStyles.footnote2,
                         color = MiuixTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
@@ -279,7 +281,7 @@ private fun SubmitBottomSheet(
                 .padding(bottom = 32.dp),
         ) {
             Text(
-                text = "提交作业",
+                text = stringResource(R.string.ui_022),
                 style = MiuixTheme.textStyles.title3,
                 fontWeight = FontWeight.Bold,
             )
@@ -290,7 +292,7 @@ private fun SubmitBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp),
-                label = "请输入作业内容...",
+                label = stringResource(R.string.ui_025),
                 useLabelAsPlaceholder = true,
                 enabled = !isSubmitting,
                 colors = TextFieldDefaults.textFieldColors(backgroundColor = LxCream),

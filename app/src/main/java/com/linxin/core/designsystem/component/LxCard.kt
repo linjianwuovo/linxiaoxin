@@ -1,5 +1,7 @@
 package com.linxin.core.designsystem.component
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable

@@ -1,4 +1,6 @@
 package com.linxin.feature.schedule.ui
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import com.linxin.core.designsystem.theme.RLg
 
 import androidx.compose.foundation.background
@@ -61,7 +63,12 @@ import java.time.LocalDate
 import java.time.LocalTime
 
 private const val SECTION_COUNT = 10
-private val DAY_LABELS = listOf("一", "二", "三", "四", "五", "六", "日")
+private val DAY_LABELS = listOf(R.string.sched_wday_1, R.string.sched_wday_2, R.string.sched_wday_3,
+    R.string.sched_wday_4, R.string.sched_wday_5, R.string.sched_wday_6, R.string.sched_wday_7)
+
+/** 星期标签得在组合里取，所以这份表存资源 id 而不是字符串。 */
+@Composable
+private fun dayLabel(index: Int): String = stringResource(DAY_LABELS[index])
 private val CELL_HEIGHT = 58.dp
 private val SECTION_LABEL_WIDTH = 46.dp
 private val GRID_START_PADDING = 12.dp
@@ -116,7 +123,7 @@ fun ScheduleScreen(
                     message = error,
                     onRetry = viewModel::retry,
                 )
-                uiState.courses.isEmpty() -> LxEmpty(message = "本周没有课程")
+                uiState.courses.isEmpty() -> LxEmpty(message = stringResource(R.string.sched_empty))
                 else -> ScheduleGrid(
                     courses = uiState.courses,
                     weekDates = uiState.weekDates,
@@ -160,8 +167,8 @@ private fun WeekSelector(
             val firstVisibleIndex = visibleItems.first().index
             val lastVisibleIndex = visibleItems.last().index
             when {
-                currentWeek < firstVisibleIndex -> "← 本周" to Alignment.TopStart
-                currentWeek > lastVisibleIndex -> "本周 →" to Alignment.TopEnd
+                currentWeek < firstVisibleIndex -> R.string.sched_week_left to Alignment.TopStart
+                currentWeek > lastVisibleIndex -> R.string.sched_week_right to Alignment.TopEnd
                 else -> null
             }
         }
@@ -177,7 +184,7 @@ private fun WeekSelector(
         ) {
             itemsIndexed(List(totalWeeks) { it }) { _, week ->
                 WeekChip(
-                    label = if (week == 0) "预备" else "第${week}周",
+                    label = if (week == 0) stringResource(R.string.sched_prepare) else stringResource(R.string.sched_week_n, week),
                     isSelected = week == selectedWeek,
                     isCurrent = week == currentWeek,
                     onClick = { onWeekSelected(week) },
@@ -185,9 +192,9 @@ private fun WeekSelector(
             }
         }
 
-        currentWeekHint?.let { (label, alignment) ->
+        currentWeekHint?.let { (labelRes, alignment) ->
             Text(
-                text = label,
+                text = stringResource(labelRes),
                 modifier = Modifier
                     .align(alignment)
                     .offset(y = (-35).dp)
@@ -261,7 +268,7 @@ private fun ScheduleGrid(
         // ── 表头：星期 ──
         Row(modifier = Modifier.fillMaxWidth()) {
             Box(modifier = Modifier.width(SECTION_LABEL_WIDTH))
-            DAY_LABELS.forEachIndexed { index, label ->
+            DAY_LABELS.forEachIndexed { index, labelRes ->
                 val dayIndex = index + 1
                 val isToday = showCurrentDayIndicator && dayIndex == today
                 Column(
@@ -271,7 +278,7 @@ private fun ScheduleGrid(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        text = label,
+                        text = stringResource(labelRes),
                         fontSize = 12.sp,
                         fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
                         color = if (isToday) LxTerra else LxInkMuted,
@@ -311,7 +318,7 @@ private fun ScheduleGrid(
                         verticalArrangement = Arrangement.Top,
                     ) {
                         Text(
-                            text = if (section == 0) "早" else "$section",
+                            text = if (section == 0) stringResource(R.string.sched_early) else "$section",
                             fontSize = 10.sp,
                             lineHeight = 12.sp,
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
@@ -414,18 +421,18 @@ private fun CourseDetail(course: Course) {
         Spacer(modifier = Modifier.height(16.dp))
 
         LxDetailRow(
-            label = "时间",
-            value = "星期${DAY_LABELS[course.dayOfWeek - 1]}  第${course.startSection}-${course.endSection}节",
+            label = stringResource(R.string.sched_time),
+            value = stringResource(R.string.sched_time_value, dayLabel(course.dayOfWeek - 1), course.startSection, course.endSection),
             labelWidth = 48.dp,
             showDivider = false,
         )
 
         if (course.room.isNotBlank()) {
-            LxDetailRow(label = "教室", value = course.room, labelWidth = 48.dp, showDivider = false)
+            LxDetailRow(label = stringResource(R.string.sched_room), value = course.room, labelWidth = 48.dp, showDivider = false)
         }
 
         if (course.teacher.isNotBlank()) {
-            LxDetailRow(label = "教师", value = course.teacher, labelWidth = 48.dp, showDivider = false)
+            LxDetailRow(label = stringResource(R.string.sched_teacher), value = course.teacher, labelWidth = 48.dp, showDivider = false)
         }
     }
 }

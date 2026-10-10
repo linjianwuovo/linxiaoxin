@@ -1,5 +1,7 @@
 package com.linxin.feature.theme.ui
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -93,14 +95,14 @@ fun ColorPickerDialog(
                 .padding(20.dp),
         ) {
             Text(
-                text = "选择主题色",
+                text = stringResource(R.string.ui_075),
                 fontSize = 17.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = LxInk,
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "影响全站主色调、首页底部氛围光等",
+                text = stringResource(R.string.ui_076),
                 fontSize = 12.sp,
                 color = LxInkMuted,
             )
@@ -232,7 +234,7 @@ fun ColorPickerDialog(
                         color = LxInk,
                     )
                     Text(
-                        text = "拖动上方色块与色相条取色",
+                        text = stringResource(R.string.ui_077),
                         fontSize = 11.sp,
                         color = LxInkMuted,
                     )
@@ -246,16 +248,16 @@ fun ColorPickerDialog(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                DialogButton(text = "默认蓝", modifier = Modifier.weight(1f)) {
+                DialogButton(text = stringResource(R.string.ui_078), modifier = Modifier.weight(1f)) {
                     val d = FloatArray(3)
                         .also { AndroidColor.colorToHSV(DEFAULT_ACCENT_ARGB, it) }
                     hueState.floatValue = d[0]
                     satState.floatValue = d[1]
                     valState.floatValue = d[2]
                 }
-                DialogButton(text = "取消", modifier = Modifier.weight(1f), onClick = onDismiss)
+                DialogButton(text = stringResource(R.string.ui_079), modifier = Modifier.weight(1f), onClick = onDismiss)
                 DialogButton(
-                    text = "确定",
+                    text = stringResource(R.string.ui_080),
                     modifier = Modifier.weight(1f),
                     filled = true,
                     fill = current,

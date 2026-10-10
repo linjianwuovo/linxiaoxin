@@ -1,5 +1,7 @@
 package com.linxin.core.designsystem.component
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -24,7 +26,7 @@ fun LxTopBar(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
+                        contentDescription = stringResource(R.string.ui_001),
                     )
                 }
             }

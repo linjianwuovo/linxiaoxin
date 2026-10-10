@@ -1,5 +1,8 @@
 package com.linxin.feature.aiclass.ui
 
+import com.linxin.core.locale.AppText
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -85,12 +88,12 @@ class AiClassViewModel @Inject constructor(
             // 课程是主内容；课堂状态是附属信息，不能拖住整页加载。
             suspend fun loadPair(): Pair<Result<List<AiCourse>>, Result<AiWorkingRecord?>> {
                 val coursesDeferred = async {
-                    withResultTimeout("获取课程列表", AICLASS_INITIAL_LOAD_TIMEOUT_MS) {
+                    withResultTimeout(AppText.str(R.string.aivm_act_courses), AICLASS_INITIAL_LOAD_TIMEOUT_MS) {
                         repository.getCourses()
                     }
                 }
                 val workingDeferred = async {
-                    withResultTimeout("获取课堂状态", AICLASS_OPTIONAL_LOAD_TIMEOUT_MS) {
+                    withResultTimeout(AppText.str(R.string.aivm_act_status), AICLASS_OPTIONAL_LOAD_TIMEOUT_MS) {
                         repository.getWorkingRecord()
                     }
                 }
@@ -142,7 +145,7 @@ class AiClassViewModel @Inject constructor(
                     it.copy(
                         isSigningIn = false,
                         signSucceeded = false,
-                        signResult = signInfoResult.exceptionOrNull()?.message ?: "当前没有进行中的签到",
+                        signResult = signInfoResult.exceptionOrNull()?.message ?: AppText.str(R.string.aivm_no_signin),
                     )
                 }
                 return@launch
@@ -154,7 +157,7 @@ class AiClassViewModel @Inject constructor(
                 it.copy(
                     isSigningIn = false,
                     signSucceeded = result.isSuccess,
-                    signResult = result.getOrElse { e -> e.message ?: "签到失败" },
+                    signResult = result.getOrElse { e -> e.message ?: AppText.str(R.string.aivm_sign_failed) },
                 )
             }
         }
@@ -169,7 +172,7 @@ class AiClassViewModel @Inject constructor(
                 it.copy(
                     isSigningIn = false,
                     signSucceeded = result.isSuccess,
-                    signResult = result.getOrElse { e -> e.message ?: "签到失败" },
+                    signResult = result.getOrElse { e -> e.message ?: AppText.str(R.string.aivm_sign_failed) },
                 )
             }
         }
@@ -196,7 +199,7 @@ class AiClassViewModel @Inject constructor(
                 it.copy(
                     isSigningIn = false,
                     signSucceeded = result.isSuccess,
-                    signResult = result.getOrElse { e -> e.message ?: "扫码签到失败" },
+                    signResult = result.getOrElse { e -> e.message ?: AppText.str(R.string.aivm_scan_sign_failed) },
                 )
             }
         }
@@ -217,7 +220,7 @@ class AiClassViewModel @Inject constructor(
                     homeworkList = emptyList(),
                     isQuizLoading = false,
                     isHomeworkLoading = false,
-                    quizError = "课程信息不存在，请返回重试",
+                    quizError = AppText.str(R.string.aivm_no_course),
                 )
             }
             return
@@ -236,7 +239,7 @@ class AiClassViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            val quizResult = withResultTimeout("获取测验列表", AICLASS_DETAIL_LOAD_TIMEOUT_MS) {
+            val quizResult = withResultTimeout(AppText.str(R.string.aivm_act_quizzes), AICLASS_DETAIL_LOAD_TIMEOUT_MS) {
                 repository.getQuizList(course.courseId)
             }
             _uiState.update { current ->
@@ -250,7 +253,7 @@ class AiClassViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            val hwResult = withResultTimeout("获取作业列表", AICLASS_DETAIL_LOAD_TIMEOUT_MS) {
+            val hwResult = withResultTimeout(AppText.str(R.string.aivm_act_hw), AICLASS_DETAIL_LOAD_TIMEOUT_MS) {
                 repository.getHomeworkList(course.courseId, course.teachClassId)
             }
             _uiState.update { current ->
@@ -293,7 +296,7 @@ class AiClassViewModel @Inject constructor(
             it.copy(selectedCourse = course, quizList = emptyList(), isQuizLoading = true, quizError = null)
         }
         viewModelScope.launch {
-            val quizResult = withResultTimeout("获取测验列表", AICLASS_DETAIL_LOAD_TIMEOUT_MS) {
+            val quizResult = withResultTimeout(AppText.str(R.string.aivm_act_quizzes), AICLASS_DETAIL_LOAD_TIMEOUT_MS) {
                 repository.getQuizList(record.teachClassId)
             }
             _uiState.update { current ->
@@ -316,7 +319,7 @@ private suspend fun <T> withResultTimeout(
     return try {
         withTimeout(timeoutMs) { block() }
     } catch (e: TimeoutCancellationException) {
-        Result.failure(Exception("${action}超时，请稍后重试", e))
+        Result.failure(Exception(AppText.str(R.string.aivm_timeout, action), e))
     }
 }
 
