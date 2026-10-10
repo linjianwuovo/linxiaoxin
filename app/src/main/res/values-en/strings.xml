@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">LinXin</string>
+    <string name="app_name">Andaxin</string>
     <string name="shortcut_scan_checkin">Scan in</string>
     <string name="shortcut_scan_checkin_long">Scan to check in</string>
     <string name="shortcut_dorm_checkin">Dorm check-in</string>
@@ -18,7 +18,7 @@
     <string name="title_homework_detail">Assignment</string>
     <string name="title_club_detail">Club</string>
     <string name="title_news_detail">Announcement</string>
-    <string name="title_about">About LinXin</string>
+    <string name="title_about">About Andaxin</string>
     <string name="title_labor">Labour Education</string>
     <string name="title_route_template">Record Route</string>
     <string name="title_scan_checkin">Scan Check-in</string>
@@ -365,7 +365,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ui_035">News</string>
     <string name="ui_036">No announcements</string>
     <string name="ui_037">A lighter, more comfortable campus experience</string>
-    <string name="ui_038">LinXin is redesigned from LightXin — less clutter, keep the core. Courses, sport and dorm reminders in one place.</string>
+    <string name="ui_038">Andaxin is redesigned from LightXin — less clutter, keep the core. Courses, sport and dorm reminders in one place.</string>
     <string name="ui_039">I understand</string>
     <string name="ui_040">Not now</string>
     <string name="ui_041">Start workout</string>
@@ -401,7 +401,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ui_071">%1$s s</string>
     <string name="ui_072">Points</string>
     <string name="ui_073">%1$s points</string>
-    <string name="ui_074">LinXin</string>
+    <string name="ui_074">Andaxin</string>
     <string name="ui_075">Accent colour</string>
     <string name="ui_076">Drives the accent colour and ambient lighting</string>
     <string name="ui_077">Drag the swatch and hue bar above</string>

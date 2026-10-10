@@ -115,7 +115,7 @@ class FlymeLiveBackend : LiveActivityBackend {
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "林小信 实况通知",
+                "安大信 实况通知",
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
                 description = "跑步、签到等正在进行的活动"

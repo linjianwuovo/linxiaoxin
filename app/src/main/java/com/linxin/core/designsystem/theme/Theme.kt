@@ -12,7 +12,7 @@ import top.yukonga.miuix.kmp.theme.darkColorScheme
 import top.yukonga.miuix.kmp.theme.lightColorScheme
 
 /**
- * 全站唯一主题入口：纯 Miuix + 林小信色板。
+ * 全站唯一主题入口：纯 Miuix + 安大信色板。
  * 不用 Monet 动态取色（跟系统壁纸走会把品牌色冲掉、显脏），
  * 主色调改由用户在「主题外观 → 主题色」里自选，通过 accent 注入。
  */
