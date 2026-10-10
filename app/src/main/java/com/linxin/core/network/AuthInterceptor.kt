@@ -70,6 +70,19 @@ class AuthInterceptor @Inject constructor(
                     .build()
             }
 
+            // 报修平台: 它 H5 的 body 里只有 accessToken/userName/xh/userType 四个身份字段
+            // （读它 dist-app 的 JS 确认：post() 把全局 userInfo 并进每个请求），
+            // 这四个由 RepairApi 自己显式声明。这里再注入门户那套就不是照原样发了。
+            host.contains("repair.aiit.edu.cn") -> original
+
+            // 业务流转引擎（请假）: 它 H5 的 post() 只并 accessToken/_userCode/_userType/userCode/xh
+            // 这五个，读它 app.js 确认；门户那套 access_token/userId/appId 一律不带
+            host.contains("ywlz.aiit.edu.cn") -> original
+
+            // 一卡通: 身份在 light.action → redirect.action → authorize 那条链换出来的 cookie 里，
+            // bootcallback 的 body 只有 gotowhere 和业务参数，多塞任何字段都不是原样
+            host.contains("17wanxiao.com") -> original
+
             // 主站 & 劳动教育: Form表单追加通用参数
             else -> {
                 val credentials = runBlocking { tokenManager.snapshot() }

@@ -1,5 +1,6 @@
 package com.linxin.feature.holiday.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxEmpty
 import com.linxin.core.designsystem.component.LxError
@@ -72,11 +74,11 @@ fun HolidayListScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "节假日离返校", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_holiday), onBack = onBack) },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             TabRow(
-                tabs = listOf("去登记", "历史登记"),
+                tabs = listOf(stringResource(R.string.hol_tab_go), stringResource(R.string.hol_tab_history)),
                 selectedTabIndex = selectedTab,
                 onTabSelected = { selectedTab = it },
             )
@@ -113,7 +115,7 @@ private fun RegisterTab(
             modifier = Modifier.fillMaxSize(),
         )
         tasks.isEmpty() -> LxEmpty(
-            message = "当前没有需要登记的节假日",
+            message = stringResource(R.string.ui_028),
             modifier = Modifier.fillMaxSize(),
         )
         else -> LazyColumn(
@@ -145,7 +147,7 @@ private fun HistoryTab(
             modifier = Modifier.fillMaxSize(),
         )
         history.isEmpty() -> LxEmpty(
-            message = "还没有历史登记记录",
+            message = stringResource(R.string.ui_029),
             modifier = Modifier.fillMaxSize(),
         )
         else -> LazyColumn(
@@ -178,7 +180,7 @@ fun HolidayTaskCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = task.name.ifBlank { "节假日登记" },
+                    text = task.name.ifBlank { stringResource(R.string.home_card_holiday) },
                     style = MiuixTheme.textStyles.body2,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
@@ -217,7 +219,7 @@ fun HistoryCard(record: HolidayHistory, modifier: Modifier = Modifier) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = record.name.ifBlank { "节假日登记" },
+                    text = record.name.ifBlank { stringResource(R.string.home_card_holiday) },
                     style = MiuixTheme.textStyles.body2,
                     fontWeight = FontWeight.Medium,
                     maxLines = 2,
@@ -239,7 +241,7 @@ fun HistoryCard(record: HolidayHistory, modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.width(12.dp))
 
             Text(
-                text = if (record.returnStartDate.isBlank()) "待返校" else "已完成",
+                text = if (record.returnStartDate.isBlank()) stringResource(R.string.hol_pending_return) else stringResource(R.string.hol_done),
                 style = MiuixTheme.textStyles.footnote2,
                 fontWeight = FontWeight.SemiBold,
                 color = if (record.returnStartDate.isBlank()) LxWarning else LxInkMuted,
@@ -251,7 +253,7 @@ fun HistoryCard(record: HolidayHistory, modifier: Modifier = Modifier) {
 @Composable
 private fun HolidayStatusBadge(isRegistered: Boolean) {
     val color = if (isRegistered) LxSuccess else LxTerra
-    val text = if (isRegistered) "已登记" else "待登记"
+    val text = if (isRegistered) stringResource(R.string.hol_registered) else stringResource(R.string.hol_not_registered)
 
     Box(
         modifier = Modifier

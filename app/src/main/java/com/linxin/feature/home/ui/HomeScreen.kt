@@ -1,5 +1,6 @@
 package com.linxin.feature.home.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -13,6 +14,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Campaign
+import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.runtime.Composable
@@ -33,7 +35,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.linxin.R
 import com.linxin.core.designsystem.theme.LxTerra
+import com.linxin.feature.messages.ui.MessagesScreen
 import com.linxin.feature.news.ui.NewsScreen
 import com.linxin.feature.schedule.ui.ScheduleScreen
 import com.linxin.feature.theme.ui.ThemeViewModel
@@ -44,10 +48,11 @@ import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private val tabs = listOf(
-    LxTab("首页", Icons.Outlined.Home),
-    LxTab("课程表", Icons.Outlined.CalendarMonth),
-    LxTab("公告", Icons.Outlined.Campaign),
-    LxTab("我的", Icons.Outlined.Person),
+    LxTab(R.string.tab_home, Icons.Outlined.Home),
+    LxTab(R.string.tab_schedule, Icons.Outlined.CalendarMonth),
+    LxTab(R.string.tab_messages, Icons.Outlined.Forum),
+    LxTab(R.string.tab_news, Icons.Outlined.Campaign),
+    LxTab(R.string.tab_profile, Icons.Outlined.Person),
 )
 
 @Composable
@@ -65,12 +70,22 @@ fun HomeScreen(
     val pagerState = rememberPagerState(initialPage = selectedTab) { tabs.size }
     val scope = rememberCoroutineScope()
 
-    // 滑动翻页时同步高亮底栏
-    LaunchedEffect(pagerState.currentPage) {
-        selectedTab = pagerState.currentPage
+    // 翻页动画途中 pagerState.currentPage 会依次经过中间页（0→3 会变成 1、2、3）。
+    // 直接拿它回灌 selectedTab，底栏水球就会被着一格格往回追 —— 他报的"无论什么页切换
+    // 只要经过消息水滴都会卡一下"就是这么来的（消息是五格正中间，大多数跨页路线都路过）。
+    // 所以自己发起的翻页，动画途中只认目标页；用户自己横向滑页面时不拦，照旧实时跟随。
+    var pendingTab by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress) {
+        val page = pagerState.currentPage
+        if (pendingTab >= 0) {
+            if (page != pendingTab && pagerState.isScrollInProgress) return@LaunchedEffect
+            pendingTab = -1
+        }
+        selectedTab = page
     }
 
     fun goToTab(index: Int) {
+        pendingTab = index
         selectedTab = index
         scope.launch { pagerState.animateScrollToPage(index) }
     }
@@ -92,7 +107,13 @@ fun HomeScreen(
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
-                beyondViewportPageCount = 1,
+                // 五页全部常驻，别改回 1。Pager 会把超出窗口的页销毁，回去要重新组一次：
+                // 实测每屏首次组页 NewsScreen 350ms、ScheduleScreen 250ms、消息/我的各 69ms，
+                // 跨页动画一路都在做这件事，p99 从相邻页的 32~46ms 涨到 117ms，一次掉 5~7 帧 ——
+                // 他报的"无论什么页切换只要经过消息水滴都会卡一下"就是这么来的（消息在五格正中间，
+                // 多数跨页路线都要路过它）。常驻之后同一批路线最长帧回到 32~44ms。
+                // 代价：冷启动 968ms、TOTAL PSS 259MB（米11 实测），都能接受。
+                beyondViewportPageCount = tabs.size - 1,
             ) { page ->
                 when (page) {
                     0 -> HomeDashboard(
@@ -101,12 +122,13 @@ fun HomeScreen(
                         onTabSelected = { goToTab(it) },
                     )
                     1 -> ScheduleScreen()
-                    2 -> NewsScreen(
+                    2 -> MessagesScreen()
+                    3 -> NewsScreen(
                         onNewsClick = { newsId ->
                             navController.navigate(Routes.newsDetail(newsId))
                         },
                     )
-                    3 -> ProfileScreen(
+                    4 -> ProfileScreen(
                         onNavigateCheckin = {
                             navController.navigate(Routes.CHECKIN_LIST) {
                                 launchSingleTop = true
