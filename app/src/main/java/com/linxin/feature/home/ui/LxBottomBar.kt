@@ -28,16 +28,21 @@ import androidx.compose.material.icons.outlined.Campaign
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import top.yukonga.miuix.kmp.basic.Icon
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -47,7 +52,10 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
+import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.math.sign
+import kotlinx.coroutines.launch
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -66,6 +74,7 @@ import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.highlight.HighlightStyle
 import com.kyant.shapes.Capsule
 import com.linxin.R
+import com.linxin.core.designsystem.drag.LxDampedDragAnimation
 import com.linxin.core.designsystem.liquid.lensWithDispersion
 import com.linxin.core.designsystem.theme.LxInkFaint
 import com.linxin.core.designsystem.theme.LxParchment
@@ -232,52 +241,90 @@ fun LxBottomBar(
         val content = contentWidthPx[index]?.toFloat() ?: (cellPx * 0.68f)
         return (content + pillPadPx * 2f) / 2f
     }
-    // 手指按在栏上哪一格，滑块就实时跟到哪（dragX 是手指的 x，NaN = 没人按着）；
-    // 抬手就弹回选中那格的中心。按着不动也算，所以点哪滑块就先滑到哪。
-    var dragX by remember { mutableFloatStateOf(Float.NaN) }
-    // 一次按压里滑块的大小要钉死在"按下去那一刻那格的内容宽"上。不钉的话：拖过半格
-    // 就换页，selectedIndex 一变，宽度立刻换成另一格内容宽，滑块会在手里一跳一跳地变大小
-    // （用户反馈的"滑动大小不一致"就是这个）。抬手才交给选中项自己的宽度。
+    // 滑块的运动整个交给 LxDampedDragAnimation（Miuix 官方示例那份 Apache-2.0 实现，
+    // 出处和改动写在 core/designsystem/drag/LxDampedDrag.kt 顶上）：value 是"连续浮点的第几格"
+    // 带阻尼弹簧，pressProgress / scaleX / scaleY 各一根弹簧且阻尼不同 —— 按住时横纵不同步地涨，
+    // 就是水滴被捏一下；整条栏还跟着手指橡皮条一样最多偏 4dp，抬手弹回。
+    // 换页只在抬手那一刻发生（onDragStopped 里），拖动途中页面不动，这是他要的口径。
+    val animationScope = rememberCoroutineScope()
+    val offsetAnimation = remember { Animatable(0f) }
+    val rubberBandPx = with(density) { 4.dp.toPx() }
+    val panelOffset by remember(rubberBandPx) {
+        derivedStateOf {
+            val total = barWidthPx.toFloat()
+            if (total == 0f) 0f else {
+                val f = (offsetAnimation.value / total).coerceIn(-1f, 1f)
+                rubberBandPx * f.sign * EaseOut.transform(abs(f))
+            }
+        }
+    }
+    var currentIndex by remember { mutableIntStateOf(selectedIndex) }
     var pressIndex by remember { mutableIntStateOf(-1) }
-    // pointerInput 的 lambda 会跨重组一直活着，直接读 selectedIndex 会读到旧值，
-    // 所以走 rememberUpdatedState，手势中途换页也不用重启手势。
-    val currentSelected by rememberUpdatedState(selectedIndex)
     val onSelectedNow by rememberUpdatedState(onSelected)
-    val dragging = !dragX.isNaN()
-    // 按住才鼓，抬手弹回 —— 鼓是"按比例放大"：高、宽、圆角一起乘同一个系数，
-    // 形状不变形，宽标签涨的绝对量比窄标签多，这才是酷安那个比例感。
-    // grow 单独一根带过冲的弹簧，和下面两条边的 snap 互不干扰：跟手归跟手，尺寸归尺寸。
-    val grow by animateFloatAsState(
-        targetValue = if (dragging) 1f else 0f,
-        animationSpec = spring(dampingRatio = 0.40f, stiffness = 520f),
-        label = "lxPillGrow",
-    )
-    val pillScale = 1f + (LxGlass.PressScale - 1f) * grow
-    val pillHeightDp = (46f * pillScale).dp
-    val pillShape = RoundedCornerShape((16f * pillScale).dp)
+
+    fun cellAt(x: Float): Int {
+        val total = barWidthPx.toFloat()
+        if (total <= 0f || tabs.isEmpty()) return currentIndex
+        return (x / (total / tabs.size)).toInt().coerceIn(0, tabs.size - 1)
+    }
+
+    val drag = remember(animationScope, tabs.size) {
+        LxDampedDragAnimation(
+            animationScope = animationScope,
+            initialValue = selectedIndex.toFloat(),
+            valueRange = 0f..(tabs.size - 1).toFloat(),
+            visibilityThreshold = 0.001f,
+            initialScale = 1f,
+            pressedScale = 78f / 56f,
+            canDrag = { offset -> offset.x in 0f..barWidthPx.toFloat() },
+            onDragStarted = { position ->
+                pressIndex = cellAt(position.x)
+                updateValue(pressIndex.toFloat())
+            },
+            onDragStopped = {
+                val target = targetValue.roundToInt().coerceIn(0, tabs.size - 1)
+                if (currentIndex != target) {
+                    currentIndex = target
+                    onSelectedNow(target)
+                }
+                updateValue(target.toFloat())
+                animationScope.launch { offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f)) }
+            },
+            onDragCancelled = {
+                updateValue(currentIndex.toFloat())
+                animationScope.launch { offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f)) }
+            },
+            onDrag = { _, dragAmount ->
+                val cell = barWidthPx.toFloat() / tabs.size
+                if (cell > 0f && dragAmount.x != 0f) {
+                    updateValue((targetValue + dragAmount.x / cell).coerceIn(0f, (tabs.size - 1).toFloat()))
+                    animationScope.launch { offsetAnimation.snapTo(offsetAnimation.value + dragAmount.x) }
+                }
+            },
+        )
+    }
+
+    // 从外面换页（点按、返回、快捷入口）时把滑块弹到那一格；自己拖出来的已经在那了
+    LaunchedEffect(selectedIndex) {
+        if (currentIndex != selectedIndex) {
+            currentIndex = selectedIndex
+            drag.animateToValue(selectedIndex.toFloat())
+        }
+    }
+
+    val press = drag.pressProgress.coerceIn(0f, 1f)
     val safeIndex = selectedIndex.coerceIn(0, (tabs.size - 1).coerceAtLeast(0))
-    val restCenter = (safeIndex + 0.5f) * cellPx
-    val sizeIndex = if (dragging && pressIndex >= 0) pressIndex else safeIndex
-    val targetHalf = halfWidthOf(sizeIndex) * pillScale
-    val center = if (dragging) dragX else restCenter
-    val maxBar = barWidthPx.toFloat()
-    // 左右两条边各自一根弹簧：左边硬、右边软，赶路的时候两条边一先一后，
-    // 胶囊自然被拉长，到位再收回来 —— 这就是酷安那个"橡皮"味道的来源。
-    val pillLeft by animateFloatAsState(
-        targetValue = (center - targetHalf).coerceIn(0f, maxBar),
-        animationSpec = if (dragging) snap() else spring(dampingRatio = 0.86f, stiffness = 1500f),
-        label = "lxPillLeft",
-    )
-    val pillRight by animateFloatAsState(
-        targetValue = (center + targetHalf).coerceIn(0f, maxBar),
-        animationSpec = if (dragging) snap() else spring(dampingRatio = 0.52f, stiffness = 480f),
-        label = "lxPillRight",
-    )
-    val pillWidthDp = with(density) { (pillRight - pillLeft).coerceAtLeast(1f).toDp() }
+    // 一次按压里宽度钉死在按下那一刻那格的内容宽，不然拖过半格换页会让水球在手里跳大小
+    val sizeIndex = if (press > 0.02f && pressIndex >= 0) pressIndex else safeIndex
+    val baseHalfPx = halfWidthOf(sizeIndex)
+    val pillHeightDp = 46.dp
+    val pillWidthDp = with(density) { (baseHalfPx * 2f).toDp() }
+    val pillShape = RoundedCornerShape(16.dp)
+    val pillLeft = (
+        ((drag.value + 0.5f) * cellPx - baseHalfPx)
+            .coerceIn(0f, (barWidthPx.toFloat() - baseHalfPx * 2f).coerceAtLeast(0f))
+        )
     // 玻璃一直在，按得越实它越"有货"：面色更亮、描边更亮、折射更强、模糊更通透。
-    // press 单独夹到 0..1；尺寸那条 grow 保留弹簧过冲，所以抬手能看到一下回弹的闪光。
-    // 面色压薄一档：0.30 的白膜把折射折出来的颜色全盖平了，压到 0.24 才看得见里面在弯。
-    val press = grow.coerceIn(0f, 1f)
     val pillTint = Color.White.copy(
         alpha = (if (isDark) 0.12f else 0.24f) + 0.10f * press,
     )
@@ -295,7 +342,13 @@ fun LxBottomBar(
                 // 滑块的尺寸又不随选中项变，Compose 就不重测，读到的永远是上一帧的位置 ——
                 // 真机上表现成"滑块慢一格"（点公告它停在消息那格）。
                 // graphicsLayer 的 translationX 在绘制阶段每帧都读，跟着动画走，不会滞后。
-                .graphicsLayer { translationX = pillLeft }
+                // 位置/挤压全交给阻尼动画：translationX 每帧读，scaleX 和 scaleY 是两根不同
+                // 阻尼的弹簧，所以按住时它是"被捏一下"地长，不是等比缩放。
+                .graphicsLayer {
+                    translationX = pillLeft
+                    scaleX = drag.scaleX
+                    scaleY = drag.scaleY
+                }
                 .size(width = pillWidthDp, height = pillHeightDp)
                 .clip(pillShape)
                 .then(
@@ -349,41 +402,11 @@ fun LxBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .onSizeChanged { barWidthPx = it.width }
-                // Initial pass：父层先看手指，但一个事件都不消费，所以每格自己的 clickable 照旧生效
-                // （点按换页归它管），这里只管让滑块跟手；拖的时候页面不动，抬手才切。
-                .pointerInput(cellPx, tabs.size) {
-                    awaitEachGesture {
-                        val down = awaitFirstDown(pass = PointerEventPass.Initial)
-                        var over = -1
-                        if (cellPx > 0f) {
-                            dragX = down.position.x
-                            over = (down.position.x / cellPx).toInt().coerceIn(0, tabs.size - 1)
-                            pressIndex = over
-                        }
-                        while (true) {
-                            val event = awaitPointerEvent(PointerEventPass.Initial)
-                            val change = event.changes.firstOrNull()
-                            if (change == null || !change.pressed || change.changedToUpIgnoreConsumed()) {
-                                // 抬手才换页：整段拖动里页面纹丝不动，松手那下才切到手指最后停的那格。
-                                // 纯点一下也会走到这里，和子节点 clickable 落在同一格，重复设一次无害。
-                                if (cellPx > 0f && over >= 0) {
-                                    val released = (change?.position?.x ?: (over + 0.5f) * cellPx)
-                                    val to = (released / cellPx).toInt().coerceIn(0, tabs.size - 1)
-                                    if (to != currentSelected) onSelectedNow(to)
-                                }
-                                dragX = Float.NaN
-                                pressIndex = -1
-                                break
-                            }
-                            if (cellPx > 0f) {
-                                // 不做 positionChange 判断：dragX 是 mutableFloatStateOf，
-                                // 值没变本来就不会重组，每个事件都写一次最省事
-                                dragX = change.position.x
-                                over = (change.position.x / cellPx).toInt().coerceIn(0, tabs.size - 1)
-                            }
-                        }
-                    }
-                },
+                // 整条栏跟着手指橡皮条一样偏，最多 4dp，抬手弹回
+                .graphicsLayer { translationX = panelOffset }
+                // 阻尼动画自己带 pointerInput（Initial pass，不消费事件），
+                // 所以每格自己的 clickable 照旧管点按，它只管拖动和水球按压反馈
+                .then(drag.modifier),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             tabs.forEachIndexed { index, tab ->
