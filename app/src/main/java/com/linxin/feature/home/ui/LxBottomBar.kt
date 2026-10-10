@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -60,6 +61,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
@@ -68,6 +70,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.vibrancy
@@ -316,9 +321,58 @@ fun LxBottomBar(
         )
     // 静止时它就是一块 10% 的平色（浅色用黑、深色用白），按住把平色淡出、换成折射和高光
     val pillRestTint = if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.1f)
+    // 水球的采样源 = 页面背景 + 一层看不见的标签副本。少了后半截，玻璃里只会折到页面，
+    // 图标和文字不会被"盖"进水滴里（SukiSU 那份就是这么叠的）
+    val tabsBackdrop = rememberLayerBackdrop()
+    val combinedBackdrop = rememberCombinedBackdrop(backdrop, tabsBackdrop)
 
     Box(modifier = barBody.padding(horizontal = 4.dp)) {
-        // 滑块画在 tab 底下，自己不吃点击
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .onSizeChanged { barWidthPx = it.width }
+                // 整条栏跟着手指橡皮条一样偏，最多 4dp，抬手弹回
+                .graphicsLayer { translationX = panelOffset }
+                // 阻尼动画自己带 pointerInput（Initial pass，不消费事件），
+                // 所以每格自己的 clickable 照旧管点按，它只管拖动和水球按压反馈
+                .then(drag.modifier),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            tabs.forEachIndexed { index, tab ->
+                LxTabCell(
+                    tab = tab,
+                    active = index == selectedIndex,
+                    scale = if (index == currentIndex) 1f + 0.2f * press else 1f,
+                    selectedColor = selectedColor,
+                    clickable = true,
+                    onClick = { onSelected(index) },
+                )
+            }
+        }
+
+        // 一层看不见的标签副本，专门录进 tabsBackdrop 给水球当采样源。
+        // 没有它，水球能折射到的只有页面背景，文字不会被"盖"进玻璃里 —— 他要的就是这个。
+        Row(
+            modifier = Modifier
+                .matchParentSize()
+                .alpha(0f)
+                .clearAndSetSemantics { }
+                .layerBackdrop(tabsBackdrop),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            tabs.forEachIndexed { index, tab ->
+                LxTabCell(
+                    tab = tab,
+                    active = index == selectedIndex,
+                    scale = if (index == currentIndex) 1f + 0.2f * press else 1f,
+                    selectedColor = selectedColor,
+                    clickable = false,
+                    onClick = {},
+                )
+            }
+        }
+
+        // 水球画在最上面：图标和文字在它底下，所以既被它盖住、又被它折射
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
@@ -326,8 +380,6 @@ fun LxBottomBar(
                 // 滑块的尺寸又不随选中项变，Compose 就不重测，读到的永远是上一帧的位置 ——
                 // 真机上表现成"滑块慢一格"（点公告它停在消息那格）。
                 // graphicsLayer 的 translationX 在绘制阶段每帧都读，跟着动画走，不会滞后。
-                // 位置/挤压全交给阻尼动画：translationX 每帧读，scaleX 和 scaleY 是两根不同
-                // 阻尼的弹簧，所以按住时它是"被捏一下"地长，不是等比缩放。
                 .graphicsLayer {
                     translationX = pillLeft
                     scaleX = pillScaleX
@@ -338,14 +390,13 @@ fun LxBottomBar(
                 .then(
                     when (material) {
                         BarMaterial.LIQUID -> Modifier.drawBackdrop(
-                            backdrop = backdrop,
+                            backdrop = combinedBackdrop,
                             shape = { pillShape },
                             effects = {
                                 vibrancy()
                                 // SukiSU 的水球不带模糊，只有按住才出现的折射：
                                 // lens(10dp·p, 14dp·p, depthEffect = true, chromaticAberration = 0.5)。
-                                // 我们那份 AGSL 会拿 refractionHeight 做除数，所以留 0.001dp 的地板，
-                                // 静止时视觉上等于没有。
+                                // 我们那份 AGSL 会拿 refractionHeight 做除数，所以留 0.001dp 的地板。
                                 lensWithDispersion(
                                     refractionHeight = (10f * press).coerceAtLeast(0.001f).dp.toPx(),
                                     refractionAmount = (14f * press).coerceAtLeast(0.001f).dp.toPx(),
@@ -383,56 +434,58 @@ fun LxBottomBar(
                     },
                 ),
         )
+    }
+}
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .onSizeChanged { barWidthPx = it.width }
-                // 整条栏跟着手指橡皮条一样偏，最多 4dp，抬手弹回
-                .graphicsLayer { translationX = panelOffset }
-                // 阻尼动画自己带 pointerInput（Initial pass，不消费事件），
-                // 所以每格自己的 clickable 照旧管点按，它只管拖动和水球按压反馈
-                .then(drag.modifier),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            tabs.forEachIndexed { index, tab ->
-                val active = index == selectedIndex
-                val label = stringResource(tab.labelRes)
-                // 选中那格的图标+文字按按压力度放大到 1.2 倍（SukiSU 那个
-                // LocalFloatingBottomBarTabScale = lerp(1f, 1.2f, pressProgress)）
-                val tabScale = if (active) 1f + 0.2f * press else 1f
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .graphicsLayer {
-                            scaleX = tabScale
-                            scaleY = tabScale
-                        }
-                        .clickable(
-                            // 玻璃栏里绝不能有触摸水波纹：indication 是一层约 10% 黑的灰色圆角矩形，
-                            // 叠在折射上就变成"点哪一格哪一格发灰"，且部分机型按下后不会自动清掉。
-                            interactionSource = remember(label) { MutableInteractionSource() },
-                            indication = null,
-                        ) { onSelected(index) },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Icon(
-                        imageVector = tab.icon,
-                        contentDescription = label,
-                        tint = if (active) selectedColor else LxInkFaint,
-                        modifier = Modifier.size(22.dp),
-                    )
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Text(
-                        text = label,
-                        fontSize = 11.sp,
-                        fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
-                        color = if (active) selectedColor else LxInkFaint,
-                    )
-                }
+/**
+ * 底栏一格：图标 + 文字。抽出来是因为水球要采样一份一模一样的隐形副本
+ * （见 [LxBottomBar] 里那层 `alpha(0f)` 的 Row），不能再抄一遍代码。
+ */
+@Composable
+private fun RowScope.LxTabCell(
+    tab: LxTab,
+    active: Boolean,
+    scale: Float,
+    selectedColor: Color,
+    clickable: Boolean,
+    onClick: () -> Unit,
+) {
+    val label = stringResource(tab.labelRes)
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxHeight()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
             }
-        }
+            .then(
+                if (clickable) {
+                    Modifier.clickable(
+                        // 玻璃栏里绝不能有触摸水波纹：indication 是一层约 10% 黑的灰色圆角矩形，
+                        // 叠在折射上就变成"点哪一格哪一格发灰"，且部分机型按下后不会自动清掉。
+                        interactionSource = remember(label) { MutableInteractionSource() },
+                        indication = null,
+                    ) { onClick() }
+                } else {
+                    Modifier
+                },
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = tab.icon,
+            contentDescription = label,
+            tint = if (active) selectedColor else LxInkFaint,
+            modifier = Modifier.size(22.dp),
+        )
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+            color = if (active) selectedColor else LxInkFaint,
+        )
     }
 }
