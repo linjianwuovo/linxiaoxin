@@ -7,6 +7,11 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/**
+ * 桩数据全部是合成值：`memberId` / `extraId` 用连号十六进制，老师名字用「张三」。
+ * 这些字段以前直接从真机抓包抄过来，等于把本人账号 ID 和真实教师姓名写进公开仓，
+ * 2026-10-10 正式版自检时统一换掉。写新测试别再往回填真实值。
+ */
 class SportsGradeMapperTest {
 
     private fun json(s: String) = JsonParser.parseString(s).asJsonObject
@@ -36,23 +41,23 @@ class SportsGradeMapperTest {
     @Test
     fun `parseExtraId reads junior extra id`() {
         val extraId = SportsGradeMapper.parseExtraId(
-            json("""{"data":{"extraInfo":{"extraId":"7af5218ea81643638b69532a245a4f6c"}}}"""),
+            json("""{"data":{"extraInfo":{"extraId":"0123456789abcdef0123456789abcdef"}}}"""),
         )
 
-        assertEquals("7af5218ea81643638b69532a245a4f6c", extraId)
+        assertEquals("0123456789abcdef0123456789abcdef", extraId)
     }
 
     @Test
     fun `parseExtraDetail reads junior running metrics`() {
         val detail = SportsGradeMapper.parseExtraDetail(
             json(
-                """{"data":{"extraDetail":{"memberId":"94f8c6ff9c13411abd6ecfef5a5f5728",""" +
+                """{"data":{"extraDetail":{"memberId":"fedcba9876543210fedcba9876543210",""" +
                     """"mixOnceMile":"1","todayMile":"3.20","completeMile":"11.86",""" +
                     """"surplusMile":"48.14","maxMile":"5.41","maxMileDate":"2026-05-30"}}}""",
             ),
         )
 
-        assertEquals("94f8c6ff9c13411abd6ecfef5a5f5728", detail.memberId)
+        assertEquals("fedcba9876543210fedcba9876543210", detail.memberId)
         assertEquals(1.0, detail.mixOnceMileKm, 0.001)
         assertEquals(3.20, detail.todayMileKm, 0.001)
         assertEquals(11.86, detail.completedMileKm, 0.001)
@@ -76,12 +81,12 @@ class SportsGradeMapperTest {
         val summary = SportsGradeMapper.parseClubSummary(
             json(
                 """{"data":{"clubInfo":{"schoolYear":"2025","semester":"2","clubName":"体育（4）",""" +
-                    """"memberLevelName":"初级会员","teacherList":[{"name":"曹春顺"}]}}}""",
+                    """"memberLevelName":"初级会员","teacherList":[{"name":"张三"}]}}}""",
             ),
         )!!
         assertEquals("体育（4）", summary.courseName)
         assertEquals("2025-2", summary.term)
-        assertEquals("曹春顺", summary.teacherName)
+        assertEquals("张三", summary.teacherName)
         assertEquals("初级会员", summary.memberLevel)
     }
 

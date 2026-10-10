@@ -1,5 +1,7 @@
 package com.linxin.feature.about.ui
 
+import com.linxin.R
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

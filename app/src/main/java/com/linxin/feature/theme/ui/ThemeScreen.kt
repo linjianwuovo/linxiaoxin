@@ -1,5 +1,9 @@
 package com.linxin.feature.theme.ui
 
+import androidx.compose.ui.text.style.TextOverflow
+import com.linxin.core.settings.AppLanguage
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -47,6 +51,7 @@ import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.SwitchDefaults
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxTopBar
 import com.linxin.core.designsystem.theme.LxCardBorder
@@ -72,7 +77,7 @@ fun ThemeScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "主题设置", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_theme_settings), onBack = onBack) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -82,10 +87,14 @@ fun ThemeScreen(
                 .padding(horizontal = 20.dp)
                 .padding(top = 16.dp, bottom = 28.dp),
         ) {
-            SectionLabel("主题模式")
+            SectionLabel(stringResource(R.string.section_theme_mode))
             LxCard {
                 SegmentedChoice(
-                    options = listOf("跟随系统", "浅色", "深色"),
+                    options = listOf(
+                        stringResource(R.string.mode_follow_system),
+                        stringResource(R.string.mode_light),
+                        stringResource(R.string.mode_dark),
+                    ),
                     selectedIndex = settings.mode.ordinal,
                     modifier = Modifier.padding(14.dp),
                     onSelect = { viewModel.setMode(ThemeMode.values()[it]) },
@@ -94,13 +103,29 @@ fun ThemeScreen(
 
             Spacer(Modifier.height(22.dp))
 
-            SectionLabel("颜色")
+            SectionLabel(stringResource(R.string.section_language))
+            LxCard {
+                SegmentedChoice(
+                    options = listOf(
+                        stringResource(R.string.lang_follow_system),
+                        stringResource(R.string.lang_zh),
+                        stringResource(R.string.lang_en),
+                    ),
+                    selectedIndex = settings.language.ordinal,
+                    modifier = Modifier.padding(14.dp),
+                    onSelect = { viewModel.setLanguage(AppLanguage.values()[it]) },
+                )
+            }
+
+            Spacer(Modifier.height(22.dp))
+
+            SectionLabel(stringResource(R.string.section_color))
             LxCard {
                 if (monetSupported) {
                     SettingRow(
                         icon = Icons.Filled.Image,
-                        title = "启用 Monet 颜色",
-                        subtitle = "从壁纸自动取色作为主题色",
+                        title = stringResource(R.string.setting_monet),
+                        subtitle = stringResource(R.string.setting_monet_summary),
                         trailing = {
                             Switch(
                                 checked = settings.monet,
@@ -115,11 +140,11 @@ fun ThemeScreen(
                 }
                 SettingRow(
                     icon = Icons.Filled.Palette,
-                    title = "自定义主题色",
+                    title = stringResource(R.string.setting_custom_accent),
                     subtitle = if (monetSupported && settings.monet)
-                        "已启用 Monet，手动配色暂不生效"
+                        stringResource(R.string.accent_summary_monet)
                     else
-                        "取色器任选，影响主色调与氛围光",
+                        stringResource(R.string.accent_summary_custom),
                     onClick = { showColorPicker = true },
                     trailing = {
                         Box(
@@ -142,7 +167,7 @@ fun ThemeScreen(
 
             Spacer(Modifier.height(22.dp))
 
-            SectionLabel("底栏材质")
+            SectionLabel(stringResource(R.string.section_bar_material))
             LxCard {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -161,16 +186,20 @@ fun ThemeScreen(
                     }
                     Spacer(Modifier.height(12.dp))
                     SegmentedChoice(
-                        options = listOf("液态玻璃", "毛玻璃", "纯色"),
+                        options = listOf(
+                            stringResource(R.string.bar_liquid),
+                            stringResource(R.string.bar_frosted),
+                            stringResource(R.string.bar_solid),
+                        ),
                         selectedIndex = settings.barMaterial.ordinal,
                         onSelect = { viewModel.setBarMaterial(BarMaterial.values()[it]) },
                     )
                     if (settings.barMaterial != BarMaterial.SOLID) {
-                        GlassSliderRow("模糊度", settings.glassBlur, viewModel::setGlassBlur)
+                        GlassSliderRow(stringResource(R.string.slider_blur), settings.glassBlur, viewModel::setGlassBlur)
                         if (settings.barMaterial == BarMaterial.LIQUID) {
-                            GlassSliderRow("折射度", settings.glassRefraction, viewModel::setGlassRefraction)
-                            GlassSliderRow("扭曲度", settings.glassDistortion, viewModel::setGlassDistortion)
-                            GlassSliderRow("色散", settings.glassDispersion, viewModel::setGlassDispersion)
+                            GlassSliderRow(stringResource(R.string.slider_refraction), settings.glassRefraction, viewModel::setGlassRefraction)
+                            GlassSliderRow(stringResource(R.string.slider_distortion), settings.glassDistortion, viewModel::setGlassDistortion)
+                            GlassSliderRow(stringResource(R.string.slider_dispersion), settings.glassDispersion, viewModel::setGlassDispersion)
                         }
                     }
                 }
@@ -178,7 +207,7 @@ fun ThemeScreen(
 
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "切换后立即生效，并会记住你的选择。",
+                text = stringResource(R.string.theme_footer),
                 fontSize = 12.sp,
                 color = LxInkMuted,
                 modifier = Modifier.padding(start = 4.dp),
@@ -199,10 +228,11 @@ fun ThemeScreen(
     }
 }
 
+@Composable
 private fun barMaterialDesc(material: BarMaterial): String = when (material) {
-    BarMaterial.LIQUID -> "背景实时模糊流动，通透感强"
-    BarMaterial.FROSTED -> "更重的磨砂质感，朦胧柔和"
-    BarMaterial.SOLID -> "不透明实心底栏，最省电"
+    BarMaterial.LIQUID -> stringResource(R.string.bar_liquid_desc)
+    BarMaterial.FROSTED -> stringResource(R.string.bar_frosted_desc)
+    BarMaterial.SOLID -> stringResource(R.string.bar_solid_desc)
 }
 
 /**
@@ -282,6 +312,10 @@ private fun SegmentedChoice(
                     fontSize = 14.sp,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                     color = if (selected) LxTerra else LxInkMuted,
+                    // 分段按钮三格等宽，英文 "Follow system" 会折成两行、把整张卡撑高，
+                    // 与左右两格不齐；这里一律单行，配短标签，宁可省略号也不换行。
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

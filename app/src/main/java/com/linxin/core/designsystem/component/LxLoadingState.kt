@@ -1,5 +1,6 @@
 package com.linxin.core.designsystem.component
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -42,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.linxin.R
 import com.linxin.core.designsystem.theme.LxInkMuted
 import com.linxin.core.designsystem.theme.LxInkSoft
 import com.linxin.core.designsystem.theme.LxTerra
@@ -128,7 +130,7 @@ fun LxError(
         )
         if (onRetry != null) {
             Spacer(modifier = Modifier.height(16.dp))
-            LxOutlinedButton(text = "重试", onClick = onRetry)
+            LxOutlinedButton(text = stringResource(R.string.action_retry), onClick = onRetry)
         }
     }
 }
@@ -190,7 +192,7 @@ fun LxInlineErrorCard(
                     .padding(horizontal = 14.dp, vertical = 12.dp),
             )
             Text(
-                text = "重试",
+                text = stringResource(R.string.action_retry),
                 style = MiuixTheme.textStyles.footnote2,
                 fontWeight = FontWeight.SemiBold,
                 color = LxInkSoft,

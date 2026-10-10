@@ -15,25 +15,29 @@
 - 查寝页补齐：本月签到统计卡 + 签到月历 + 主题签到分组，接口按校方真实返回核对
 - 节假日离返校独立成页（去登记 / 历史登记双标签），不再塞在查寝列表里
 - 登录页「记住密码」：明文绝不落盘，密钥在 Android Keystore 里且不可导出
-- 底栏新增「公告」页：校方门户资讯里的通知公告，分页列表 + 富文本详情
-- 全站字体换成 [MiSans VF](https://hyperos.mi.com/font)（单个可变字体文件，`res/font/misans_w*.xml` 按字重锁 `wght` 轴），原 Newsreader 衬线大标题 / Outfit / Noto Serif SC 全部移除，详见 `MISANS-NOTICE.txt`
 - 移除"检测更新"功能（GitHub Release 轮询、APK 下载与安装权限整体删除）
 - 上游的内部设计文档目录 `codestable/` 不在本 fork 公开（其中含校方接口的鉴权细节）
 
-## 截图
+- 校园卡：余额 / 明细分页 / 充值走校方收银台（纯 JS 跳转，Cookie 按原域名种进 WebView）
+- 报修、请假、全校服务清单接入，写操作一律只做到确认前一步
+- 消息页一键已读（逐条 `readPushMessage.do`，真写到服务端）
+- 底栏玻璃滑块改成跟手：手指按在哪格滑块就跟到哪，抬手弹回选中格
+- 全站中英双语，文案全量抽进 `strings.xml`（每次发版跑中英键集合 diff）
+- 全站字体换成 MiSans VF，许可与合规记录见 `MISANS-NOTICE.txt`
 
-真机（ColorOS 17）实拍，个人信息已打码。
+## 界面截图
 
-| ![](screenshots/首页.png) | ![](screenshots/课程表.png) | ![](screenshots/我的.png) | ![](screenshots/ai课堂.png) |
-|:--:|:--:|:--:|:--:|
-| 首页 | 课程表 | 我的 | AI 课堂 |
+本 fork 不再放真机截图。截图里躲不开真实课表、教室和公告内容，打码也不算干净；
+想看界面自己编译一份，或者跑起来看一眼比看图快。
 
-下方保留上游原 README 正文（**截图与安装两处已按本 fork 更新**：上游原版 7 张截图不再保留，安装不再指向上游）。
+下方保留上游原 README 正文（**安装一节已按本 fork 更新**）。
 
 ## 安装
 
-> 本 fork 的安装包在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.3.5)：
-> `linxin-v1.3.5.apk`（debug 签名，minSdk 26 / Android 8.0+）。装过其它签名的版本需先卸载再装。
+> 正式版安装包在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.3.6)：
+> `linxin-1.3.6.apk`（debug 签名，minSdk 26 / Android 8.0+，arm64-v8a）。
+> 签名一直是 Android 调试 key，所以从任一 beta 版本可以直接覆盖安装；
+> 换成别的签名（比如自己 `assembleRelease` 出来的未签名包）就得先卸载再装。
 
 ```bash
 git clone https://github.com/linjianwuovo/linxiaoxin.git
@@ -42,15 +46,6 @@ cd linxiaoxin
 ```
 
 需要 **Android Studio** 和 **JDK 17**。
-
-> **从源码编译前请先放字体文件**：`misans_vf.ttf` 依 MiSans 协议第 3 条不进本仓库
-> （公开仓放裸字体属于"单独分发字体副本"）。取官方包
-> <https://hyperos.mi.com/font-download/MiSans_Global_ALL.zip>（397,995,650 字节；
-> 注意路径是 `font-download` 连字符，不是页面上的 `/font/download`），解出内层
-> `MiSans.zip` 中的 `MiSans/MiSans VF.ttf`（20,000,736 字节，sha256
-> `5daf8d5447bfd423cfdec94a0e07c53b205892223ccc6ea21b7b8a37248b44d9`），重命名放到
-> `app/src/main/res/font/misans_vf.ttf`；否则 `res/font/misans_w*.xml` 找不到引用目标、
-> 编译会失败。协议原文与合规说明见 `MISANS-NOTICE.txt`。打进 APK 分发是协议明确允许的。
 
 ---
 

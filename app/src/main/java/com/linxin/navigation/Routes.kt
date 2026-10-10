@@ -57,6 +57,19 @@ object Routes {
     // Credit
     const val CREDIT_OVERVIEW = "credit/overview"
 
+    // 报修（只读：我的报修单 + 详情/流程）
+    const val REPAIR_LIST = "repair/list"
+    const val REPAIR_DETAIL = "repair/detail/{bxdh}"
+    fun repairDetail(bxdh: String) = "repair/detail/${Uri.encode(bxdh)}"
+    const val REPAIR_FORM = "repair/form"
+
+    // 请假（只读：我的申请 / 待办）
+    const val LEAVE_LIST = "leave/list"
+    const val LEAVE_CREATE = "leave/create"
+
+    // 校园卡（只读：余额与卡状态）
+    const val CAMPUS_CARD = "card"
+
     // AI Homework
     const val AICLASS_HOMEWORK_DETAIL = "aiclass/homework/{cwId}/{teachClassId}"
     fun aiClassHomeworkDetail(cwId: String, teachClassId: String) =

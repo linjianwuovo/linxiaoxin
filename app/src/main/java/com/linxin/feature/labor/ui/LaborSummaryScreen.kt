@@ -1,4 +1,6 @@
 package com.linxin.feature.labor.ui
+import androidx.compose.ui.res.stringResource
+import com.linxin.R
 import com.linxin.core.designsystem.theme.LxShapes
 import com.linxin.core.designsystem.theme.RLg
 
@@ -60,7 +62,7 @@ fun LaborSummaryScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "劳动教育", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_labor), onBack = onBack) },
     ) { padding ->
         when {
             uiState.isLoading -> LxLoading(modifier = Modifier.padding(padding))
@@ -136,7 +138,7 @@ private fun LaborContent(
         if (uiState.activities.isNotEmpty()) {
             item(key = "section_title") {
                 Text(
-                    text = "活动记录",
+                    text = stringResource(R.string.labor_records),
                     style = MiuixTheme.textStyles.title3,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
@@ -175,11 +177,11 @@ private fun LaborContent(
 @Composable
 private fun HoursSummaryCard(summary: HoursSummary) {
     val items = listOf(
-        Triple("志愿服务", summary.voluntaryTimes, LxCategoryColors[0]),
-        Triple("暑期实践", summary.summerTimes, LxCategoryColors[1]),
-        Triple("劳动实践", summary.laborTimes, LxCategoryColors[2]),
-        Triple("社区服务", summary.socialTimes, LxCategoryColors[3]),
-        Triple("其他", summary.otherTimes, LxCategoryColors[4]),
+        Triple(stringResource(R.string.labor_cat_volunteer), summary.voluntaryTimes, LxCategoryColors[0]),
+        Triple(stringResource(R.string.labor_cat_summer), summary.summerTimes, LxCategoryColors[1]),
+        Triple(stringResource(R.string.labor_cat_work), summary.laborTimes, LxCategoryColors[2]),
+        Triple(stringResource(R.string.labor_cat_community), summary.socialTimes, LxCategoryColors[3]),
+        Triple(stringResource(R.string.labor_cat_other), summary.otherTimes, LxCategoryColors[4]),
     )
     val maxHours = items.maxOf { it.second }.coerceAtLeast(1.0)
 
@@ -191,12 +193,12 @@ private fun HoursSummaryCard(summary: HoursSummary) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "志愿时长总览",
+                    text = stringResource(R.string.labor_total_overview),
                     style = MiuixTheme.textStyles.title4,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = "共 ${"%.1f".format(summary.totalTimes)} 志愿时长",
+                    text = stringResource(R.string.labor_total_hours, "%.1f".format(summary.totalTimes)),
                     style = MiuixTheme.textStyles.footnote1,
                     color = MiuixTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold,
@@ -322,7 +324,7 @@ private fun ActivityCard(
                     color = MiuixTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "志愿时长",
+                    text = stringResource(R.string.ui_030),
                     style = MiuixTheme.textStyles.footnote2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
@@ -358,11 +360,11 @@ private fun DetailSheetContent(
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.height(16.dp))
-            LxDetailRow(label = "活动类型", value = detail.activityType)
-            LxDetailRow(label = "活动级别", value = detail.activityLevel)
-            LxDetailRow(label = "主办方", value = detail.organizer)
-            LxDetailRow(label = "志愿时长", value = "%.1f".format(detail.serviceTimes))
-            LxDetailRow(label = "日期", value = detail.createDate, showDivider = false)
+            LxDetailRow(label = stringResource(R.string.labor_type), value = detail.activityType)
+            LxDetailRow(label = stringResource(R.string.labor_level), value = detail.activityLevel)
+            LxDetailRow(label = stringResource(R.string.labor_organizer), value = detail.organizer)
+            LxDetailRow(label = stringResource(R.string.labor_hours), value = "%.1f".format(detail.serviceTimes))
+            LxDetailRow(label = stringResource(R.string.labor_date), value = detail.createDate, showDivider = false)
         }
     }
 }

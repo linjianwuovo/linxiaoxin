@@ -1,11 +1,16 @@
 package com.linxin.feature.home.domain
 
 import com.linxin.core.auth.TokenManager
+import com.linxin.feature.card.data.CampusCardRepository
 import com.linxin.feature.checkin.data.CheckinRepository
 import com.linxin.feature.checkin.domain.CheckinTask
 import com.linxin.feature.schedule.data.ScheduleRepository
 import com.linxin.feature.schedule.domain.Course
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,12 +36,16 @@ class HomeBootstrap @Inject constructor(
     private val tokenManager: TokenManager,
     private val scheduleRepository: ScheduleRepository,
     private val checkinRepository: CheckinRepository,
+    private val campusCardRepository: CampusCardRepository,
 ) {
     private val _ready = MutableStateFlow(false)
     val ready: StateFlow<Boolean> = _ready.asStateFlow()
 
     private val _snapshot = MutableStateFlow<HomeBootstrapSnapshot?>(null)
     val snapshot: StateFlow<HomeBootstrapSnapshot?> = _snapshot.asStateFlow()
+
+    /** 给后台预热用的进程级作用域：首页已经加载完，不该再占用户的协程作用域 */
+    private val prefetchScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val loadMutex = Mutex()
     private var loaded = false
@@ -69,6 +78,8 @@ class HomeBootstrap @Inject constructor(
             }
         } finally {
             _ready.value = true
+            // 校园卡那条换会话链最慢，首页数据齐了就在后台先换好，别让用户点进去干等
+            prefetchScope.launch { campusCardRepository.warmUp() }
         }
     }
 

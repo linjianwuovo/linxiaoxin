@@ -1,5 +1,6 @@
 package com.linxin.feature.running.ui
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxTopBar
 import com.linxin.core.designsystem.theme.LxCream
@@ -61,7 +63,7 @@ fun RouteSimulationSettingsScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "路线模拟", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_route_mock), onBack = onBack) },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.padding(padding).fillMaxSize(),
@@ -70,7 +72,7 @@ fun RouteSimulationSettingsScreen(
         ) {
             item {
                 Text(
-                    text = "录制真实校园路线，作为后续模拟提交的底稿。",
+                    text = stringResource(R.string.ui_048),
                     style = MiuixTheme.textStyles.body2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
@@ -78,12 +80,12 @@ fun RouteSimulationSettingsScreen(
             item {
                 LxCard {
                     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
-                        StatRow(label = "默认模板", value = uiState.defaultTemplate?.name ?: "未设置")
+                        StatRow(label = stringResource(R.string.ui_049), value = uiState.defaultTemplate?.name ?: "未设置")
                         Spacer(modifier = Modifier.height(10.dp))
-                        StatRow(label = "模板数量", value = "${uiState.templates.size} 个")
+                        StatRow(label = stringResource(R.string.ui_050), value = stringResource(R.string.ui_051, uiState.templates.size.toString()))
                         Spacer(modifier = Modifier.height(10.dp))
                         StatRow(
-                            label = "最近录制",
+                            label = stringResource(R.string.ui_052),
                             value = uiState.lastRecordedAtMillis?.let { formatDate(it) } ?: "--",
                         )
                     }
@@ -94,13 +96,13 @@ fun RouteSimulationSettingsScreen(
                     Column {
                         RouteMenuRow(
                             icon = Icons.Outlined.FiberManualRecord,
-                            title = "录制新模板",
+                            title = stringResource(R.string.ui_053),
                             onClick = onOpenRecord,
                         )
                         MenuDivider()
                         RouteMenuRow(
                             icon = Icons.Outlined.FormatListBulleted,
-                            title = "管理模板",
+                            title = stringResource(R.string.ui_054),
                             hint = if (uiState.templates.isEmpty()) "暂无" else "${uiState.templates.size} 个",
                             onClick = onOpenList,
                         )

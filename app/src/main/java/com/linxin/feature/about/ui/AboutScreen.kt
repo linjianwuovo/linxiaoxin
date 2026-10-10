@@ -1,5 +1,6 @@
 package com.linxin.feature.about.ui
 
+import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
@@ -65,7 +66,7 @@ fun AboutScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = "关于林小信", onBack = onBack) },
+        topBar = { LxTopBar(title = stringResource(R.string.title_about), onBack = onBack) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -141,7 +142,7 @@ private fun BrandCard(versionName: String) {
             }
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "林小信",
+                text = stringResource(R.string.app_name),
                 fontWeight = FontWeight.Medium,
                 fontSize = 26.sp,
                 lineHeight = 32.sp,
@@ -149,7 +150,7 @@ private fun BrandCard(versionName: String) {
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "让校园生活更轻盈",
+                text = stringResource(R.string.about_tagline),
                 fontSize = 13.sp,
                 color = LxInkMuted,
             )
@@ -164,7 +165,7 @@ private fun BrandCard(versionName: String) {
             // MiSans 许可协议第 1 条要求"在软件中特别注明使用了 MiSans 字体"。
             Spacer(modifier = Modifier.height(14.dp))
             Text(
-                text = "本应用使用 MiSans 字体\nCopyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.",
+                text = stringResource(R.string.about_misans),
                 fontSize = 11.sp,
                 lineHeight = 15.sp,
                 color = LxInkMuted,
@@ -187,7 +188,7 @@ private fun DeveloperToggleRow(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
-            text = "启用调试功能",
+            text = stringResource(R.string.ui_002),
             fontSize = 15.sp,
             color = LxInk,
             modifier = Modifier.weight(1f),
@@ -217,7 +218,7 @@ private fun GitHubRow() {
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
-            text = "GitHub 仓库",
+            text = stringResource(R.string.about_github),
             fontSize = 15.sp,
             color = LxInk,
         )
