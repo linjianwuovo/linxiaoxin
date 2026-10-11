@@ -58,8 +58,8 @@
 
     <string name="section_bar_material">底栏材质</string>
     <string name="section_motion">动效</string>
-    <string name="setting_preview_back">返回动画</string>
-    <string name="setting_preview_back_summary">侧滑预示和返回转场一起管。贴着屏幕最边那一下是系统在处理，拦不住</string>
+    <string name="setting_preview_back">预测性返回手势</string>
+    <string name="setting_preview_back_summary">开启后，侧滑返回会通过手势动画预测返回；关闭则直接返回上一页。点返回箭头的转场不受影响，贴屏幕最边那一下由系统处理</string>
     <string name="bar_liquid">液态玻璃</string>
     <string name="bar_frosted">毛玻璃</string>
     <string name="bar_solid">纯色</string>
