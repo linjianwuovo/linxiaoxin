@@ -23,6 +23,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -164,14 +167,24 @@ fun LinXinNavHost(
         // 没手势的时候不加 graphicsLayer：常驻一层图层会改变子树的重绘边界，
         // 边缘手势的 pointerInput 则必须一直挂着，不能在这上面做条件，否则拖到一半会断。
         modifier = back.modifier.then(
-            if (backProgress > 0f) androidx.compose.ui.Modifier.graphicsLayer {
-                // 缩到 0.85 / 淡到 0.75 / 左移 8% 屏宽：AppShare 实测那套量级（它 scaleOut 就是 0.85）。
-                // 我们只画当前这一页，画不出上一页，所以位移给得小；曲线和时长在 rememberLxBackMotion 里
-                scaleX = 1f - 0.15f * backProgress
-                scaleY = 1f - 0.15f * backProgress
-                alpha = 1f - 0.25f * backProgress
-                translationX = -size.width * 0.08f * backProgress
-            } else androidx.compose.ui.Modifier
+            if (backProgress > 0f) androidx.compose.ui.Modifier
+                // 返回模糊：半径随进度线性拉起来，松手回弹时跟着收回 0。
+                // 用 androidx 的 Modifier.blur（Apache-2.0），Android 12 以下自动不生效
+                .blur(
+                    // 平方渐强：前半程基本不糊，快到提交点才糊起来，跟系统那种一致；
+                    // 线性拉满会把整页糊成一片，读不出内容
+                    radius = (com.linxin.core.compat.LX_BACK_BLUR_MAX_DP * backProgress * backProgress).dp,
+                    edgeTreatment = BlurredEdgeTreatment.Unbounded,
+                )
+                .graphicsLayer {
+                    // 缩到 0.85 / 淡到 0.75 / 左移 8% 屏宽：Material 侧滑返回的惯例量级。
+                    // 我们只画当前这一页，画不出上一页，所以位移给得小；曲线和时长在 rememberLxBackMotion 里
+                    scaleX = 1f - 0.15f * backProgress
+                    scaleY = 1f - 0.15f * backProgress
+                    alpha = 1f - 0.25f * backProgress
+                    translationX = -size.width * 0.08f * backProgress
+                }
+            else androidx.compose.ui.Modifier
         ),
         enterTransition = {
             if (suppressTransitions) EnterTransition.None
