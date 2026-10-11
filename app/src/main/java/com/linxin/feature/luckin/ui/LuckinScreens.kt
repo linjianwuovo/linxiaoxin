@@ -142,6 +142,39 @@ fun LuckinShopsScreen(
     var lng by remember { mutableStateOf(state.lng) }
     var lat by remember { mutableStateOf(state.lat) }
     var tick by remember { mutableStateOf(0) }
+    var locNote by remember { mutableStateOf<String?>(null) }
+    lateinit var askLocPerm: () -> Unit
+    val fillFromLocation: () -> Unit = {
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!granted) {
+            askLocPerm()
+        } else {
+            val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE)
+                    as android.location.LocationManager
+            val fresh = listOf(
+                android.location.LocationManager.NETWORK_PROVIDER,
+                android.location.LocationManager.GPS_PROVIDER,
+                android.location.LocationManager.PASSIVE_PROVIDER,
+            ).mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
+                .filter { System.currentTimeMillis() - it.time < 10 * 60_000L }
+                .maxByOrNull { it.time }
+            if (fresh == null) {
+                locNote = context.getString(R.string.luckin_loc_stale)
+            } else {
+                locNote = null
+                lng = "%.6f".format(fresh.longitude)
+                lat = "%.6f".format(fresh.latitude)
+                scope.launch { prefs.setPoint(lng, lat); tick++ }
+            }
+        }
+    }
+    val askLoc = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { granted -> if (granted) fillFromLocation() else locNote = "还没给定位权限" }
+
+
 
     LaunchedEffect(Unit) { prefs.state.collect { s -> state = s; lng = s.lng; lat = s.lat } }
 
@@ -178,8 +211,15 @@ fun LuckinShopsScreen(
                         LxField(lat, { lat = it }, stringResource(R.string.luckin_lat), Modifier.weight(1f))
                     }
                     Spacer(Modifier.height(12.dp))
-                    LxPillButton(stringResource(R.string.luckin_query_shops)) {
-                        scope.launch { prefs.setPoint(lng, lat); tick++ }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        LxPillButton(stringResource(R.string.luckin_use_location)) { fillFromLocation() }
+                        LxPillButton(stringResource(R.string.luckin_query_shops)) {
+                            scope.launch { prefs.setPoint(lng, lat); tick++ }
+                        }
+                    }
+                    locNote?.let {
+                        Spacer(Modifier.height(8.dp))
+                        Text(it, fontSize = 12.sp, color = MiuixTheme.colorScheme.error)
                     }
                 }
             }

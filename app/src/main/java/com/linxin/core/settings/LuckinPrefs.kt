@@ -39,9 +39,9 @@ data class LuckinState(
     }
 
     companion object {
-        /** 默认坐标：合肥市区一个点，实测 queryShopList 能回 8 家店 */
-        const val DEFAULT_LNG = "117.2272"
-        const val DEFAULT_LAT = "31.8206"
+        /** 不给默认坐标：之前写死一个合肥的点，结果人在别处，门店全是错的。定位按钮现取 */
+        const val DEFAULT_LNG = ""
+        const val DEFAULT_LAT = ""
     }
 }
 
