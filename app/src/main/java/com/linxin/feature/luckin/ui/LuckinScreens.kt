@@ -275,7 +275,8 @@ fun LuckinProductsScreen(deptId: Long, deptName: String, onBack: () -> Unit) {
     var products by remember { mutableStateOf<List<LuckinMcp.Product>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var searching by remember { mutableStateOf(false) }
+    var searched by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { token = prefs.current().token }
 
@@ -288,18 +289,17 @@ fun LuckinProductsScreen(deptId: Long, deptName: String, onBack: () -> Unit) {
                 LxField(query, { query = it }, stringResource(R.string.luckin_search_hint), Modifier.weight(1f))
                 Spacer(Modifier.width(10.dp))
                 LxPillButton(stringResource(R.string.luckin_search), enabled = query.isNotBlank() && token.isNotBlank()) {
-                    searching = true
+                    val q = query.trim()
+                    scope.launch {
+                        loading = true; error = null; searched = true
+                        runCatching { LuckinMcp.searchProducts(token, deptId, q) }
+                            .onSuccess { products = it }
+                            .onFailure { error = it.message ?: it.javaClass.simpleName }
+                        loading = false
+                    }
                 }
             }
             Spacer(Modifier.height(14.dp))
-            LaunchedEffect(searching) {
-                if (!searching || token.isBlank()) return@LaunchedEffect
-                loading = true; error = null
-                runCatching { LuckinMcp.searchProducts(token, deptId, query.trim()) }
-                    .onSuccess { products = it }
-                    .onFailure { error = it.message ?: it.javaClass.simpleName }
-                loading = false
-            }
             if (loading) {
                 Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() }
             }
@@ -307,7 +307,7 @@ fun LuckinProductsScreen(deptId: Long, deptName: String, onBack: () -> Unit) {
                 Text(stringResource(R.string.luckin_error, it), fontSize = 13.sp, color = MiuixTheme.colorScheme.error)
                 Spacer(Modifier.height(14.dp))
             }
-            if (products.isEmpty() && !loading && token.isNotBlank()) {
+            if (products.isEmpty() && !loading && searched) {
                 Text(stringResource(R.string.luckin_products_empty), fontSize = 13.sp,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
             }
