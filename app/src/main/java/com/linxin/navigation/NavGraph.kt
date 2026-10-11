@@ -159,7 +159,7 @@ fun LinXinNavHost(
 
     val back = rememberLxBackMotion(navController, previewBackGesture)
     val backProgress = back.progress
-    // 模糊单独一条进度：手势期间跟 drag，返回完成后再从 0.8 收到 0（见 rememberLxBackMotion）
+    // 模糊单独一条进度：和手势进度反着走，一接管就糊满、随划出距离收到 0（见 rememberLxBackMotion）
     val blurProgress = back.blurProgress
 
     NavHost(
