@@ -100,10 +100,16 @@ object LuckinWeb {
         }
 
     /** 整张分类菜单：人气Top / 当季新品 / 生椰家族 …… 只有 id 和价格 */
+    /** 门店此刻开不开：菜单那一发里就带着 shopInfo.isWork，顺手记下来，不再多请求 */
+    private val openCache = java.util.concurrent.ConcurrentHashMap<Long, Boolean>()
+
+    fun isOpen(deptId: Long): Boolean? = openCache[deptId]
+
     suspend fun menu(deptId: Long): List<MenuKind> {
         val content = get("resource/core/v3/product/menu", mapOf("deptId" to deptId))
             .getAsJsonObject("content")
             ?: throw WebApiError("菜单是空的")
+        content.getAsJsonObject("shopInfo")?.num("isWork")?.let { openCache[deptId] = it == 1.0 }
         return content.getAsJsonArray("commodityList").orEmpty().map { el ->
             val k = el.asJsonObject
             val items = k.getAsJsonArray("twoProductList").orEmpty()
