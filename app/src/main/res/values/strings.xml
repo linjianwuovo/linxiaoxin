@@ -620,6 +620,8 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="card_trades_all">没有更多了</string>
     <string name="card_trades_count">已显示 %1$d 笔 · 共 %2$d 笔</string>
     <!-- 瑞幸（fun-luckin） -->
+    <string name="luckin_use_location">用我的位置</string>
+    <string name="luckin_loc_stale">十分钟内没有定位，先打开地图定一次位再点</string>
     <string name="luckin_account_title">瑞幸账号</string>
     <string name="luckin_account_off">还没登录。登录后凭证只存在这台手机本机，约 30 天过期。</string>
     <string name="luckin_account_on">已登录，本机凭证 %1$s</string>

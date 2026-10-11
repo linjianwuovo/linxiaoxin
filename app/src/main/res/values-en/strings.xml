@@ -620,6 +620,8 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="card_trades_all">Nothing more</string>
     <string name="card_trades_count">Showing %1$d of %2$d</string>
     <!-- 瑞幸（fun-luckin） -->
+    <string name="luckin_use_location">Use my location</string>
+    <string name="luckin_loc_stale">No fix in the last 10 minutes. Open a map to get one, then tap again</string>
     <string name="luckin_account_title">Luckin account</string>
     <string name="luckin_account_off">Not signed in. The credential stays on this device and expires in about 30 days.</string>
     <string name="luckin_account_on">Signed in, local credential %1$s</string>
