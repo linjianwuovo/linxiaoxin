@@ -44,6 +44,8 @@ data class AiClassUiState(
     val signResult: String? = null,
     /** signResult 是成功还是失败；扫码页据此决定「确定」是退出还是继续扫 */
     val signSucceeded: Boolean = false,
+    /** AI 课堂消息中心未读数；null 表示还没拿到 */
+    val messageUnread: Int? = null,
 )
 
 @HiltViewModel
@@ -57,6 +59,14 @@ class AiClassViewModel @Inject constructor(
 
     init {
         load()
+        loadUnread()
+    }
+
+    /** 未读角标单独一发，不跟课程加载抢，也不参与整页 loading */
+    private fun loadUnread() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(messageUnread = repository.getMessageUnreadCount()) }
+        }
     }
 
     fun load() {

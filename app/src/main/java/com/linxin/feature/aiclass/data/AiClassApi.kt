@@ -96,6 +96,15 @@ interface AiClassApi {
     ): AiClassTimetableResponse
 
     /** 课程作业列表 */
+    /** AI 课堂消息中心未读数：安小信进 AI 课堂时会打这一发，我们之前没有 */
+    @FormUrlEncoded
+    @POST("studycenter/mobile/ZjzxMessage/getUnReadCount")
+    suspend fun getMessageUnreadCount(
+        @Header("authorization") auth: String,
+        @Header("Visit-Type") visitType: String = "mobile",
+    ): AiClassUnreadResponse
+
+
     @GET("coursecenter-interaction/izuoye/homework/public/listStudent")
     suspend fun listStudentHomework(
         @Query("courseId") courseId: String,

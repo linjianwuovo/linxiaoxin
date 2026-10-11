@@ -178,7 +178,16 @@ class AiClassRepository @Inject constructor(
         }
     }
 
-    /** 查询正在进行的课堂 */
+    /** 查询正在进行的课堂 */    /** AI 课堂消息未读数。拿不到就当 0，不报错——它只是个角标，不该拖住首页 */
+    suspend fun getMessageUnreadCount(): Int = try {
+        val auth = ensureSession()
+        val resp = api.getMessageUnreadCount(auth)
+        if (resp.success == true || resp.status == 0) resp.data ?: 0 else 0
+    } catch (e: Exception) {
+        0
+    }
+
+
     suspend fun getWorkingRecord(): Result<AiWorkingRecord?> {
         return try {
             val auth = ensureSession()
