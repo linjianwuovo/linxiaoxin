@@ -182,11 +182,13 @@ fun LinXinNavHost(
             else fadeOut(tween(200))
         },
         popEnterTransition = {
-            if (suppressTransitions) EnterTransition.None
+            // 「动效 → 返回动画」是全局闸：关掉之后连点返回箭头那下也不做转场，
+            // 和左边缘手势预示一起管，不留"手势没动画但箭头还有"这种半拉子状态
+            if (suppressTransitions || !previewBackGesture) EnterTransition.None
             else fadeIn(tween(300)) + slideInHorizontally(tween(300)) { -it / 4 }
         },
         popExitTransition = {
-            if (suppressTransitions) ExitTransition.None
+            if (suppressTransitions || !previewBackGesture) ExitTransition.None
             else fadeOut(tween(200)) + slideOutHorizontally(tween(200)) { it / 4 }
         },
     ) {
