@@ -656,7 +656,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="luckin_hot_1">生椰拿铁</string>
     <string name="luckin_hot_2">冰美式</string>
     <string name="luckin_hot_3">拿铁</string>
-    <string name="luckin_menu_error">菜单没拼出来：%1$s</string>
+    <string name="luckin_menu_error">菜单没取到：%1$s</string>
     <string name="luckin_menu_empty">这家店没搜到商品</string>
     <string name="luckin_menu_note">菜单是瑞幸自家接口的整张分类，价格是门店直降价；券后价和下单要登录，走上方的搜索看。</string>
     <string name="luckin_kind_count">%1$d 款</string>

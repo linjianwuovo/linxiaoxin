@@ -64,9 +64,18 @@ object LuckinWeb {
     private fun JsonArray?.orEmpty(): List<JsonElement> =
         if (this == null) emptyList() else List(size()) { get(it) }
 
-    private fun JsonElement.asStringOrNull(): String? =
-        runCatching { if (isJsonNull) null else asJsonObject.get("url").asString }
-            .recoverCatching { if (isJsonNull) null else asString }.getOrNull()
+    /** 网关里很多字段是 JSON 的 null，Gson 的 asDouble/asBoolean 撞上 JsonNull 会抛，一律走这两个 */
+    private fun JsonObject.num(key: String): Double? =
+        runCatching { get(key)?.takeIf { !it.isJsonNull }?.asDouble }.getOrNull()
+
+    private fun JsonObject.flag(key: String): Boolean? =
+        runCatching { get(key)?.takeIf { !it.isJsonNull }?.asBoolean }.getOrNull()
+
+    private fun JsonElement?.asStringOrNull(): String? {
+        if (this == null || isJsonNull) return null
+        runCatching { asJsonObject.get("url")?.takeIf { !it.isJsonNull }?.asString }.getOrNull()?.let { return it }
+        return runCatching { asString }.getOrNull()
+    }
 
     private suspend fun get(path: String, params: Map<String, Any?>): JsonObject =
         withContext(Dispatchers.IO) {
@@ -104,9 +113,9 @@ object LuckinWeb {
                     val pr = po.getAsJsonObject("productPrice")
                     MenuItem(
                         productId = po.get("productId").asStringOrNull()?.toLongOrNull() ?: 0L,
-                        initialPrice = pr?.get("initialPrice")?.asDouble ?: 0.0,
-                        discountPrice = pr?.get("discountPrice")?.asDouble ?: -1.0,
-                        recommendTop = po.get("recommendTop")?.asBoolean ?: false,
+                        initialPrice = pr?.num("initialPrice") ?: 0.0,
+                        discountPrice = pr?.num("discountPrice") ?: -1.0,
+                        recommendTop = po.flag("recommendTop") ?: false,
                     )
                 }
                 .filter { it.productId != 0L }
@@ -131,8 +140,8 @@ object LuckinWeb {
             productId = productId,
             name = c.get("name").asStringOrNull() ?: "",
             pictureUrl = pics ?: c.get("defaultPicUrl").asStringOrNull(),
-            initialPrice = c.get("initialPrice")?.asDouble ?: 0.0,
-            discountPrice = c.get("discountPrice")?.asDouble ?: -1.0,
+            initialPrice = c.num("initialPrice") ?: 0.0,
+            discountPrice = c.num("discountPrice") ?: -1.0,
         )
     }
 
