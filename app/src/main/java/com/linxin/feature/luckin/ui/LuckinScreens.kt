@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
+import com.linxin.core.designsystem.component.LxChoiceChip
 import com.linxin.core.designsystem.component.LxTopBar
 import com.linxin.core.designsystem.theme.LxCream
 import com.linxin.core.designsystem.theme.LxInkMuted
@@ -276,6 +277,11 @@ fun LuckinShopsScreen(
     }
 }
 
+/**
+ * 商品页：搜索框 + 热门一键搜。热门胶囊就是把同样那句话填进搜索框再搜一次，
+ * 手不用打字也能走通全链路（平常人更吃这套，也是我能用点按验收的原因）。
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LuckinProductsScreen(
     deptId: Long,
@@ -293,7 +299,40 @@ fun LuckinProductsScreen(
     var searched by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
+    val runSearch: (String) -> Unit = { raw ->
+        val q = raw.trim()
+        if (q.isNotBlank() && token.isNotBlank()) {
+            query = q
+            scope.launch {
+                loading = true; error = null; searched = true
+                runCatching { LuckinMcp.searchProducts(token, deptId, q) }
+                    .onSuccess { products = it }
+                    .onFailure { error = it.message ?: it.javaClass.simpleName }
+                loading = false
+            }
+        }
+    }
+
+    var menu by remember { mutableStateOf<List<Pair<String, List<LuckinMcp.Product>>>>(emptyList()) }
+    var menuLoading by remember { mutableStateOf(true) }
+    var menuError by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(Unit) { token = prefs.current().token }
+
+    // 品类词各搜一次，全部回来才渲染，不做一路加载一路蹦
+    LaunchedEffect(deptId, token) {
+        if (token.isBlank()) { menuLoading = false; return@LaunchedEffect }
+        menuLoading = true; menuError = null
+        runCatching { LuckinMcp.queryMenu(token, deptId) }
+            .onSuccess { groups ->
+                val seen = HashSet<Long>()
+                menu = groups.map { (word, list) ->
+                    word to list.filter { seen.add(it.productId) }
+                }.filter { it.second.isNotEmpty() }
+            }
+            .onFailure { menuError = it.message ?: it.javaClass.simpleName }
+        menuLoading = false
+    }
 
     Scaffold(topBar = { LxTopBar(title = deptName.ifBlank { stringResource(R.string.luckin_products_title) }, onBack = onBack) }) { pad ->
         Column(
@@ -304,64 +343,118 @@ fun LuckinProductsScreen(
                 LxField(query, { query = it }, stringResource(R.string.luckin_search_hint), Modifier.weight(1f))
                 Spacer(Modifier.width(10.dp))
                 LxPillButton(stringResource(R.string.luckin_search), enabled = query.isNotBlank() && token.isNotBlank()) {
-                    val q = query.trim()
-                    scope.launch {
-                        loading = true; error = null; searched = true
-                        runCatching { LuckinMcp.searchProducts(token, deptId, q) }
-                            .onSuccess { products = it }
-                            .onFailure { error = it.message ?: it.javaClass.simpleName }
-                        loading = false
-                    }
+                    runSearch(query)
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                stringResource(R.string.luckin_hot_title),
+                fontSize = 12.sp,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            )
+            Spacer(Modifier.height(8.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                listOf(
+                    stringResource(R.string.luckin_hot_1),
+                    stringResource(R.string.luckin_hot_2),
+                    stringResource(R.string.luckin_hot_3),
+                ).forEach { name ->
+                    LxChoiceChip(
+                        text = name,
+                        selected = query == name && products.isNotEmpty(),
+                        enabled = token.isNotBlank(),
+                        onClick = { runSearch(name) },
+                    )
+                }
+                if (searched) {
+                    LxChoiceChip(
+                        text = stringResource(R.string.luckin_back_to_menu),
+                        selected = false,
+                        onClick = { searched = false; products = emptyList(); query = "" },
+                    )
                 }
             }
             Spacer(Modifier.height(14.dp))
-            if (loading) {
-                Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() }
-            }
-            error?.let {
-                Text(stringResource(R.string.luckin_error, it), fontSize = 13.sp, color = MiuixTheme.colorScheme.error)
-                Spacer(Modifier.height(14.dp))
-            }
-            if (products.isEmpty() && !loading && searched) {
-                Text(stringResource(R.string.luckin_products_empty), fontSize = 13.sp,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-            }
-            products.forEach { p ->
-                LxCard(onClick = { onPickProduct(p) }) {
-                    Column(Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(p.productName, fontSize = 15.sp, fontWeight = FontWeight.Medium,
-                                modifier = Modifier.weight(1f))
-                            Spacer(Modifier.width(8.dp))
-                            p.estimatePrice?.let {
-                                Text("¥${"%.1f".format(it)}", fontSize = 15.sp, color = MiuixTheme.colorScheme.primary)
-                            }
-                            p.initialPrice?.let {
-                                Spacer(Modifier.width(6.dp))
-                                Text("¥${"%.1f".format(it)}", fontSize = 12.sp,
-                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-                            }
-                        }
-                        p.tags?.takeIf { it.isNotEmpty() }?.let {
-                            Spacer(Modifier.height(4.dp))
-                            Text(it.joinToString(" · "), fontSize = 12.sp,
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-                        }
-                        p.productAttrs?.takeIf { it.isNotEmpty() }?.let { attrs ->
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                stringResource(R.string.luckin_specs_count, attrs.size),
-                                fontSize = 12.sp,
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                            )
-                        }
-                    }
+            if (searched) {
+                if (loading) {
+                    Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() }
                 }
-                Spacer(Modifier.height(10.dp))
+                error?.let {
+                    Text(stringResource(R.string.luckin_error, it), fontSize = 13.sp, color = MiuixTheme.colorScheme.error)
+                    Spacer(Modifier.height(14.dp))
+                }
+                if (products.isEmpty() && !loading) {
+                    Text(stringResource(R.string.luckin_products_empty), fontSize = 13.sp,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                }
+                products.forEach { p -> LuckinProductCard(p, onPickProduct) }
+            } else {
+                if (menuLoading) {
+                    Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() }
+                }
+                menuError?.let {
+                    Text(stringResource(R.string.luckin_menu_error, it), fontSize = 13.sp,
+                        color = MiuixTheme.colorScheme.error)
+                    Spacer(Modifier.height(14.dp))
+                }
+                if (!menuLoading && menu.isEmpty() && menuError == null) {
+                    Text(stringResource(R.string.luckin_menu_empty), fontSize = 13.sp,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                }
+                menu.forEach { (word, list) ->
+                    Text(word, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(8.dp))
+                    list.forEach { p -> LuckinProductCard(p, onPickProduct) }
+                    Spacer(Modifier.height(6.dp))
+                }
+                Text(
+                    stringResource(R.string.luckin_menu_note),
+                    fontSize = 12.sp,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
             }
             Spacer(Modifier.height(24.dp))
         }
     }
+}
+
+/** 商品卡：菜单和搜索结果共用一张样子 */
+@Composable
+private fun LuckinProductCard(p: LuckinMcp.Product, onPick: (LuckinMcp.Product) -> Unit) {
+    LxCard(onClick = { onPick(p) }) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(p.productName, fontSize = 15.sp, fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(8.dp))
+                p.estimatePrice?.let {
+                    Text("¥${"%.1f".format(it)}", fontSize = 15.sp, color = MiuixTheme.colorScheme.primary)
+                }
+                p.initialPrice?.let {
+                    Spacer(Modifier.width(6.dp))
+                    Text("¥${"%.1f".format(it)}", fontSize = 12.sp,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                }
+            }
+            p.tags?.takeIf { it.isNotEmpty() }?.let {
+                Spacer(Modifier.height(4.dp))
+                Text(it.joinToString(" · "), fontSize = 12.sp,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+            }
+            p.productAttrs?.takeIf { it.isNotEmpty() }?.let { attrs ->
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.luckin_specs_count, attrs.size),
+                    fontSize = 12.sp,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+            }
+        }
+    }
+    Spacer(Modifier.height(10.dp))
 }
 
 /** 规格只读展示用的小胶囊：外观跟 LxChoiceChip 一致，但没有点击反馈，免得看着能按 */
