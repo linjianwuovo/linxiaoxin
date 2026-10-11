@@ -618,5 +618,8 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="card_trades_more">加载更多</string>
     <string name="card_trades_loading">正在加载…</string>
     <string name="card_trades_all">没有更多了</string>
-    <string name="card_trades_count">已显示 %1$d 笔 · 共 %2$d 笔</string>    <string name="ai_class_unread">未读 %1$d</string>
+    <string name="card_trades_count">已显示 %1$d 笔 · 共 %2$d 笔</string>    <string name="ai_class_unread">未读 %1$d</string>    <string name="ai_courseware_title">课件</string>
+    <string name="ai_no_courseware">这门课还没有课件</string>
+    <string name="aivm_act_courseware">课件</string>
+
 </resources>
