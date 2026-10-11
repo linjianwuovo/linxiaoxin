@@ -54,11 +54,11 @@ private const val EDGE_DP = 44f
 
 /**
  * blurProgress 直接给"半径比例"而不是原始进度，因为两段要的曲线不一样：
- * 拖动段按平方（前半程不该糊，不然读不出字），返回后那段必须接近线性
- * —— 米11 实测同一条平方曲线配 520ms，肉眼能看见的模糊只有 0.17s，等于没有。
+ * 两段都按线性：他要说清楚"模糊度和滑动距离相关"，平方曲线前半程几乎不糊，读不出跟手。
+ * 平方唯一的好处是"返回后收干净"那一段不会糊太久，那条已经靠 900ms 时长控住了。
  */
 internal fun lxBackBlurFraction(dragProgress: Float, popProgress: Float): Float =
-    max(dragProgress * dragProgress, popProgress)
+    max(dragProgress, popProgress)
 
 /** 形变走满所需的滑动距离 */
 private const val TRAVEL_DP = 266f
@@ -67,11 +67,11 @@ private const val TRAVEL_DP = 266f
 private const val COMMIT_DP = 243f
 
 /**
- * 预示期间当前页的最大模糊半径（dp），实际按进度平方给（见 NavGraph）。
+ * 预示期间当前页的最大模糊半径（dp）：行程走满给到这个值，中间按距离线性（他要的就是跟手）。
  * 16~20dp 这一档是 ColorOS 那个仓里唯一两处模糊实测在用的量（顶栏 Haze 16dp，注释写明 30dp 中低端机掉帧）；
  * 用的是 androidx 的 `Modifier.blur`（Apache-2.0），Android 12 以下自动不生效，不用自己判版本。
  */
-const val LX_BACK_BLUR_MAX_DP = 20f
+const val LX_BACK_BLUR_MAX_DP = 16f
 
 /**
  * 返回完成之后模糊收回的时长和起点。
@@ -83,7 +83,7 @@ const val LX_BACK_BLUR_MAX_DP = 20f
  * 手势返回、点返回箭头、系统手势都算（挂在回退栈上，少了一页就触发）。
  */
 private const val POP_BLUR_MS = 900
-private const val POP_BLUR_FROM = 0.8f
+private const val POP_BLUR_FROM = 0.45f
 
 @Composable
 fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = true): LxBackMotion {
