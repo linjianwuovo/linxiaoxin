@@ -76,6 +76,9 @@ fun AiClassCourseDetailScreen(
                 quizError = uiState.quizError,
                 onRetryQuiz = viewModel::retryQuiz,
                 homeworkList = uiState.homeworkList,
+                coursewareList = uiState.coursewareList,
+                isCoursewareLoading = uiState.isCoursewareLoading,
+                coursewareError = uiState.coursewareError,
                 isHomeworkLoading = uiState.isHomeworkLoading,
                 homeworkError = uiState.homeworkError,
                 onHomeworkClick = onOpenHomeworkDetail,
@@ -93,6 +96,9 @@ private fun AiClassCourseDetailContent(
     quizError: String?,
     onRetryQuiz: () -> Unit,
     homeworkList: List<com.linxin.feature.aiclass.domain.AiHomework> = emptyList(),
+    coursewareList: List<com.linxin.feature.aiclass.domain.AiCourseware> = emptyList(),
+    isCoursewareLoading: Boolean = false,
+    coursewareError: String? = null,
     isHomeworkLoading: Boolean = false,
     homeworkError: String? = null,
     onHomeworkClick: (String) -> Unit = {},
@@ -191,6 +197,66 @@ private fun AiClassCourseDetailContent(
             else -> {
                 items(homeworkList, key = { it.id }) { homework ->
                     HomeworkCard(homework = homework, onClick = { onHomeworkClick(homework.id) })
+                }
+            }
+        }
+
+        when {
+            isCoursewareLoading -> {
+                item(key = "courseware_loading") {
+                    LxLoading()
+                }
+            }
+
+            coursewareError != null -> {
+                item(key = "courseware_error") {
+                    LxCard {
+                        Text(
+                            text = coursewareError,
+                            style = MiuixTheme.textStyles.footnote1,
+                            color = MiuixTheme.colorScheme.error,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
+                }
+            }
+
+            coursewareList.isEmpty() -> {
+                item(key = "courseware_empty") {
+                    LxCard {
+                        Text(
+                            text = stringResource(R.string.ai_no_courseware),
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            modifier = Modifier.padding(20.dp),
+                        )
+                    }
+                }
+            }
+
+            else -> {
+                item(key = "courseware_header") {
+                    Text(
+                        text = stringResource(R.string.ai_courseware_title),
+                        style = MiuixTheme.textStyles.title3,
+                        modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp),
+                    )
+                }
+                items(coursewareList, key = { "cw_" + it.id }) { courseware ->
+                    LxCard {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Text(
+                                text = courseware.name,
+                                style = MiuixTheme.textStyles.body1,
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = courseware.fileType.uppercase() + "  /  " + courseware.createdAt,
+                                style = MiuixTheme.textStyles.footnote1,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            )
+                        }
+                    }
                 }
             }
         }
