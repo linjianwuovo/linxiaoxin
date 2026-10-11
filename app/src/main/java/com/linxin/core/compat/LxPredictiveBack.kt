@@ -12,7 +12,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -53,6 +52,14 @@ class LxBackMotion internal constructor(
 // x=90 才接得到），热区给宽一点，拇指落在里面一点也能触发我们这层，不然真机上根本看不见效果。
 private const val EDGE_DP = 44f
 
+/**
+ * blurProgress 直接给"半径比例"而不是原始进度，因为两段要的曲线不一样：
+ * 拖动段按平方（前半程不该糊，不然读不出字），返回后那段必须接近线性
+ * —— 米11 实测同一条平方曲线配 520ms，肉眼能看见的模糊只有 0.17s，等于没有。
+ */
+internal fun lxBackBlurFraction(dragProgress: Float, popProgress: Float): Float =
+    max(dragProgress * dragProgress, popProgress)
+
 /** 形变走满所需的滑动距离 */
 private const val TRAVEL_DP = 266f
 
@@ -75,8 +82,8 @@ const val LX_BACK_BLUR_MAX_DP = 20f
  * 底下那页天生带模糊；我们只有一页，那就让上一页出场时带一把模糊再收干净，
  * 手势返回、点返回箭头、系统手势都算（挂在回退栈上，少了一页就触发）。
  */
-private const val POP_BLUR_MS = 320
-private const val POP_BLUR_FROM = 0.85f
+private const val POP_BLUR_MS = 900
+private const val POP_BLUR_FROM = 0.8f
 
 @Composable
 fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = true): LxBackMotion {
@@ -156,13 +163,19 @@ fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = tr
     // 都给刚露出来的这一页一把从糊到清的过渡。
     // 这里只看设置开关、不看 canPop：划回首页那一刻 previousBackStackEntry 已经是 null，
     // 用 canPop 卡住的话最常用那一下（详情页返回根页）反而没有模糊。
-    // navigation 2.9 把回退栈监听删掉了，只剩 destination 监听，而它分不清前进还是后退，
-    // 所以盯 currentBackStack 的长度：变短就是返回。
+    // navigation 2.9 把 OnBackStackChangedListener 删了，只剩 destination 监听，而它分不清前进还是后退。
+    // 认"返回"用两个信号一起判：① 回退栈变浅；② 当前 entry 是来过的同一个实例
+    // （NavBackStackEntry 的 id 每实例唯一，回到上一页拿到的就是那个旧实例，见过 = 回来了）。
+    // 装机探针实测：光靠 snapshotFlow 盯 currentBackStack.size 一次都没认出返回，
+    // 换成 currentBackStackEntryFlow 之后米11 上点返回、系统返回键都能认到。
     LaunchedEffect(navController, enabled) {
         if (!enabled) return@LaunchedEffect
-        var lastSize = navController.currentBackStack.value.size
-        snapshotFlow { navController.currentBackStack.value.size }.collect { size ->
-            if (size < lastSize) {
+        var lastSize = -1
+        val seen = HashSet<String>()
+        navController.currentBackStackEntryFlow.collect { entry ->
+            val size = navController.currentBackStack.value.size
+            val cameBack = !seen.add(entry.id)
+            if (lastSize >= 0 && (size < lastSize || cameBack)) {
                 val from = max(commitFrom, POP_BLUR_FROM)
                 commitFrom = 0f
                 popAnim.snapTo(from)
@@ -173,7 +186,7 @@ fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = tr
     }
 
     val progress = if (drag > settleAnim.value) drag else settleAnim.value
-    val blurProgress = if (!enabled) 0f else max(progress, popAnim.value)
+    val blurProgress = if (!enabled) 0f else lxBackBlurFraction(progress, popAnim.value)
     return LxBackMotion(
         progress = if (canPop) progress else 0f,
         blurProgress = blurProgress,
