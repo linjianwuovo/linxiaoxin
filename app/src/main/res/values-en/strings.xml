@@ -619,4 +619,35 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="card_trades_loading">Loading...</string>
     <string name="card_trades_all">Nothing more</string>
     <string name="card_trades_count">Showing %1$d of %2$d</string>
+    <!-- 瑞幸（fun-luckin） -->
+    <string name="luckin_account_title">Luckin account</string>
+    <string name="luckin_account_off">Not signed in. The credential stays on this device and expires in about 30 days.</string>
+    <string name="luckin_account_on">Signed in, local credential %1$s</string>
+    <string name="luckin_account_login">Sign in to Luckin</string>
+    <string name="luckin_account_relogin">Re-sign in</string>
+    <string name="luckin_account_logout">Sign out</string>
+    <string name="luckin_login_title">Sign in to Luckin</string>
+    <string name="luckin_login_note">This is the official Luckin open platform page. Your phone number and code only go to Luckin. After signing in we read the access credential from this page once.</string>
+    <string name="luckin_login_wait">Waiting for sign-in…</string>
+    <string name="luckin_login_ok">Access credential captured</string>
+    <string name="luckin_login_timeout">Timed out after 5 minutes, try signing in again</string>
+    <string name="luckin_login_manual">If it never captures automatically, you can copy the credential from the page.</string>
+    <string name="luckin_shops_title">Luckin stores</string>
+    <string name="luckin_products_title">Luckin menu</string>
+    <string name="luckin_token_title">Luckin access token</string>
+    <string name="luckin_token_hint">Sign in at open.lkcoffee.com with your phone number and paste the personal token here. It expires in about 30 days and stays on this device only.</string>
+    <string name="luckin_token_on">Configured %1$s</string>
+    <string name="luckin_token_placeholder">Paste token</string>
+    <string name="luckin_token_save">Save</string>
+    <string name="luckin_token_clear">Clear session</string>
+    <string name="luckin_point_title">Location for store search</string>
+    <string name="luckin_point_hint">The API only finds stores by coordinates, so start with a nearby point</string>
+    <string name="luckin_lng">Longitude</string>
+    <string name="luckin_lat">Latitude</string>
+    <string name="luckin_query_shops">Find stores</string>
+    <string name="luckin_search_hint">What would you like, e.g. 生椰拿铁</string>
+    <string name="luckin_search">Search</string>
+    <string name="luckin_error">Nothing came back: %1$s</string>
+    <string name="luckin_products_empty">No matching items at this store</string>
+    <string name="luckin_entry">Luckin Coffee</string>
 </resources>

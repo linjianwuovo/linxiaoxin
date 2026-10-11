@@ -80,4 +80,11 @@ object Routes {
 
     // Theme
     const val THEME = "theme"
+
+    // 瑞幸（趣味分支 fun-luckin）
+    const val LUCKIN_SHOPS = "luckin/shops"
+    const val LUCKIN_LOGIN = "luckin/login"
+    const val LUCKIN_PRODUCTS = "luckin/products/{deptId}/{deptName}"
+    fun luckinProducts(deptId: Long, deptName: String) =
+        "luckin/products/$deptId/${Uri.encode(deptName)}"
 }

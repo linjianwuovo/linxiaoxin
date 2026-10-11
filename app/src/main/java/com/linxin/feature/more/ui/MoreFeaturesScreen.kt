@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.EventNote
 import androidx.compose.material.icons.outlined.Grading
 import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.LocalCafe
 import androidx.compose.material.icons.outlined.WorkHistory
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -76,6 +77,7 @@ fun MoreFeaturesScreen(
     onNavigateExam: () -> Unit,
     onNavigateCredit: () -> Unit,
     onNavigateHoliday: () -> Unit,
+    onNavigateLuckin: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -111,6 +113,12 @@ fun MoreFeaturesScreen(
                         icon = Icons.Outlined.EventNote,
                         title = stringResource(R.string.title_holiday),
                         onClick = onNavigateHoliday,
+                    )
+                    MoreMenuDivider()
+                    MoreMenuRow(
+                        icon = Icons.Outlined.LocalCafe,
+                        title = stringResource(R.string.luckin_entry),
+                        onClick = onNavigateLuckin,
                     )
                     MoreMenuDivider()
                     MoreMenuRow(
