@@ -86,7 +86,23 @@ fun AiClassHomeScreen(
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
-        topBar = { LxTopBar(title = stringResource(R.string.title_ai_class), onBack = onBack) },
+        topBar = {
+            LxTopBar(
+                title = stringResource(R.string.title_ai_class),
+                onBack = onBack,
+                actions = {
+                    val unread = uiState.messageUnread
+                    if (unread != null && unread > 0) {
+                        Text(
+                            text = stringResource(R.string.ai_class_unread, unread),
+                            style = MiuixTheme.textStyles.footnote1,
+                            color = MiuixTheme.colorScheme.primary,
+                            modifier = Modifier.padding(end = 12.dp),
+                        )
+                    }
+                },
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             if (!uiState.isLoading && error == null) {

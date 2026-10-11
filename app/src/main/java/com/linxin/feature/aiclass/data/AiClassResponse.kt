@@ -10,6 +10,15 @@ data class AiClassBaseResponse(
 )
 
 /** 学期列表响应 */
+/** 消息未读数：这一发的 status 是数字，跟别的口不一样，照实声明 */
+data class AiClassUnreadResponse(
+    val status: Int?,
+    val message: String?,
+    val data: Int?,
+    val success: Boolean?,
+)
+
+
 data class AiClassTermResponse(
     val status: String?,
     val message: String?,
