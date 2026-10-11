@@ -174,7 +174,7 @@ fun LinXinNavHost(
                 // 走 blurProgress：拖到哪儿糊到哪儿，松手返回之后上一页出场时再带一把模糊收干净，
                 // 这样快滑、点返回箭头、系统手势那几种都能看见糊，不然峰值只停两三帧等于没有。
                 .blur(
-                    // 半径比例已经在 lxBackBlurFraction 里分好两段了：拖动段平方、返回段接近线性
+                    // 比例在 lxBackBlurFraction 里算：全程按滑动距离线性，划到哪糊到哪
                     radius = (com.linxin.core.compat.LX_BACK_BLUR_MAX_DP * blurProgress).dp,
                     edgeTreatment = BlurredEdgeTreatment.Unbounded,
                 )
