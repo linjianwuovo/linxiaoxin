@@ -47,8 +47,10 @@ data class ThemeSettings(
     /** 液态玻璃色散 0..1：AGSL 的 chromaticAberration 均匀量，0=无色散，1=官方强度。仅作用于 LIQUID 底栏。 */
     val glassDispersion: Float = 1f,
     /**
-     * 侧滑返回预示：开着时，从左边缘 28dp 内横滑会把当前页跟手缩/淡/左移，划过阈值就返回。
-     * 关掉就完全交回系统那套（或不带动画直接返回）。
+     * 侧滑返回预示（主题外观 → 动效）。默认开。只管"手指拖着走的那段预示动画"：
+     * 关掉之后左边缘 44dp 内那条自写手势不挂，页面不再跟手缩/淡/左移，返回模糊也一起没了。
+     * 点返回箭头、NavHost 的 pop 转场都不受它影响，那是正常转场不是预示。
+     * 也管不到系统：贴屏幕最边起的滑动由 ROM 自己处理，应用拦不住。
      */
     val previewBackGesture: Boolean = true,
 )
