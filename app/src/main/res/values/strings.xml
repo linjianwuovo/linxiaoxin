@@ -658,7 +658,9 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="luckin_hot_3">拿铁</string>
     <string name="luckin_menu_error">菜单没拼出来：%1$s</string>
     <string name="luckin_menu_empty">这家店没搜到商品</string>
-    <string name="luckin_menu_note">菜单是拿品类词一件件搜出来拼的，不是瑞幸那份官方分类，可能不全。</string>
+    <string name="luckin_menu_note">菜单是瑞幸自家接口的整张分类，价格是门店直降价；券后价和下单要登录，走上方的搜索看。</string>
+    <string name="luckin_kind_count">%1$d 款</string>
+    <string name="luckin_name_pending">商品名补全中…</string>
     <string name="luckin_back_to_menu">看菜单</string>
     <string name="luckin_specs_count">%1$d 组规格，点卡片看</string>
     <string name="luckin_detail_title">商品规格</string>

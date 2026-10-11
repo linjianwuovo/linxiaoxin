@@ -658,7 +658,9 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="luckin_hot_3">拿铁</string>
     <string name="luckin_menu_error">Menu failed: %1$s</string>
     <string name="luckin_menu_empty">Nothing found at this store</string>
-    <string name="luckin_menu_note">This menu is stitched from category searches, not Luckin official list, so it may be incomplete.</string>
+    <string name="luckin_menu_note">Menu comes from Luckin own gateway; prices are store list discounts. Coupon prices and ordering need login, use the search above.</string>
+    <string name="luckin_kind_count">%1$d items</string>
+    <string name="luckin_name_pending">filling in names…</string>
     <string name="luckin_back_to_menu">Back to menu</string>
     <string name="luckin_specs_count">%1$d option groups, tap to see</string>
     <string name="luckin_detail_title">Item options</string>
