@@ -1,6 +1,7 @@
 package com.linxin.core.luckin
 
 import com.google.gson.Gson
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.Dispatchers
@@ -151,4 +152,103 @@ object LuckinMcp {
         val one = if (data.isJsonArray) data.asJsonArray[0] else data
         return gson.fromJson(one, Product::class.java)
     }
+
+    // ---- 下面三个是写操作。界面每一步都要他自己点确认，我们只把瑞幸返回的支付凭据显示出来，绝不代付。----
+
+    /** 购物车里的一件：官方 previewOrder/createOrder 都只认这三个字段 */
+    fun lineItem(productId: Long, skuCode: String, amount: Int): Map<String, Any?> =
+        mapOf("productId" to productId, "skuCode" to skuCode, "amount" to amount)
+
+    data class PreviewLine(
+        val name: String,
+        val amount: Int,
+        val addition: String,
+        val estimatePrice: Double,
+    )
+
+    data class Preview(
+        val shopName: String,
+        /** 预计可取的毫秒时间戳，0 表示没给 */
+        val aboutTime: Long,
+        val totalInitialPrice: Double,
+        val privilegeMoney: Double,
+        val discountPrice: Double,
+        val couponCodeList: List<String>,
+        val lines: List<PreviewLine>,
+    )
+
+    /** 订单预览：只读，不建单、不占库存，用来看原价/优惠/实付/取餐时间 */
+    suspend fun previewOrder(token: String, deptId: Long, items: List<Map<String, Any?>>): Preview {
+        val data = callTool(token, "previewOrder", mapOf(
+            "deptId" to deptId, "productList" to items,
+        )).obj("data") ?: throw LuckinApiError(-1, "预览返回是空的")
+        val lines = data.arr("productInfoList").map { el ->
+            val o = el.asJsonObject
+            PreviewLine(
+                name = o.str("name").orEmpty(),
+                amount = o.num("amount")?.toInt() ?: 1,
+                addition = o.str("additionDesc").orEmpty(),
+                estimatePrice = o.num("estimateTotalPrice") ?: o.num("estimatePrice") ?: 0.0,
+            )
+        }
+        return Preview(
+            shopName = data.obj("shopInfo")?.str("deptName").orEmpty(),
+            aboutTime = data.num("aboutTime")?.toLong() ?: 0L,
+            totalInitialPrice = data.num("totalInitialPrice") ?: 0.0,
+            privilegeMoney = data.num("privilegeMoney") ?: 0.0,
+            discountPrice = data.num("discountPrice") ?: 0.0,
+            couponCodeList = data.arr("couponCodeList").mapNotNull { it.str2() },
+            lines = lines,
+        )
+    }
+
+    /**
+     * 创建订单。返回瑞幸给的 `data` 原样：订单号和支付凭据的字段名没在我这儿写死，
+     * 因为还没真跑过一发——界面按已知键取，取不出来的整段显示，不吞信息。
+     */
+    suspend fun createOrder(
+        token: String,
+        deptId: Long,
+        items: List<Map<String, Any?>>,
+        longitude: Double,
+        latitude: Double,
+        couponCodeList: List<String> = emptyList(),
+        remark: String = "",
+    ): JsonObject {
+        val args = mutableMapOf<String, Any?>(
+            "deptId" to deptId,
+            "productList" to items,
+            "longitude" to longitude,
+            "latitude" to latitude,
+        )
+        if (couponCodeList.isNotEmpty()) args["couponCodeList"] = couponCodeList
+        if (remark.isNotBlank()) args["remark"] = remark
+        val env = callTool(token, "createOrder", args)
+        return env.obj("data") ?: JsonObject()
+    }
+
+    /** 取消订单：下错了拿这一发收回去，同样是写操作 */
+    suspend fun cancelOrder(token: String, orderId: String): String {
+        val env = callTool(token, "cancelOrder", mapOf("orderId" to orderId))
+        return env.get("msg")?.asString ?: "已取消"
+    }
+
+    private fun JsonObject.obj(key: String): JsonObject? =
+        get(key)?.takeIf { it.isJsonObject }?.asJsonObject
+
+    private fun JsonObject.arr(key: String): List<JsonElement> {
+        val el = get(key) ?: return emptyList()
+        if (!el.isJsonArray) return emptyList()
+        val a = el.asJsonArray
+        return List(a.size()) { a.get(it) }
+    }
+
+    private fun JsonObject.str(key: String): String? =
+        get(key)?.takeIf { !it.isJsonNull }?.let { runCatching { it.asString }.getOrNull() }
+
+    private fun JsonObject.num(key: String): Double? =
+        get(key)?.takeIf { !it.isJsonNull }?.let { runCatching { it.asDouble }.getOrNull() }
+
+    private fun JsonElement.str2(): String? =
+        takeIf { !isJsonNull }?.let { runCatching { it.asString }.getOrNull() }
 }
