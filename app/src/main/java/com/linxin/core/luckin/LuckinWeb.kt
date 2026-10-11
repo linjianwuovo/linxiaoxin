@@ -145,6 +145,83 @@ object LuckinWeb {
         )
     }
 
+    /** 一颗规格胶囊：属于哪个组、叫什么 */
+    data class SpecGroup(
+        val groupId: String,
+        val groupName: String,
+        val values: List<String>,
+    )
+
+    /**
+     * 规格表：组顺序 + 每组的取值 + 「值组合 → skuCode」全表。
+     * 选规格不调任何接口，纯查这张表；表里没有的组合就是不可选。
+     */
+    data class Spec(
+        val productId: Long,
+        val name: String,
+        val pictureUrl: String?,
+        val groups: List<SpecGroup>,
+        val skus: Map<Map<String, String>, String>,
+        val defaultChoice: Map<String, String>,
+        val initialPrice: Double,
+        val discountPrice: Double,
+    ) {
+        fun skuFor(choice: Map<String, String>): String? = skus[choice]
+
+        /** 把某一组换成 value 之后，还剩不等于零个可选组合 */
+        fun canPick(groupId: String, value: String, choice: Map<String, String>): Boolean {
+            val probe = choice.toMutableMap()
+            probe[groupId] = value
+            return skus.keys.any { sku -> probe.all { (k, v) -> sku[k] == v } }
+        }
+    }
+
+    /** 商详：名字、图、规格组和整张 sku 表都在这发里，匿名可读 */
+    suspend fun spec(deptId: Long, productId: Long): Spec {
+        val c = get(
+            "resource/core/v1/product/detail",
+            mapOf("deptId" to deptId, "productId" to productId.toString()),
+        ).getAsJsonObject("content") ?: throw WebApiError("商详是空的")
+
+        val groupNames = c.getAsJsonObject("saleAttrGroup") ?: JsonObject()
+        val groupValues = c.getAsJsonObject("saleAttrGroupValues") ?: JsonObject()
+        val order = c.getAsJsonArray("saleAttrGroupSeq").orEmpty().mapNotNull { it.asStringOrNull() }
+        val groups = (if (order.isEmpty()) groupNames.keySet().toList() else order).map { gid ->
+            SpecGroup(
+                groupId = gid,
+                groupName = groupNames.get(gid).asStringOrNull() ?: gid,
+                values = groupValues.getAsJsonArray(gid).orEmpty().mapNotNull { it.asStringOrNull() },
+            )
+        }.filter { it.values.isNotEmpty() }
+
+        val skus = HashMap<Map<String, String>, String>()
+        c.getAsJsonArray("skuList").orEmpty().forEach { el ->
+            val o = el.asJsonObject
+            val code = o.get("skuCode").asStringOrNull() ?: return@forEach
+            val vals = o.getAsJsonObject("skuSaleAttrValue") ?: return@forEach
+            val map = vals.keySet().associateWith { k ->
+                vals.getAsJsonArray(k).orEmpty().firstNotNullOfOrNull { it.asStringOrNull() } ?: ""
+            }.filterValues { it.isNotBlank() }
+            if (map.size == groups.size) skus[map] = code
+        }
+
+        val defaultCode = c.get("spuDefaultSkuCode").asStringOrNull() ?: c.get("skuCode").asStringOrNull()
+        val defaultChoice = skus.entries.firstOrNull { it.value == defaultCode }?.key
+            ?: groups.associate { it.groupId to it.values.first() }
+
+        val pics = c.getAsJsonArray("pictureUrlList").orEmpty().firstNotNullOfOrNull { it.asStringOrNull() }
+        return Spec(
+            productId = productId,
+            name = c.get("name").asStringOrNull() ?: "",
+            pictureUrl = pics ?: c.get("defaultPicUrl").asStringOrNull(),
+            groups = groups,
+            skus = skus,
+            defaultChoice = defaultChoice,
+            initialPrice = c.num("initialPrice") ?: 0.0,
+            discountPrice = c.num("discountPrice") ?: -1.0,
+        )
+    }
+
     /** 菜单一次一发、按门店缓存十分钟；名字缓存跟着进程走 */
     private const val TTL_MS = 10 * 60_000L
     private val menuCache = java.util.concurrent.ConcurrentHashMap<Long, Pair<Long, List<MenuKind>>>()
