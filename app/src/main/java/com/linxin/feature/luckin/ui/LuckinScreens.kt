@@ -319,17 +319,12 @@ fun LuckinProductsScreen(
 
     LaunchedEffect(Unit) { token = prefs.current().token }
 
-    // 品类词各搜一次，全部回来才渲染，不做一路加载一路蹦
+    // 品类词各搜一次，全部回来才渲染，不做一路加载一路蹦；十分钟内回本页走缓存
     LaunchedEffect(deptId, token) {
         if (token.isBlank()) { menuLoading = false; return@LaunchedEffect }
         menuLoading = true; menuError = null
-        runCatching { LuckinMcp.queryMenu(token, deptId) }
-            .onSuccess { groups ->
-                val seen = HashSet<Long>()
-                menu = groups.map { (word, list) ->
-                    word to list.filter { seen.add(it.productId) }
-                }.filter { it.second.isNotEmpty() }
-            }
+        runCatching { LuckinMcp.queryMenuCached(token, deptId) }
+            .onSuccess { menu = it }
             .onFailure { menuError = it.message ?: it.javaClass.simpleName }
         menuLoading = false
     }

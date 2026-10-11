@@ -168,6 +168,7 @@ object LuckinMcp {
         words: List<String> = MENU_WORDS,
     ): List<Pair<String, List<Product>>> = coroutineScope {
         val gate = Semaphore(3)
+        val seen = HashSet<Long>()
         words.map { w ->
             async {
                 gate.withPermit {
@@ -175,5 +176,20 @@ object LuckinMcp {
                 }
             }
         }.awaitAll()
+            .map { (word, list) -> word to list.filter { seen.add(it.productId) } }
+            .filter { it.second.isNotEmpty() }
+    }
+
+    /** 拼一次菜单要十几发请求，按门店缓存十分钟：从商品页返回不该再重抓一遍 */
+    private const val MENU_TTL_MS = 10 * 60_000L
+    private val menuCache = java.util.concurrent.ConcurrentHashMap<Long, Pair<Long, List<Pair<String, List<Product>>>>>()
+
+    suspend fun queryMenuCached(token: String, deptId: Long): List<Pair<String, List<Product>>> {
+        menuCache[deptId]?.let { (at, cached) ->
+            if (System.currentTimeMillis() - at < MENU_TTL_MS) return cached
+        }
+        val fresh = queryMenu(token, deptId)
+        if (fresh.isNotEmpty()) menuCache[deptId] = System.currentTimeMillis() to fresh
+        return fresh
     }
 }
