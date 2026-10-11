@@ -48,6 +48,13 @@ private const val TRAVEL_DP = 266f
 /** 真返回所需的滑动距离：米11 边界实测 400px/700px 不返回、820px/900px 返回 */
 private const val COMMIT_DP = 243f
 
+/**
+ * 预示期间当前页的最大模糊半径（dp），实际按进度平方给（见 NavGraph）。
+ * 16~20dp 这一档是 ColorOS 那个仓里唯一两处模糊实测在用的量（顶栏 Haze 16dp，注释写明 30dp 中低端机掉帧）；
+ * 用的是 androidx 的 `Modifier.blur`（Apache-2.0），Android 12 以下自动不生效，不用自己判版本。
+ */
+const val LX_BACK_BLUR_MAX_DP = 20f
+
 @Composable
 fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = true): LxBackMotion {
     val currentEntry by navController.currentBackStackEntryAsState()
