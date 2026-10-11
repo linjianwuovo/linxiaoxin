@@ -58,8 +58,8 @@
 
     <string name="section_bar_material">Bottom bar material</string>
     <string name="section_motion">Motion</string>
-    <string name="setting_preview_back">Back gesture preview</string>
-    <string name="setting_preview_back_summary">Only affects this app\'s own layer. Swipes that start on the very screen edge are handled by the system and can\'t be blocked</string>
+    <string name="setting_preview_back">Back animation</string>
+    <string name="setting_preview_back_summary">Covers both the edge-swipe preview and the back transition. Swipes starting on the very screen edge belong to the system and can\'t be blocked</string>
     <string name="bar_liquid">Liquid</string>
     <string name="bar_frosted">Frosted</string>
     <string name="bar_solid">Solid</string>
