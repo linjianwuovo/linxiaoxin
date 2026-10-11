@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -37,16 +38,37 @@ import kotlin.math.abs
  * x=6 也返回；开关关 → x=90 不返回、x=6 照样返回。
  *
  * 只做缩放 + 淡出 + 少量左移，不做大幅度平移：底栏是常驻液态玻璃，横向挪多了会和玻璃滑块打架。
+ *
+ *
+ * [blurProgress] 和 [progress] 方向相反：一接管手势就糊满，越往外划越清楚
+ * （他原话「我要都是滑动过程中二级界面模糊慢慢减弱」），松手回弹再收尾 240ms。
  */
-class LxBackMotion internal constructor(val progress: Float, val modifier: Modifier)
+class LxBackMotion internal constructor(
+    val progress: Float,
+    val blurProgress: Float,
+    val modifier: Modifier,
+)
 
-private const val EDGE_DP = 28f
+// 44dp 而不是 28dp：真贴屏幕最边那十来 dp 被系统边缘手势抢走（米11 实测 x=6 接不到、
+// x=90 才接得到），热区给宽一点，拇指落在里面一点也能触发我们这层，不然真机上根本看不见效果。
+private const val EDGE_DP = 44f
 
 /** 形变走满所需的滑动距离 */
 private const val TRAVEL_DP = 266f
 
 /** 真返回所需的滑动距离：米11 边界实测 400px/700px 不返回、820px/900px 返回 */
 private const val COMMIT_DP = 243f
+
+/**
+ * 刚接管手势时当前页的模糊半径（dp）：一上手就按这个值糊满，之后随滑动距离线性收到 0。
+ * 16~20dp 这一档是 ColorOS 那个仓里唯一两处模糊实测在用的量（顶栏 Haze 16dp，注释写明 30dp 中低端机掉帧）；
+ * 用的是 androidx 的 `Modifier.blur`（Apache-2.0），Android 12 以下自动不生效，不用自己判版本。
+ */
+const val LX_BACK_BLUR_MAX_DP = 16f
+
+/** 松手回弹时模糊收尾的时长 */
+private const val BLUR_SETTLE_MS = 240
+
 
 @Composable
 fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = true): LxBackMotion {
@@ -58,7 +80,10 @@ fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = tr
     // 拖动过程中只能写普通状态：awaitEachGesture 是 restricted 作用域，
     // 里面连 Animatable.snapTo 这种挂起函数都不许调。回弹才用 Animatable。
     var drag by remember { mutableFloatStateOf(0f) }
+    // 模糊单独一条：跟 drag 反着走（1 - drag），所以不能拿 drag 直接换算
+    var blurDrag by remember { mutableFloatStateOf(0f) }
     val settleAnim = remember { Animatable(0f) }
+    val blurSettleAnim = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
 
     val edgeModifier = if (!canPop) {
@@ -69,16 +94,26 @@ fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = tr
             // 这两个是普通 lambda，所以能在 restricted 作用域里被调用；挂起动作都塞进 launch。
             val settle = {
                 val from = drag
+                val blurFrom = blurDrag
                 drag = 0f
+                blurDrag = 0f
                 scope.launch {
                     settleAnim.snapTo(from)
                     settleAnim.animateTo(0f, tween(300, easing = FastOutSlowInEasing))
                 }
+                scope.launch {
+                    blurSettleAnim.snapTo(blurFrom)
+                    blurSettleAnim.animateTo(0f, tween(BLUR_SETTLE_MS, easing = FastOutSlowInEasing))
+                }
             }
-            // 真返回了：形变立刻清零，别把缩放带到下一页
+            // 真返回了：形变和模糊一起清零，别把这一页的状态带到下一页
             val finish = {
                 drag = 0f
-                scope.launch { settleAnim.snapTo(0f) }
+                blurDrag = 0f
+                scope.launch {
+                    settleAnim.snapTo(0f)
+                    blurSettleAnim.snapTo(0f)
+                }
             }
             awaitEachGesture {
                 val edge = EDGE_DP.dp.toPx()
@@ -103,6 +138,7 @@ fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = tr
                     }
                     change.consume()
                     drag = (dx / travel).coerceIn(0f, 1f)
+                    blurDrag = 1f - drag
                     if (!change.pressed) {
                         if (dx > commitAt) {
                             finish()
@@ -118,5 +154,11 @@ fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = tr
     }
 
     val progress = if (drag > settleAnim.value) drag else settleAnim.value
-    return LxBackMotion(if (canPop) progress else 0f, edgeModifier)
+    val blurProgress = if (!enabled) 0f
+    else if (blurDrag > blurSettleAnim.value) blurDrag else blurSettleAnim.value
+    return LxBackMotion(
+        progress = if (canPop) progress else 0f,
+        blurProgress = blurProgress,
+        modifier = edgeModifier,
+    )
 }
