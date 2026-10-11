@@ -706,6 +706,31 @@ fun LinXinNavHost(
                 deptId = entry.arguments?.getLong("deptId") ?: 0L,
                 deptName = entry.arguments?.getString("deptName").orEmpty(),
                 onBack = { navController.popBackStack() },
+                onPickProduct = { product ->
+                    navController.navigate(
+                        Routes.luckinProductDetail(
+                            entry.arguments?.getLong("deptId") ?: 0L,
+                            product.productId,
+                            product.productName,
+                        )
+                    ) { launchSingleTop = true }
+                },
+            )
+        }
+
+        composable(
+            Routes.LUCKIN_PRODUCT_DETAIL,
+            arguments = listOf(
+                navArgument("deptId") { type = NavType.LongType },
+                navArgument("productId") { type = NavType.LongType },
+                navArgument("productName") { type = NavType.StringType; defaultValue = "" },
+            ),
+        ) { entry ->
+            com.linxin.feature.luckin.ui.LuckinProductDetailScreen(
+                deptId = entry.arguments?.getLong("deptId") ?: 0L,
+                productId = entry.arguments?.getLong("productId") ?: 0L,
+                productName = entry.arguments?.getString("productName").orEmpty(),
+                onBack = { navController.popBackStack() },
             )
         }
 

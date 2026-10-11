@@ -87,4 +87,7 @@ object Routes {
     const val LUCKIN_PRODUCTS = "luckin/products/{deptId}/{deptName}"
     fun luckinProducts(deptId: Long, deptName: String) =
         "luckin/products/$deptId/${Uri.encode(deptName)}"
+    const val LUCKIN_PRODUCT_DETAIL = "luckin/product/{deptId}/{productId}/{productName}"
+    fun luckinProductDetail(deptId: Long, productId: Long, productName: String) =
+        "luckin/product/$deptId/$productId/${Uri.encode(productName)}"
 }
