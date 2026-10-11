@@ -4,6 +4,11 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -145,5 +150,30 @@ object LuckinMcp {
         val data = env.get("data")
         val one = if (data.isJsonArray) data.asJsonArray[0] else data
         return gson.fromJson(one, Product::class.java)
+    }
+
+    /**
+     * 官方 MCP 没有"按门店列整张菜单"的工具，只有吃自然语言的 searchProductForMcp。
+     * 菜单页用一组品类词各搜一次、跨组按 productId 去重拼出来——是近似菜单，不是瑞幸那份官方分类。
+     * 并发压到 3，免得一次点进去就给人家打十几发。
+     */
+    val MENU_WORDS = listOf(
+        "拿铁", "美式", "生椰", "瑞纳冰", "轻乳茶", "茶",
+        "果蔬", "气泡", "贝果", "三明治", "甜点", "轻食",
+    )
+
+    suspend fun queryMenu(
+        token: String,
+        deptId: Long,
+        words: List<String> = MENU_WORDS,
+    ): List<Pair<String, List<Product>>> = coroutineScope {
+        val gate = Semaphore(3)
+        words.map { w ->
+            async {
+                gate.withPermit {
+                    w to runCatching { searchProducts(token, deptId, w) }.getOrDefault(emptyList())
+                }
+            }
+        }.awaitAll()
     }
 }
