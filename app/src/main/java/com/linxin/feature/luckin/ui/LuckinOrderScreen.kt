@@ -259,7 +259,8 @@ fun LuckinProductDetailScreen(
                                     Text(p.shopName, fontSize = 13.sp,
                                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
                                 }
-                                if (p.aboutTime > 0L) {
+                                // 打烊时瑞幸照样回一个"几分钟后可取"，那是假时间，别拿它骗人
+                                if (p.aboutTime > 0L && LuckinWeb.isOpen(deptId) != false) {
                                     val t = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(p.aboutTime))
                                     Text(stringResource(R.string.luckin_about_time, t), fontSize = 13.sp,
                                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
