@@ -20,7 +20,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import kotlinx.coroutines.launch
 import kotlin.math.abs
-import kotlin.math.max
 
 /**
  * 侧滑返回时当前页的形变状态：[progress] 0 = 没手势，1 = 已经拉到该返回的程度；
@@ -40,7 +39,9 @@ import kotlin.math.max
  *
  * 只做缩放 + 淡出 + 少量左移，不做大幅度平移：底栏是常驻液态玻璃，横向挪多了会和玻璃滑块打架。
  *
- * [blurProgress] 比 [progress] 多带一段"返回之后"：见下面 rememberLxBackMotion 里 popAnim 的注释。
+ *
+ * [blurProgress] 和 [progress] 方向相反：一接管手势就糊满，越往外划越清楚
+ * （他原话「我要都是滑动过程中二级界面模糊慢慢减弱」），松手回弹再收尾 240ms。
  */
 class LxBackMotion internal constructor(
     val progress: Float,
@@ -52,14 +53,6 @@ class LxBackMotion internal constructor(
 // x=90 才接得到），热区给宽一点，拇指落在里面一点也能触发我们这层，不然真机上根本看不见效果。
 private const val EDGE_DP = 44f
 
-/**
- * blurProgress 直接给"半径比例"而不是原始进度，因为两段要的曲线不一样：
- * 两段都按线性：他要说清楚"模糊度和滑动距离相关"，平方曲线前半程几乎不糊，读不出跟手。
- * 平方唯一的好处是"返回后收干净"那一段不会糊太久，那条已经靠 900ms 时长控住了。
- */
-internal fun lxBackBlurFraction(dragProgress: Float, popProgress: Float): Float =
-    max(dragProgress, popProgress)
-
 /** 形变走满所需的滑动距离 */
 private const val TRAVEL_DP = 266f
 
@@ -67,23 +60,15 @@ private const val TRAVEL_DP = 266f
 private const val COMMIT_DP = 243f
 
 /**
- * 预示期间当前页的最大模糊半径（dp）：行程走满给到这个值，中间按距离线性（他要的就是跟手）。
+ * 刚接管手势时当前页的模糊半径（dp）：一上手就按这个值糊满，之后随滑动距离线性收到 0。
  * 16~20dp 这一档是 ColorOS 那个仓里唯一两处模糊实测在用的量（顶栏 Haze 16dp，注释写明 30dp 中低端机掉帧）；
  * 用的是 androidx 的 `Modifier.blur`（Apache-2.0），Android 12 以下自动不生效，不用自己判版本。
  */
 const val LX_BACK_BLUR_MAX_DP = 16f
 
-/**
- * 返回完成之后模糊收回的时长和起点。
- *
- * 为什么要这一段：米11 实测（慢滑 + 连拍 + 相邻像素亮度差）我们这层的模糊是真的在起作用，
- * 内容区从 1.669 掉到 0.261，但真实手指快滑只在峰值停两三帧就 pop 了，而 pop 之后画的是下一页，
- * 模糊已经跟着 drag 清零 —— 所以看上去"没有模糊"。ColorOS/AppShare 那套是两页都在合成，
- * 底下那页天生带模糊；我们只有一页，那就让上一页出场时带一把模糊再收干净，
- * 手势返回、点返回箭头、系统手势都算（挂在回退栈上，少了一页就触发）。
- */
-private const val POP_BLUR_MS = 900
-private const val POP_BLUR_FROM = 0.45f
+/** 松手回弹时模糊收尾的时长 */
+private const val BLUR_SETTLE_MS = 240
+
 
 @Composable
 fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = true): LxBackMotion {
@@ -95,11 +80,10 @@ fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = tr
     // 拖动过程中只能写普通状态：awaitEachGesture 是 restricted 作用域，
     // 里面连 Animatable.snapTo 这种挂起函数都不许调。回弹才用 Animatable。
     var drag by remember { mutableFloatStateOf(0f) }
+    // 模糊单独一条：跟 drag 反着走（1 - drag），所以不能拿 drag 直接换算
+    var blurDrag by remember { mutableFloatStateOf(0f) }
     val settleAnim = remember { Animatable(0f) }
-    val popAnim = remember { Animatable(0f) }
-    // 手势提交那一刻手里停在第几档，留给回退栈监听当模糊起点。
-    // 写成普通 var 会被中途重组冲掉，所以照样放成 state。
-    var commitFrom by remember { mutableFloatStateOf(0f) }
+    val blurSettleAnim = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
 
     val edgeModifier = if (!canPop) {
@@ -110,17 +94,26 @@ fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = tr
             // 这两个是普通 lambda，所以能在 restricted 作用域里被调用；挂起动作都塞进 launch。
             val settle = {
                 val from = drag
+                val blurFrom = blurDrag
                 drag = 0f
+                blurDrag = 0f
                 scope.launch {
                     settleAnim.snapTo(from)
                     settleAnim.animateTo(0f, tween(300, easing = FastOutSlowInEasing))
                 }
+                scope.launch {
+                    blurSettleAnim.snapTo(blurFrom)
+                    blurSettleAnim.animateTo(0f, tween(BLUR_SETTLE_MS, easing = FastOutSlowInEasing))
+                }
             }
-            // 真返回了：形变立刻清零，别把缩放带到下一页；模糊那段交给回退栈监听接着收
+            // 真返回了：形变和模糊一起清零，别把这一页的状态带到下一页
             val finish = {
-                commitFrom = drag
                 drag = 0f
-                scope.launch { settleAnim.snapTo(0f) }
+                blurDrag = 0f
+                scope.launch {
+                    settleAnim.snapTo(0f)
+                    blurSettleAnim.snapTo(0f)
+                }
             }
             awaitEachGesture {
                 val edge = EDGE_DP.dp.toPx()
@@ -145,6 +138,7 @@ fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = tr
                     }
                     change.consume()
                     drag = (dx / travel).coerceIn(0f, 1f)
+                    blurDrag = 1f - drag
                     if (!change.pressed) {
                         if (dx > commitAt) {
                             finish()
@@ -159,34 +153,9 @@ fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = tr
         }
     }
 
-    // 回退栈少了一页 = 这次是"返回"，不管它是我们的手势、页面上的返回箭头还是系统手势派发的，
-    // 都给刚露出来的这一页一把从糊到清的过渡。
-    // 这里只看设置开关、不看 canPop：划回首页那一刻 previousBackStackEntry 已经是 null，
-    // 用 canPop 卡住的话最常用那一下（详情页返回根页）反而没有模糊。
-    // navigation 2.9 把 OnBackStackChangedListener 删了，只剩 destination 监听，而它分不清前进还是后退。
-    // 认"返回"用两个信号一起判：① 回退栈变浅；② 当前 entry 是来过的同一个实例
-    // （NavBackStackEntry 的 id 每实例唯一，回到上一页拿到的就是那个旧实例，见过 = 回来了）。
-    // 装机探针实测：光靠 snapshotFlow 盯 currentBackStack.size 一次都没认出返回，
-    // 换成 currentBackStackEntryFlow 之后米11 上点返回、系统返回键都能认到。
-    LaunchedEffect(navController, enabled) {
-        if (!enabled) return@LaunchedEffect
-        var lastSize = -1
-        val seen = HashSet<String>()
-        navController.currentBackStackEntryFlow.collect { entry ->
-            val size = navController.currentBackStack.value.size
-            val cameBack = !seen.add(entry.id)
-            if (lastSize >= 0 && (size < lastSize || cameBack)) {
-                val from = max(commitFrom, POP_BLUR_FROM)
-                commitFrom = 0f
-                popAnim.snapTo(from)
-                popAnim.animateTo(0f, tween(POP_BLUR_MS, easing = FastOutSlowInEasing))
-            }
-            lastSize = size
-        }
-    }
-
     val progress = if (drag > settleAnim.value) drag else settleAnim.value
-    val blurProgress = if (!enabled) 0f else lxBackBlurFraction(progress, popAnim.value)
+    val blurProgress = if (!enabled) 0f
+    else if (blurDrag > blurSettleAnim.value) blurDrag else blurSettleAnim.value
     return LxBackMotion(
         progress = if (canPop) progress else 0f,
         blurProgress = blurProgress,
