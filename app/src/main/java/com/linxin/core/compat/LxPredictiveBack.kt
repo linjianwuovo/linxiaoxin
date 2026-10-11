@@ -40,7 +40,9 @@ import kotlin.math.abs
  */
 class LxBackMotion internal constructor(val progress: Float, val modifier: Modifier)
 
-private const val EDGE_DP = 28f
+// 44dp 而不是 28dp：真贴屏幕最边那十来 dp 被系统边缘手势抢走（米11 实测 x=6 接不到、
+// x=90 才接得到），热区给宽一点，拇指落在里面一点也能触发我们这层，不然真机上根本看不见效果。
+private const val EDGE_DP = 44f
 
 /** 形变走满所需的滑动距离 */
 private const val TRAVEL_DP = 266f
