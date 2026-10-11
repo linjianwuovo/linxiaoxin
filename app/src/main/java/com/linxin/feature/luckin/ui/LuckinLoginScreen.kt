@@ -52,10 +52,47 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  */
 private const val LOGIN_URL = "https://open.lkcoffee.com/"
 
+/**
+ * 页面脚本执行前先注进去：把 navigator.clipboard.writeText 包一层，顺手在 copy 事件里读一次选区，
+ * 谁复制就把内容留在 window.__lxClip。
+ *
+ * 为什么非要绕这一道：开放平台那串访问凭证既不在可见文字里，也不在这个 origin 的 localStorage 里，
+ * 只在用户点「复制」的一瞬间被 JS 写进剪贴板。不包这一层，轮询页面就永远捞不到（10-11 实测卡在这）。
+ */
+private const val CLIP_SHIM = """
+(function(){
+  try {
+    window.__lxClip = '';
+    var p = window.navigator && window.navigator.clipboard;
+    if (p && p.writeText) {
+      var orig = p.writeText.bind(p);
+      p.writeText = function(t){
+        try { window.__lxClip = String(t || ''); } catch (e) {}
+        return orig(t);
+      };
+    }
+    document.addEventListener('copy', function(){
+      try {
+        var sel = String(window.getSelection());
+        if (sel && sel.length > 20) window.__lxClip = sel;
+      } catch (e) {}
+    }, true);
+  } catch (e) {}
+})();
+"""
+
 /** token 长这样：一串十六进制 + "mcp" + 后缀。三个来源都按这一个正则找 */
 private const val HARVEST_JS = """
 (function(){
   var re = /[0-9a-fA-F]{20,}mcp[A-Za-z0-9_]{2,}/;
+  try {
+    var c = String(window.__lxClip || '');
+    if (c.length > 20) {
+      var mc = c.match(re);
+      if (mc) return mc[0];
+      if (/^[0-9A-Za-z_\-]{24,}$/.test(c.trim())) return c.trim();
+    }
+  } catch (e) {}
   function fromStore(st){
     try {
       for (var i = 0; i < st.length; i++) {
@@ -144,7 +181,13 @@ fun LuckinLoginScreen(onBack: () -> Unit, onDone: () -> Unit) {
                             settings.domStorageEnabled = true
                             CookieManager.getInstance().setAcceptCookie(true)
                             webViewClient = object : WebViewClient() {
+                                override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                                    // 必须赶在页面自己的 JS 之前包住 clipboard，晚了它已经把原文塞进剪贴板了
+                                    view.evaluateJavascript(CLIP_SHIM, null)
+                                }
+
                                 override fun onPageFinished(view: WebView, url: String?) {
+                                    view.evaluateJavascript(CLIP_SHIM, null)
                                     reloadTick++
                                 }
                             }
