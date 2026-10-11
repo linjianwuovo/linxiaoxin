@@ -1,10 +1,13 @@
 package com.linxin.feature.luckin.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,15 +31,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxTopBar
+import com.linxin.core.designsystem.theme.LxCream
+import com.linxin.core.designsystem.theme.LxInkMuted
+import com.linxin.core.designsystem.theme.LxSandDeep
+import com.linxin.core.designsystem.theme.LxTerra
+import com.linxin.core.designsystem.theme.LxTerraSoft
 import com.linxin.core.luckin.LuckinMcp
 import com.linxin.core.settings.LuckinPrefs
 import com.linxin.core.settings.LuckinState
@@ -267,7 +277,12 @@ fun LuckinShopsScreen(
 }
 
 @Composable
-fun LuckinProductsScreen(deptId: Long, deptName: String, onBack: () -> Unit) {
+fun LuckinProductsScreen(
+    deptId: Long,
+    deptName: String,
+    onBack: () -> Unit,
+    onPickProduct: (LuckinMcp.Product) -> Unit,
+) {
     val context = LocalContext.current
     val prefs = remember { LuckinPrefs(context) }
     var token by remember { mutableStateOf("") }
@@ -312,7 +327,7 @@ fun LuckinProductsScreen(deptId: Long, deptName: String, onBack: () -> Unit) {
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
             }
             products.forEach { p ->
-                LxCard {
+                LxCard(onClick = { onPickProduct(p) }) {
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(p.productName, fontSize = 15.sp, fontWeight = FontWeight.Medium,
@@ -335,15 +350,176 @@ fun LuckinProductsScreen(deptId: Long, deptName: String, onBack: () -> Unit) {
                         p.productAttrs?.takeIf { it.isNotEmpty() }?.let { attrs ->
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                attrs.joinToString(" / ") { a ->
-                                    "${a.attributeName} ${(a.subAttrs?.size ?: 0)}"
-                                },
-                                fontSize = 12.sp, color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                stringResource(R.string.luckin_specs_count, attrs.size),
+                                fontSize = 12.sp,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             )
                         }
                     }
                 }
                 Spacer(Modifier.height(10.dp))
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+/** 规格只读展示用的小胶囊：外观跟 LxChoiceChip 一致，但没有点击反馈，免得看着能按 */
+@Composable
+private fun LxSpecChip(text: String, selected: Boolean, enabled: Boolean) {
+    val shape = RoundedCornerShape(20.dp)
+    val container = when {
+        !enabled -> LxCream.copy(alpha = 0.65f)
+        selected -> LxTerraSoft
+        else -> LxCream
+    }
+    val border = when {
+        !enabled -> LxSandDeep.copy(alpha = 0.5f)
+        selected -> LxTerra
+        else -> LxSandDeep
+    }
+    val fg = when {
+        !enabled -> LxInkMuted.copy(alpha = 0.6f)
+        selected -> LxTerra
+        else -> LxInkMuted
+    }
+    Box(
+        modifier = Modifier
+            .clip(shape)
+            .background(container)
+            .border(width = 1.dp, color = border, shape = shape)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    ) {
+        Text(text, style = MiuixTheme.textStyles.footnote1, color = fg)
+    }
+}
+
+/**
+ * 商品规格页：queryProductDetailInfo 回来的六组属性（杯型/温度/咖啡豆/咖啡浓度/糖度/加料之类）
+ * 按组分块列出来，选中项高亮，加价项在名字后面带 +¥。
+ *
+ * 只读。改规格、算价、下单都还没接——那是写操作，等他逐项批。
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun LuckinProductDetailScreen(
+    deptId: Long,
+    productId: Long,
+    productName: String,
+    onBack: () -> Unit,
+) {
+    val context = LocalContext.current
+    val prefs = remember { LuckinPrefs(context) }
+    var token by remember { mutableStateOf("") }
+    var detail by remember { mutableStateOf<LuckinMcp.Product?>(null) }
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        token = prefs.current().token
+        loading = true; error = null
+        runCatching { LuckinMcp.productDetail(token, deptId, productId) }
+            .onSuccess { detail = it }
+            .onFailure { error = it.message ?: it.javaClass.simpleName }
+        loading = false
+    }
+
+    Scaffold(topBar = {
+        LxTopBar(title = productName.ifBlank { stringResource(R.string.luckin_detail_title) }, onBack = onBack)
+    }) { pad ->
+        Column(
+            Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp),
+        ) {
+            if (loading) {
+                Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() }
+            }
+            error?.let {
+                Text(stringResource(R.string.luckin_error, it), fontSize = 13.sp, color = MiuixTheme.colorScheme.error)
+                Spacer(Modifier.height(14.dp))
+            }
+            val p = detail
+            if (p != null) {
+                LxCard {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        p.pictureUrl?.let { url ->
+                            Box(
+                                Modifier.size(64.dp).clip(luckyShape())
+                                    .background(MiuixTheme.colorScheme.surfaceVariant),
+                            ) {
+                                AsyncImage(
+                                    model = url,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
+                            Spacer(Modifier.width(12.dp))
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(p.productName, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                            Spacer(Modifier.height(4.dp))
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                p.estimatePrice?.let {
+                                    Text(
+                                        "¥${"%.1f".format(it)}",
+                                        fontSize = 17.sp,
+                                        color = MiuixTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Medium,
+                                    )
+                                }
+                                p.initialPrice?.let {
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        stringResource(R.string.luckin_detail_origin, "%.1f".format(it)),
+                                        fontSize = 12.sp,
+                                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+
+                val groups = p.productAttrs.orEmpty()
+                if (groups.isEmpty()) {
+                    Text(
+                        stringResource(R.string.luckin_attrs_empty),
+                        fontSize = 13.sp,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
+                }
+                groups.forEach { group ->
+                    LxCard {
+                        Column(Modifier.padding(16.dp)) {
+                            Text(group.attributeName, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Spacer(Modifier.height(10.dp))
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                group.subAttrs.orEmpty().forEach { sub ->
+                                    val extra = sub.price?.takeIf { it > 0.0 }
+                                    LxSpecChip(
+                                        text = sub.attributeName +
+                                            (extra?.let { "  +¥${"%.1f".format(it)}" } ?: "") +
+                                            (if (sub.canSelected == 0) "  " +
+                                                stringResource(R.string.luckin_unavailable) else ""),
+                                        selected = sub.selected == true,
+                                        enabled = sub.canSelected != 0,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                }
+                Text(
+                    stringResource(R.string.luckin_detail_readonly),
+                    fontSize = 12.sp,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
             }
             Spacer(Modifier.height(24.dp))
         }

@@ -652,4 +652,10 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="luckin_error">Nothing came back: %1$s</string>
     <string name="luckin_products_empty">No matching items at this store</string>
     <string name="luckin_entry">Luckin Coffee</string>
+    <string name="luckin_specs_count">%1$d option groups, tap to see</string>
+    <string name="luckin_detail_title">Item options</string>
+    <string name="luckin_detail_origin">list ¥%1$s</string>
+    <string name="luckin_attrs_empty">No options for this item</string>
+    <string name="luckin_unavailable">unavailable</string>
+    <string name="luckin_detail_readonly">Read-only for now: changing options, pricing and ordering are not wired up yet.</string>
 </resources>

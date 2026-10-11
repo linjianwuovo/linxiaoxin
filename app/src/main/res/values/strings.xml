@@ -652,4 +652,10 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="luckin_error">没取到：%1$s</string>
     <string name="luckin_products_empty">这个门店没有匹配的商品</string>
     <string name="luckin_entry">瑞幸咖啡</string>
+    <string name="luckin_specs_count">%1$d 组规格，点卡片看</string>
+    <string name="luckin_detail_title">商品规格</string>
+    <string name="luckin_detail_origin">原价 ¥%1$s</string>
+    <string name="luckin_attrs_empty">这个商品没有可选规格</string>
+    <string name="luckin_unavailable">不可选</string>
+    <string name="luckin_detail_readonly">规格暂时只能看，改规格、算价、下单都还没接。</string>
 </resources>
