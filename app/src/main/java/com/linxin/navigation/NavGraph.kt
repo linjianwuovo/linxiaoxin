@@ -659,6 +659,9 @@ fun LinXinNavHost(
                 onNavigateHoliday = {
                     navController.navigate(Routes.HOLIDAY_LIST) { launchSingleTop = true }
                 },
+                onNavigateLuckin = {
+                    navController.navigate(Routes.LUCKIN_SHOPS) { launchSingleTop = true }
+                },
             )
         }
 
@@ -673,6 +676,39 @@ fun LinXinNavHost(
         }
 
         // About
+        composable(Routes.LUCKIN_LOGIN) {
+            com.linxin.feature.luckin.ui.LuckinLoginScreen(
+                onBack = { navController.popBackStack() },
+                onDone = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.LUCKIN_SHOPS) {
+            com.linxin.feature.luckin.ui.LuckinShopsScreen(
+                onBack = { navController.popBackStack() },
+                onLogin = { navController.navigate(Routes.LUCKIN_LOGIN) { launchSingleTop = true } },
+                onPickShop = { shop ->
+                    navController.navigate(Routes.luckinProducts(shop.deptId, shop.deptName)) {
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+
+        composable(
+            Routes.LUCKIN_PRODUCTS,
+            arguments = listOf(
+                navArgument("deptId") { type = NavType.LongType },
+                navArgument("deptName") { type = NavType.StringType; defaultValue = "" },
+            ),
+        ) { entry ->
+            com.linxin.feature.luckin.ui.LuckinProductsScreen(
+                deptId = entry.arguments?.getLong("deptId") ?: 0L,
+                deptName = entry.arguments?.getString("deptName").orEmpty(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+
         composable(Routes.ABOUT) {
             AboutScreen(onBack = { navController.popBackStack() })
         }

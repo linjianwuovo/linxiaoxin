@@ -619,4 +619,35 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="card_trades_loading">正在加载…</string>
     <string name="card_trades_all">没有更多了</string>
     <string name="card_trades_count">已显示 %1$d 笔 · 共 %2$d 笔</string>
+    <!-- 瑞幸（fun-luckin） -->
+    <string name="luckin_account_title">瑞幸账号</string>
+    <string name="luckin_account_off">还没登录。登录后凭证只存在这台手机本机，约 30 天过期。</string>
+    <string name="luckin_account_on">已登录，本机凭证 %1$s</string>
+    <string name="luckin_account_login">登录瑞幸</string>
+    <string name="luckin_account_relogin">重新登录</string>
+    <string name="luckin_account_logout">退出登录</string>
+    <string name="luckin_login_title">登录瑞幸</string>
+    <string name="luckin_login_note">下面是瑞幸官方开放平台页面，手机号和验证码只交给瑞幸。登录成功后我们只从本机页面里取一次访问凭证。</string>
+    <string name="luckin_login_wait">等待登录…</string>
+    <string name="luckin_login_ok">已拿到访问凭证</string>
+    <string name="luckin_login_timeout">5 分钟没等到，重新登录试试</string>
+    <string name="luckin_login_manual">如果一直没自动拿到，页面上也能自己复制访问凭证。</string>
+    <string name="luckin_shops_title">瑞幸门店</string>
+    <string name="luckin_products_title">瑞幸商品</string>
+    <string name="luckin_token_title">瑞幸 access token</string>
+    <string name="luckin_token_hint">在 open.lkcoffee.com 用手机号登录后复制个人 token 粘到这里。它约 30 天过期，只存本机，不会上传。</string>
+    <string name="luckin_token_on">已配置 %1$s</string>
+    <string name="luckin_token_placeholder">粘贴 token</string>
+    <string name="luckin_token_save">保存</string>
+    <string name="luckin_token_clear">清除会话</string>
+    <string name="luckin_point_title">找店坐标</string>
+    <string name="luckin_point_hint">平台只按经纬度找店，先填一个附近的点</string>
+    <string name="luckin_lng">经度</string>
+    <string name="luckin_lat">纬度</string>
+    <string name="luckin_query_shops">查门店</string>
+    <string name="luckin_search_hint">想喝什么，比如生椰拿铁</string>
+    <string name="luckin_search">搜索</string>
+    <string name="luckin_error">没取到：%1$s</string>
+    <string name="luckin_products_empty">这个门店没有匹配的商品</string>
+    <string name="luckin_entry">瑞幸咖啡</string>
 </resources>
