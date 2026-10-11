@@ -67,7 +67,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 private fun luckyShape() = RoundedCornerShape(16.dp)
 
 @Composable
-private fun LxField(
+internal fun LxField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
@@ -93,7 +93,7 @@ private fun LxField(
 }
 
 @Composable
-private fun LxPillButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
+internal fun LxPillButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .clip(luckyShape())
@@ -277,148 +277,9 @@ fun LuckinShopsScreen(
     }
 }
 
-/**
- * 商品页：搜索框 + 热门一键搜。热门胶囊就是把同样那句话填进搜索框再搜一次，
- * 手不用打字也能走通全链路（平常人更吃这套，也是我能用点按验收的原因）。
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun LuckinProductsScreen(
-    deptId: Long,
-    deptName: String,
-    onBack: () -> Unit,
-    onPickProduct: (LuckinMcp.Product) -> Unit,
-) {
-    val context = LocalContext.current
-    val prefs = remember { LuckinPrefs(context) }
-    var token by remember { mutableStateOf("") }
-    var query by remember { mutableStateOf("") }
-    var products by remember { mutableStateOf<List<LuckinMcp.Product>>(emptyList()) }
-    var loading by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var searched by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-
-    val runSearch: (String) -> Unit = { raw ->
-        val q = raw.trim()
-        if (q.isNotBlank() && token.isNotBlank()) {
-            query = q
-            scope.launch {
-                loading = true; error = null; searched = true
-                runCatching { LuckinMcp.searchProducts(token, deptId, q) }
-                    .onSuccess { products = it }
-                    .onFailure { error = it.message ?: it.javaClass.simpleName }
-                loading = false
-            }
-        }
-    }
-
-    var menu by remember { mutableStateOf<List<Pair<String, List<LuckinMcp.Product>>>>(emptyList()) }
-    var menuLoading by remember { mutableStateOf(true) }
-    var menuError by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(Unit) { token = prefs.current().token }
-
-    // 品类词各搜一次，全部回来才渲染，不做一路加载一路蹦；十分钟内回本页走缓存
-    LaunchedEffect(deptId, token) {
-        if (token.isBlank()) { menuLoading = false; return@LaunchedEffect }
-        menuLoading = true; menuError = null
-        runCatching { LuckinMcp.queryMenuCached(token, deptId) }
-            .onSuccess { menu = it }
-            .onFailure { menuError = it.message ?: it.javaClass.simpleName }
-        menuLoading = false
-    }
-
-    Scaffold(topBar = { LxTopBar(title = deptName.ifBlank { stringResource(R.string.luckin_products_title) }, onBack = onBack) }) { pad ->
-        Column(
-            Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                LxField(query, { query = it }, stringResource(R.string.luckin_search_hint), Modifier.weight(1f))
-                Spacer(Modifier.width(10.dp))
-                LxPillButton(stringResource(R.string.luckin_search), enabled = query.isNotBlank() && token.isNotBlank()) {
-                    runSearch(query)
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            Text(
-                stringResource(R.string.luckin_hot_title),
-                fontSize = 12.sp,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            )
-            Spacer(Modifier.height(8.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                listOf(
-                    stringResource(R.string.luckin_hot_1),
-                    stringResource(R.string.luckin_hot_2),
-                    stringResource(R.string.luckin_hot_3),
-                ).forEach { name ->
-                    LxChoiceChip(
-                        text = name,
-                        selected = query == name && products.isNotEmpty(),
-                        enabled = token.isNotBlank(),
-                        onClick = { runSearch(name) },
-                    )
-                }
-                if (searched) {
-                    LxChoiceChip(
-                        text = stringResource(R.string.luckin_back_to_menu),
-                        selected = false,
-                        onClick = { searched = false; products = emptyList(); query = "" },
-                    )
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-            if (searched) {
-                if (loading) {
-                    Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() }
-                }
-                error?.let {
-                    Text(stringResource(R.string.luckin_error, it), fontSize = 13.sp, color = MiuixTheme.colorScheme.error)
-                    Spacer(Modifier.height(14.dp))
-                }
-                if (products.isEmpty() && !loading) {
-                    Text(stringResource(R.string.luckin_products_empty), fontSize = 13.sp,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-                }
-                products.forEach { p -> LuckinProductCard(p, onPickProduct) }
-            } else {
-                if (menuLoading) {
-                    Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) { CircularProgressIndicator() }
-                }
-                menuError?.let {
-                    Text(stringResource(R.string.luckin_menu_error, it), fontSize = 13.sp,
-                        color = MiuixTheme.colorScheme.error)
-                    Spacer(Modifier.height(14.dp))
-                }
-                if (!menuLoading && menu.isEmpty() && menuError == null) {
-                    Text(stringResource(R.string.luckin_menu_empty), fontSize = 13.sp,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-                }
-                menu.forEach { (word, list) ->
-                    Text(word, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(8.dp))
-                    list.forEach { p -> LuckinProductCard(p, onPickProduct) }
-                    Spacer(Modifier.height(6.dp))
-                }
-                Text(
-                    stringResource(R.string.luckin_menu_note),
-                    fontSize = 12.sp,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                )
-            }
-            Spacer(Modifier.height(24.dp))
-        }
-    }
-}
-
 /** 商品卡：菜单和搜索结果共用一张样子 */
 @Composable
-private fun LuckinProductCard(p: LuckinMcp.Product, onPick: (LuckinMcp.Product) -> Unit) {
+internal fun LuckinProductCard(p: LuckinMcp.Product, onPick: (LuckinMcp.Product) -> Unit) {
     LxCard(onClick = { onPick(p) }) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
