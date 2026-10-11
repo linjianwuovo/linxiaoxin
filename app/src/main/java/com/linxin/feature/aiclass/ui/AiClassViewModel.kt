@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.linxin.core.network.FifSessionManager
 import com.linxin.feature.aiclass.data.AiClassRepository
 import com.linxin.feature.aiclass.domain.AiCourse
+import com.linxin.feature.aiclass.domain.AiCourseware
 import com.linxin.feature.aiclass.domain.AiQuiz
 import com.linxin.feature.aiclass.domain.AiClassQrPayload
 import com.linxin.feature.aiclass.domain.AiWorkingRecord
@@ -46,6 +47,9 @@ data class AiClassUiState(
     val signSucceeded: Boolean = false,
     /** AI 课堂消息中心未读数；null 表示还没拿到 */
     val messageUnread: Int? = null,
+    val coursewareList: List<AiCourseware> = emptyList(),
+    val isCoursewareLoading: Boolean = false,
+    val coursewareError: String? = null,
 )
 
 @HiltViewModel
@@ -242,6 +246,9 @@ class AiClassViewModel @Inject constructor(
                 quizList = emptyList(),
                 homeworkList = emptyList(),
                 isQuizLoading = true,
+                isCoursewareLoading = true,
+                coursewareError = null,
+                coursewareList = emptyList(),
                 isHomeworkLoading = true,
                 quizError = null,
                 homeworkError = null,
@@ -258,6 +265,20 @@ class AiClassViewModel @Inject constructor(
                     quizList = quizResult.getOrDefault(emptyList()),
                     isQuizLoading = false,
                     quizError = quizResult.exceptionOrNull()?.message,
+                )
+            }
+        }
+
+        viewModelScope.launch {
+            val cwResult = withResultTimeout(AppText.str(R.string.aivm_act_courseware), AICLASS_DETAIL_LOAD_TIMEOUT_MS) {
+                repository.getCoursewareList(course.courseId, course.teachClassId)
+            }
+            _uiState.update { current ->
+                if (current.selectedCourse?.stableId != classId) return@update current
+                current.copy(
+                    coursewareList = cwResult.getOrDefault(emptyList()),
+                    isCoursewareLoading = false,
+                    coursewareError = cwResult.exceptionOrNull()?.message,
                 )
             }
         }

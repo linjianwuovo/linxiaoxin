@@ -9,6 +9,7 @@ import com.linxin.core.network.FifRetrofit
 import com.linxin.core.network.FifSessionManager
 import com.linxin.core.network.IzuoyeRetrofit
 import com.linxin.feature.aiclass.domain.AiCourse
+import com.linxin.feature.aiclass.domain.AiCourseware
 import com.linxin.feature.aiclass.domain.AiQuiz
 import com.linxin.feature.aiclass.domain.AiClassQrPayload
 import com.linxin.feature.aiclass.domain.AiSignInInfo
@@ -258,6 +259,28 @@ class AiClassRepository @Inject constructor(
     }
 
     /** 查询课程测验列表 */
+    /** 课件列表。userId 用成员 userId（32 位），跟测验列表同源 */
+    suspend fun getCoursewareList(courseId: String, teachClassId: String): Result<List<AiCourseware>> {
+        return try {
+            val auth = ensureSession()
+            val userId = fifSession.getMemberUserId().orEmpty()
+            if (courseId.isBlank() || userId.isBlank()) return Result.failure(Exception("AI课堂身份不完整"))
+            val resp = api.getCoursewareList(courseId, teachClassId, "1", userId, auth)
+            val list = (resp.data ?: emptyList()).map { it ->
+                AiCourseware(
+                    id = it.id ?: it.resourceId ?: it.resourceName.orEmpty(),
+                    name = it.resourceName.orEmpty(),
+                    fileType = it.fileType.orEmpty(),
+                    url = it.resourceUrl.orEmpty(),
+                    createdAt = it.createTime.orEmpty(),
+                )
+            }
+            Result.success(list)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getQuizList(courseId: String): Result<List<AiQuiz>> {
         return try {
             val auth = ensureSession()

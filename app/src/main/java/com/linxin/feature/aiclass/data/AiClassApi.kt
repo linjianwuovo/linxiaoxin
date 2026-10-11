@@ -95,6 +95,17 @@ interface AiClassApi {
         @Header("Visit-Type") visitType: String = "mobile",
     ): AiClassTimetableResponse
 
+    /** 课件资源列表：resourceType=1 就是课件（抓到的 22 条全是 pptx） */
+    @GET("coursecenter-interaction/courseware/queryCoursewareResourceList")
+    suspend fun getCoursewareList(
+        @Query("courseId") courseId: String,
+        @Query("teachClassId") teachClassId: String,
+        @Query("resourceType") resourceType: String = "1",
+        @Query("userId") userId: String,
+        @Header("authorization") auth: String,
+        @Header("Visit-Type") visitType: String = "mobile",
+    ): AiClassCoursewareResponse
+
     /** 课程作业列表 */
     /** AI 课堂消息中心未读数：安小信进 AI 课堂时会打这一发，我们之前没有 */
     @FormUrlEncoded

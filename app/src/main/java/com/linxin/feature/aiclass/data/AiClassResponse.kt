@@ -10,6 +10,24 @@ data class AiClassBaseResponse(
 )
 
 /** 学期列表响应 */
+/** 课件资源列表：这一族接口的信封是 data/location/message/status，data 直接就是数组 */
+data class AiClassCoursewareResponse(
+    val status: String?,
+    val message: String?,
+    val data: List<CoursewareItem>?,
+) {
+    data class CoursewareItem(
+        val id: String?,
+        val resourceId: String?,
+        val resourceName: String?,
+        val fileType: String?,
+        val resourceUrl: String?,
+        val createTime: String?,
+        val lockState: Int?,
+        val isExamine: String?,
+    )
+}
+
 /** 消息未读数：这一发的 status 是数字，跟别的口不一样，照实声明 */
 data class AiClassUnreadResponse(
     val status: Int?,
