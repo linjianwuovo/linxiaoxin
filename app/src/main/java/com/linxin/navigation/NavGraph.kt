@@ -159,6 +159,8 @@ fun LinXinNavHost(
 
     val back = rememberLxBackMotion(navController, previewBackGesture)
     val backProgress = back.progress
+    // 模糊单独一条进度：手势期间跟 drag，返回完成后再从 0.8 收到 0（见 rememberLxBackMotion）
+    val blurProgress = back.blurProgress
 
     NavHost(
         navController = navController,
@@ -167,13 +169,14 @@ fun LinXinNavHost(
         // 没手势的时候不加 graphicsLayer：常驻一层图层会改变子树的重绘边界，
         // 边缘手势的 pointerInput 则必须一直挂着，不能在这上面做条件，否则拖到一半会断。
         modifier = back.modifier.then(
-            if (backProgress > 0f) androidx.compose.ui.Modifier
-                // 返回模糊：半径随进度线性拉起来，松手回弹时跟着收回 0。
-                // 用 androidx 的 Modifier.blur（Apache-2.0），Android 12 以下自动不生效
+            if (backProgress > 0f || blurProgress > 0f) androidx.compose.ui.Modifier
+                // 返回模糊：用 androidx 的 Modifier.blur（Apache-2.0），Android 12 以下自动不生效。
+                // 走 blurProgress：拖到哪儿糊到哪儿，松手返回之后上一页出场时再带一把模糊收干净，
+                // 这样快滑、点返回箭头、系统手势那几种都能看见糊，不然峰值只停两三帧等于没有。
                 .blur(
                     // 平方渐强：前半程基本不糊，快到提交点才糊起来，跟系统那种一致；
                     // 线性拉满会把整页糊成一片，读不出内容
-                    radius = (com.linxin.core.compat.LX_BACK_BLUR_MAX_DP * backProgress * backProgress).dp,
+                    radius = (com.linxin.core.compat.LX_BACK_BLUR_MAX_DP * blurProgress * blurProgress).dp,
                     edgeTreatment = BlurredEdgeTreatment.Unbounded,
                 )
                 .graphicsLayer {

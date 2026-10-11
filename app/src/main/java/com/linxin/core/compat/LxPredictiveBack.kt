@@ -6,11 +6,13 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -19,6 +21,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.max
 
 /**
  * 侧滑返回时当前页的形变状态：[progress] 0 = 没手势，1 = 已经拉到该返回的程度；
@@ -37,8 +40,14 @@ import kotlin.math.abs
  * x=6 也返回；开关关 → x=90 不返回、x=6 照样返回。
  *
  * 只做缩放 + 淡出 + 少量左移，不做大幅度平移：底栏是常驻液态玻璃，横向挪多了会和玻璃滑块打架。
+ *
+ * [blurProgress] 比 [progress] 多带一段"返回之后"：见下面 rememberLxBackMotion 里 popAnim 的注释。
  */
-class LxBackMotion internal constructor(val progress: Float, val modifier: Modifier)
+class LxBackMotion internal constructor(
+    val progress: Float,
+    val blurProgress: Float,
+    val modifier: Modifier,
+)
 
 // 44dp 而不是 28dp：真贴屏幕最边那十来 dp 被系统边缘手势抢走（米11 实测 x=6 接不到、
 // x=90 才接得到），热区给宽一点，拇指落在里面一点也能触发我们这层，不然真机上根本看不见效果。
@@ -57,6 +66,18 @@ private const val COMMIT_DP = 243f
  */
 const val LX_BACK_BLUR_MAX_DP = 20f
 
+/**
+ * 返回完成之后模糊收回的时长和起点。
+ *
+ * 为什么要这一段：米11 实测（慢滑 + 连拍 + 相邻像素亮度差）我们这层的模糊是真的在起作用，
+ * 内容区从 1.669 掉到 0.261，但真实手指快滑只在峰值停两三帧就 pop 了，而 pop 之后画的是下一页，
+ * 模糊已经跟着 drag 清零 —— 所以看上去"没有模糊"。ColorOS/AppShare 那套是两页都在合成，
+ * 底下那页天生带模糊；我们只有一页，那就让上一页出场时带一把模糊再收干净，
+ * 手势返回、点返回箭头、系统手势都算（挂在回退栈上，少了一页就触发）。
+ */
+private const val POP_BLUR_MS = 320
+private const val POP_BLUR_FROM = 0.85f
+
 @Composable
 fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = true): LxBackMotion {
     val currentEntry by navController.currentBackStackEntryAsState()
@@ -68,6 +89,10 @@ fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = tr
     // 里面连 Animatable.snapTo 这种挂起函数都不许调。回弹才用 Animatable。
     var drag by remember { mutableFloatStateOf(0f) }
     val settleAnim = remember { Animatable(0f) }
+    val popAnim = remember { Animatable(0f) }
+    // 手势提交那一刻手里停在第几档，留给回退栈监听当模糊起点。
+    // 写成普通 var 会被中途重组冲掉，所以照样放成 state。
+    var commitFrom by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
 
     val edgeModifier = if (!canPop) {
@@ -84,8 +109,9 @@ fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = tr
                     settleAnim.animateTo(0f, tween(300, easing = FastOutSlowInEasing))
                 }
             }
-            // 真返回了：形变立刻清零，别把缩放带到下一页
+            // 真返回了：形变立刻清零，别把缩放带到下一页；模糊那段交给回退栈监听接着收
             val finish = {
+                commitFrom = drag
                 drag = 0f
                 scope.launch { settleAnim.snapTo(0f) }
             }
@@ -126,6 +152,31 @@ fun rememberLxBackMotion(navController: NavHostController, enabled: Boolean = tr
         }
     }
 
+    // 回退栈少了一页 = 这次是"返回"，不管它是我们的手势、页面上的返回箭头还是系统手势派发的，
+    // 都给刚露出来的这一页一把从糊到清的过渡。
+    // 这里只看设置开关、不看 canPop：划回首页那一刻 previousBackStackEntry 已经是 null，
+    // 用 canPop 卡住的话最常用那一下（详情页返回根页）反而没有模糊。
+    // navigation 2.9 把回退栈监听删掉了，只剩 destination 监听，而它分不清前进还是后退，
+    // 所以盯 currentBackStack 的长度：变短就是返回。
+    LaunchedEffect(navController, enabled) {
+        if (!enabled) return@LaunchedEffect
+        var lastSize = navController.currentBackStack.value.size
+        snapshotFlow { navController.currentBackStack.value.size }.collect { size ->
+            if (size < lastSize) {
+                val from = max(commitFrom, POP_BLUR_FROM)
+                commitFrom = 0f
+                popAnim.snapTo(from)
+                popAnim.animateTo(0f, tween(POP_BLUR_MS, easing = FastOutSlowInEasing))
+            }
+            lastSize = size
+        }
+    }
+
     val progress = if (drag > settleAnim.value) drag else settleAnim.value
-    return LxBackMotion(if (canPop) progress else 0f, edgeModifier)
+    val blurProgress = if (!enabled) 0f else max(progress, popAnim.value)
+    return LxBackMotion(
+        progress = if (canPop) progress else 0f,
+        blurProgress = blurProgress,
+        modifier = edgeModifier,
+    )
 }
