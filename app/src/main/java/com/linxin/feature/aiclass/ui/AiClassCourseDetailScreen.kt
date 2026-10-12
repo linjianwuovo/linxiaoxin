@@ -18,8 +18,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.layout.ContentScale
-import coil3.compose.AsyncImage
 import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -28,6 +26,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +47,9 @@ import com.linxin.feature.aiclass.domain.AiCourse
 import com.linxin.feature.aiclass.domain.AiQuiz
 import com.linxin.feature.aiclass.domain.displayName
 import com.linxin.feature.aiclass.domain.studentCountText
+
+// 一学期的直录播能有一二十节，全平铺会把课件和小组挤到看不见，先只露这几节
+private const val LIVE_RECORD_PREVIEW_COUNT = 6
 
 @Composable
 fun AiClassCourseDetailScreen(
@@ -153,6 +157,7 @@ private fun AiClassCourseDetailContent(
     onHomeworkClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    var liveExpanded by remember { mutableStateOf(false) }
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
@@ -202,8 +207,26 @@ private fun AiClassCourseDetailContent(
             }
 
             else -> {
-                items(liveRecords, key = { "live_" + it.id }) { record ->
+                val shown = if (liveExpanded) liveRecords else liveRecords.take(LIVE_RECORD_PREVIEW_COUNT)
+                // 不给 key：同一门课每周都可能出现，服务端那个 id 撞了的话整页会崩在重复 key 上
+                items(shown) { record ->
                     LiveRecordCard(record = record)
+                }
+                if (liveRecords.size > LIVE_RECORD_PREVIEW_COUNT) {
+                    item(key = "live_toggle") {
+                        LxCard(onClick = { liveExpanded = !liveExpanded }) {
+                            Text(
+                                text = if (liveExpanded) {
+                                    stringResource(R.string.ai_live_collapse)
+                                } else {
+                                    stringResource(R.string.ai_live_show_all, liveRecords.size)
+                                },
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.primary,
+                                modifier = Modifier.padding(20.dp),
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -734,19 +757,21 @@ private fun LiveRecordCard(record: com.linxin.feature.aiclass.domain.AiLiveRecor
 }
 
 /**
- * 状态只认两件实测到的事：isNowPlay 有没有真、有没有留下可看的东西。
- * liveStatus 那一列一共几档、每档什么意思没在屏幕上对过，所以不解它，
- * 免得把「直播中」这种话安到一个我们其实不知道的数上。
+ * 状态只有三档，全部来自屏幕上对得上的事实：课还没上 → 未开始；上过了且服务端留了可看的东西 → 可回放；
+ * 上过了但什么都没留 → 没有回放。
+ * 没有「直播中」这一档是有原因的：屏幕上验过整学期每一条的 isNowPlay 都是真，
+ * 那个键说的是「这是直播课」不是「现在正在播」，用它判就会把两个月后的课标成正在播。
+ * 等哪天真在一节直播当天看到别的信号，再补这一档。
  */
 @Composable
 private fun LiveStatusBadge(record: com.linxin.feature.aiclass.domain.AiLiveRecord) {
     val text = when {
-        record.isNowPlaying -> stringResource(R.string.ai_live_now)
+        record.isUpcoming -> stringResource(R.string.ai_live_upcoming)
         record.canPlay -> stringResource(R.string.ai_live_replay)
         else -> stringResource(R.string.ai_live_none)
     }
     val color = when {
-        record.isNowPlaying -> LxSuccess
+        record.isUpcoming -> MiuixTheme.colorScheme.onSurfaceVariantSummary
         record.canPlay -> MiuixTheme.colorScheme.secondary
         else -> MiuixTheme.colorScheme.onSurfaceVariantSummary
     }
@@ -812,12 +837,7 @@ private fun CoursewareViewerDialog(
                 ) {
                     itemsIndexed(detail.pages) { index, url ->
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            AsyncImage(
-                                model = url,
-                                contentDescription = null,
-                                contentScale = ContentScale.FillWidth,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
+                            CoursewarePageImage(url = url)
                             Text(
                                 text = stringResource(R.string.ai_courseware_page_of, index + 1, detail.pages.size),
                                 style = MiuixTheme.textStyles.footnote2,

@@ -647,9 +647,11 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <!-- 直录播 -->
     <string name="ai_live_title">直录播</string>
     <string name="ai_no_live_record">这门课这学期没有直录播</string>
-    <string name="ai_live_now">直播中</string>
+    <string name="ai_live_upcoming">未开始</string>
     <string name="ai_live_replay">可回放</string>
     <string name="ai_live_none">没有回放</string>
+    <string name="ai_live_show_all">展开全部 %1$d 节</string>
+    <string name="ai_live_collapse">只看最近几节</string>
     <string name="ai_unnamed_live">未命名课堂</string>
     <string name="aivm_act_live">直录播</string>
 
@@ -659,6 +661,8 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ai_courseware_no_id">学校没给这个课件的标识，点不开</string>
     <string name="ai_courseware_open_failed">课件没打开</string>
     <string name="ai_courseware_no_pages">这一条学校没渲染出页来，可能是视频</string>
+    <string name="ai_courseware_page_loading">这一页在拉…</string>
+    <string name="ai_courseware_page_failed">这一页图没拉下来，往上翻或往下翻再试</string>
     <string name="aivm_act_courseware_open">打开课件</string>
 
 </resources>

@@ -387,29 +387,37 @@ class AiClassRepository @Inject constructor(
             )
         }.getOrElse { error -> return Result.failure(error) }
 
+        val today = java.time.LocalDate.now().toString()
         val records = response.data.orEmpty().mapIndexed { index, item ->
             val playUrl = item.stringValue("livePath", "playUrl", "url")
             val resourceId = item.stringValue("resourceId")
+            val roomName = item.stringValue("roomName")
+            val dateText = item.stringValue("currentDate").trim()
+            // ISO 的 yyyy-MM-dd 直接按字符串比就是按时间比；对不上这个形状就不猜，当它不是未来
+            val isUpcoming = dateText.length == 10 &&
+                dateText[4] == '-' && dateText[7] == '-' && dateText > today
             AiLiveRecord(
                 id = item.stringValue("id", "recordId", "courseRecordId").ifBlank { "live_$index" },
                 title = item.stringValue("liveRecordName", "courseName", "name")
                     .ifBlank { item.stringValue("courseSchedulingName", "itemName") },
-                roomText = listOf(
-                    item.stringValue("roomName"),
-                    item.stringValue("buildingName"),
-                ).filter { it.isNotBlank() }.joinToString(" · "),
+                // 实测 roomName 已经把楼栋带在里面了（博雅楼（A1）S103），再拼 buildingName 就是重复一遍
+                roomText = roomName.ifBlank { item.stringValue("buildingName") },
                 whenText = listOf(
-                    item.stringValue("currentDate"),
+                    dateText,
                     item.stringValue("currentWeek").takeIf { it.isNotBlank() }?.let { "第${it}周" }.orEmpty(),
                 ).filter { it.isNotBlank() }.joinToString("  "),
-                // 只认 isNowPlay 这一个键判「正在直播」；liveStatus 的枚举值没实测过，不解它
-                isNowPlaying = item.truthy("isNowPlay", "isLiving"),
+                dateText = dateText,
+                isUpcoming = isUpcoming,
                 canPlay = playUrl.isNotBlank() || resourceId.isNotBlank(),
                 playUrl = playUrl,
                 resourceId = resourceId,
             )
         }
-        return Result.success(records)
+        // 上过的按日期倒序（最近一节在最前），还没上的按日期正序（下一节在最前）；
+        // 两组分开放，是为了让「能看的」先出现，而不是把一学期的课平铺成一条长队
+        val past = records.filterNot { it.isUpcoming }.sortedByDescending { it.dateText }
+        val upcoming = records.filter { it.isUpcoming }.sortedBy { it.dateText }
+        return Result.success(past + upcoming)
     }
 
     /** A.I微课列表。字段名没实测过，所以按候选键取，一个都对不上就用整条 JSON 的前几个字符兜底 */
