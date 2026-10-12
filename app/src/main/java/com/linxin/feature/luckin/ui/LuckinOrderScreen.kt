@@ -43,7 +43,9 @@ import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxChoiceChip
 import com.linxin.core.designsystem.component.LxDialog
 import com.linxin.core.designsystem.component.LxTopBar
+import com.linxin.core.luckin.LuckinAuth
 import com.linxin.core.luckin.LuckinMcp
+import com.linxin.core.luckin.LuckinOrderApi
 import com.linxin.core.luckin.LuckinWeb
 import com.linxin.core.settings.LuckinPrefs
 import kotlinx.coroutines.launch
@@ -234,7 +236,7 @@ fun LuckinProductDetailScreen(
                     Spacer(Modifier.height(14.dp))
                 }
 
-                if (token.isBlank()) {
+                if (token.isBlank() && !LuckinAuth.isLoggedIn()) {
                     Text(stringResource(R.string.luckin_need_login), fontSize = 13.sp,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
                     Spacer(Modifier.height(24.dp))
@@ -246,7 +248,13 @@ fun LuckinProductDetailScreen(
                     ) {
                         scope.launch {
                             previewing = true; previewError = null; preview = null
-                            runCatching { LuckinMcp.previewOrder(token, deptId, lines) }
+                            runCatching {
+                                LuckinOrderApi.previewCard(
+                                    LuckinOrderApi.Draft(
+                                        deptId, point?.first ?: 0.0, point?.second ?: 0.0),
+                                    lines,
+                                )
+                            }
                                 .onSuccess { preview = it }
                                 .onFailure { previewError = it.message ?: it.javaClass.simpleName }
                             previewing = false
@@ -342,7 +350,10 @@ fun LuckinProductDetailScreen(
                                 ) {
                                     scope.launch {
                                         canceling = true; cancelMsg = null
-                                        runCatching { LuckinMcp.cancelOrder(token, oid) }
+                                        runCatching {
+                                            LuckinOrderApi.cancel(oid)
+                                                .get("msg")?.takeIf { !it.isJsonNull }?.asString ?: "已取消"
+                                        }
                                             .onSuccess { cancelMsg = it }
                                             .onFailure { cancelMsg = it.message ?: it.javaClass.simpleName }
                                         canceling = false
@@ -380,14 +391,13 @@ fun LuckinProductDetailScreen(
                         orderError = context.getString(R.string.luckin_no_point)
                     } else {
                         runCatching {
-                            LuckinMcp.createOrder(
-                                token = token,
-                                deptId = deptId,
-                                items = lines,
-                                longitude = pt.first,
-                                latitude = pt.second,
-                                couponCodeList = p?.couponCodeList.orEmpty(),
-                            )
+                            // 整条走瑞幸自己的网关：预下单回的那一坨再原样交给建单
+                            val d = LuckinOrderApi.Draft(deptId, pt.first, pt.second)
+                            val pre = LuckinOrderApi.preCreate(d, lines)
+                            val payload = pre.get("content")?.takeIf { it.isJsonObject }?.asJsonObject
+                                ?: throw LuckinAuth.ApiError(
+                                    pre.get("msg")?.asString ?: "瑞幸没接受这单")
+                            LuckinOrderApi.create(payload)
                         }.onSuccess { orderData = it }
                             .onFailure { orderError = it.message ?: it.javaClass.simpleName }
                     }

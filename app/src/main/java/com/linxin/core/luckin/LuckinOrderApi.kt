@@ -42,7 +42,7 @@ object LuckinOrderApi {
      * 2026-10-12 实测定死的两点：商品列表的字段名是 `productList`（`comboList` 不认），
      * 而且**不能带 `delivery`**——带任何值都回「delivery值不正确」，整条不传才过。
      */
-    suspend fun preview(d: Draft, lines: List<JsonObject>): JsonObject =
+    suspend fun preview(d: Draft, lines: List<Map<String, Any?>>): JsonObject =
         LuckinAuth.postApi(PREVIEW, base(d).plus(mapOf(
             "productList" to lines,
             "couponCodeList" to emptyList<String>(),
@@ -59,7 +59,7 @@ object LuckinOrderApi {
      * 实测这一层对 `eatway` 的取值另有要求（传 1 回「eatway值不正确」），还没定死，
      * 所以下面把 eatway 单独留成参数，不跟着 Draft 走。
      */
-    suspend fun preCreate(d: Draft, lines: List<JsonObject>, eatway: String = ""): JsonObject =
+    suspend fun preCreate(d: Draft, lines: List<Map<String, Any?>>, eatway: String = ""): JsonObject =
         LuckinAuth.postApi(PRE_CREATE, mapOf(
             "deptId" to d.deptId,
             "cityId" to d.cityId,
@@ -77,6 +77,45 @@ object LuckinOrderApi {
             flat[k] = if (v.isJsonPrimitive) v.asString else v.toString()
         }
         return LuckinAuth.postApi(CREATE, flat)
+    }
+
+    /**
+     * 把 capi 预览的返回摊成界面上那张卡。字段按 10-12 实测响应取的，
+     * 认不出来的一律给 0，不猜。
+     */
+    suspend fun previewCard(d: Draft, lines: List<Map<String, Any?>>): LuckinMcp.Preview {
+        val j = preview(d, lines)
+        val c = j.obj("content") ?: throw LuckinAuth.ApiError("瑞幸没回订单内容")
+        val items = c.arr("productList").ifEmpty { c.arr("comboList") }
+        return LuckinMcp.Preview(
+            shopName = c.str("deptName") ?: c.str("shopName") ?: "",
+            aboutTime = parseClock(c.str("aboutTime")),
+            totalInitialPrice = c.num("initialPrice") ?: c.num("befCouponDiscount") ?: 0.0,
+            privilegeMoney = c.num("privilegeMoney") ?: 0.0,
+            discountPrice = c.num("discountPrice") ?: c.num("totalPrice") ?: 0.0,
+            couponCodeList = emptyList(),
+            lines = items.map { o ->
+                val it = o.asJsonObject
+                LuckinMcp.PreviewLine(
+                    name = it.str("name") ?: "",
+                    amount = it.num("amount")?.toInt() ?: 1,
+                    addition = it.str("skuSaleAttrValue") ?: "",
+                    estimatePrice = it.num("initUnitPrice") ?: it.num("estimatePrice") ?: 0.0,
+                )
+            },
+        )
+    }
+
+    /** "17:10" 这种当天时刻换成毫秒时间戳；给不了就 0 */
+    private fun parseClock(text: String?): Long {
+        if (text.isNullOrBlank() || !text.contains(':')) return 0L
+        return runCatching {
+            val cal = java.util.Calendar.getInstance()
+            cal.set(java.util.Calendar.HOUR_OF_DAY, text.substringBefore(':').toInt())
+            cal.set(java.util.Calendar.MINUTE, text.substringAfter(':').toInt())
+            cal.set(java.util.Calendar.SECOND, 0)
+            cal.timeInMillis
+        }.getOrDefault(0L)
     }
 
     /** 这一单能用哪些支付方式 */
@@ -126,4 +165,18 @@ object LuckinOrderApi {
         "cityId" to d.cityId,
         "eatway" to d.eatway,
     )
+
+    // Gson 的 null 字段一律走这几个，别直接 asDouble/asString
+    private fun com.google.gson.JsonObject.obj(k: String) =
+        runCatching { get(k)?.takeIf { it.isJsonObject }?.asJsonObject }.getOrNull()
+
+    private fun com.google.gson.JsonObject.str(k: String) =
+        runCatching { get(k)?.takeIf { !it.isJsonNull }?.asString }.getOrNull()
+
+    private fun com.google.gson.JsonObject.num(k: String) =
+        runCatching { get(k)?.takeIf { !it.isJsonNull }?.asDouble }.getOrNull()
+
+    private fun com.google.gson.JsonObject.arr(k: String): List<com.google.gson.JsonElement> =
+        runCatching { get(k)?.takeIf { it.isJsonArray }?.asJsonArray }
+            .getOrNull()?.let { a -> List(a.size()) { a.get(it) } } ?: emptyList()
 }
