@@ -77,14 +77,18 @@ object LuckinAuth {
 
     // ---------------- 对外三个动作 ----------------
 
-    /** 发验证码。返回服务端原文，界面上好把「60 秒冷却」「要滑块」这类话直接显示出来 */
+    /** 发验证码。服务端 validate=true 表示它要你先过滑块风控，这条短信根本没发出去 */
     suspend fun sendCode(phone: String): String = withContext(Dispatchers.IO) {
         val j = post("resource/m/sys/base/validcode", mapOf(
             "mobile" to phone,
             "callCode" to "86",
         ))
         requireSuccess(j)
-        j.str("msg") ?: "已发送"
+        val c = j.obj("content")
+        if (c?.get("validate")?.let { !it.isJsonNull && it.asBoolean } == true) {
+            throw ApiError("瑞幸要你先过一次滑块风控，这条短信没发出去。隔一会儿再试，越点越严。")
+        }
+        c?.str("msg") ?: j.str("msg") ?: "已发送"
     }
 
     /** 手机号+验证码登录。成功后 Cookie 落到私有存储，界面只需要知道成没成 */
