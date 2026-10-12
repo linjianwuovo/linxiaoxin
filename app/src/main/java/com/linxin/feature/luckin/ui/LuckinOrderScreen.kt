@@ -317,6 +317,20 @@ fun LuckinProductDetailScreen(
                             } }
                             Text(stringResource(R.string.luckin_pay_yourself), fontSize = 12.sp,
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                            val payUrl = payUrlOf(data)
+                            if (payUrl != null) {
+                                Spacer(Modifier.height(12.dp))
+                                LxPillButton(stringResource(R.string.luckin_go_pay)) {
+                                    runCatching {
+                                        context.startActivity(
+                                            android.content.Intent(
+                                                android.content.Intent.ACTION_VIEW,
+                                                android.net.Uri.parse(payUrl),
+                                            ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        )
+                                    }.onFailure { orderError = it.message ?: it.javaClass.simpleName }
+                                }
+                            }
                             val oid = orderIndexOf(data)
                             if (oid != null) {
                                 Spacer(Modifier.height(12.dp))
@@ -389,6 +403,17 @@ private fun renderOrderField(key: String, value: JsonElement): String? {
     if (value.isJsonNull) return null
     val text = runCatching { value.asString }.getOrNull()
     return if (text != null) "$key: $text" else "$key: ${value.toString().take(160)}"
+}
+
+/** 瑞幸回的支付凭据：优先微信调起链接，其次二维码地址，两个都没有就不给按钮 */
+private fun payUrlOf(data: com.google.gson.JsonObject): String? {
+    for (k in listOf("payOrderUrl", "payOrderQrCodeUrl", "payUrl", "qrCodeUrl")) {
+        data.get(k)?.takeIf { !it.isJsonNull }?.let {
+            val v = runCatching { it.asString }.getOrNull()
+            if (!v.isNullOrBlank()) return v
+        }
+    }
+    return null
 }
 
 private fun orderIndexOf(data: com.google.gson.JsonObject): String? {

@@ -685,6 +685,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="luckin_confirm_yes">下单</string>
     <string name="luckin_confirm_no">再想想</string>
     <string name="luckin_no_point">还没拿到你的坐标，回门店页点一次「用我的位置」</string>
+    <string name="luckin_go_pay">去付款（在微信里自己确认）</string>
     <string name="luckin_specs_count">%1$d 组规格，点卡片看</string>
     <string name="luckin_detail_title">商品规格</string>
     <string name="luckin_detail_origin">原价 ¥%1$s</string>

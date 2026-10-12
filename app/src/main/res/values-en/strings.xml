@@ -685,6 +685,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="luckin_confirm_yes">Order</string>
     <string name="luckin_confirm_no">Not now</string>
     <string name="luckin_no_point">No location yet; go back to the store page and tap Use my location</string>
+    <string name="luckin_go_pay">Pay (confirm in WeChat)</string>
     <string name="luckin_specs_count">%1$d option groups, tap to see</string>
     <string name="luckin_detail_title">Item options</string>
     <string name="luckin_detail_origin">list ¥%1$s</string>
