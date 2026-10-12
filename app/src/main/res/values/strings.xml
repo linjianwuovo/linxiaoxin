@@ -625,6 +625,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="luckin_account_title">瑞幸账号</string>
     <string name="luckin_account_off">还没登录。登录后凭证只存在这台手机本机，约 30 天过期。</string>
     <string name="luckin_account_on">已登录，本机凭证 %1$s</string>
+    <string name="luckin_account_web_on">已登录（手机号会话）。凭证只存在这台手机本机。</string>
     <string name="luckin_account_login">登录瑞幸</string>
     <string name="luckin_account_relogin">重新登录</string>
     <string name="luckin_account_logout">退出登录</string>

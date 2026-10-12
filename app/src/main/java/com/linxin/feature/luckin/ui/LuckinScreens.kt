@@ -115,21 +115,30 @@ internal fun LxPillButton(label: String, enabled: Boolean = true, onClick: () ->
 /** 登录状态卡：没登录就一颗登录按钮，登录了就显示掩码凭证 + 退出 */
 @Composable
 private fun LuckinAccountCard(state: LuckinState, onLogin: () -> Unit, onLogout: () -> Unit) {
+    // 手机号登录的会话在 LuckinAuth 自己那份私有存储里，跟 MCP 那颗 token 是两个东西，
+    // 所以这里必须两个都问一遍，否则「明明登录了却显示没登录」
+    val webIn = LuckinAuth.isLoggedIn()
     LxCard {
         Column(Modifier.padding(16.dp)) {
             Text(stringResource(R.string.luckin_account_title), fontSize = 16.sp, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(6.dp))
             Text(
-                if (state.configured) stringResource(R.string.luckin_account_on, state.maskedToken)
-                else stringResource(R.string.luckin_account_off),
+                when {
+                    webIn -> stringResource(R.string.luckin_account_web_on)
+                    state.configured -> stringResource(R.string.luckin_account_on, state.maskedToken)
+                    else -> stringResource(R.string.luckin_account_off)
+                },
                 fontSize = 13.sp,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (state.configured) {
+                if (webIn || state.configured) {
                     LxPillButton(stringResource(R.string.luckin_account_relogin), onClick = onLogin)
-                    LxPillButton(stringResource(R.string.luckin_account_logout), onClick = onLogout)
+                    LxPillButton(stringResource(R.string.luckin_account_logout), onClick = {
+                        LuckinAuth.logout()
+                        onLogout()
+                    })
                 } else {
                     LxPillButton(stringResource(R.string.luckin_account_login), onClick = onLogin)
                 }
@@ -193,10 +202,15 @@ fun LuckinShopsScreen(
     LaunchedEffect(tick, state.token) {
         val point = lng.toDoubleOrNull()?.let { l -> lat.toDoubleOrNull()?.let { l to it } } ?: return@LaunchedEffect
         loading = true; error = null
-        // 走 capi：不要 MCP token，换号也能出门店
-        runCatching { LuckinAuth.shops(point.first, point.second) }
-            .onSuccess { shops = it }
-            .onFailure { error = it.message ?: it.javaClass.simpleName }
+        // 走 capi：不要 MCP token，换号也能出门店。
+        // 取消异常不能当错误显示，否则页面一重算就冒「scope left the composition」
+        try {
+            shops = LuckinAuth.shops(point.first, point.second)
+        } catch (e: java.util.concurrent.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            error = e.message ?: e.javaClass.simpleName
+        }
         loading = false
     }
 
