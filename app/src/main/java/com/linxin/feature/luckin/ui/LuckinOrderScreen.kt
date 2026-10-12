@@ -420,24 +420,18 @@ private fun launchPay(context: android.content.Context, data: com.google.gson.Js
         data.strOf("payOrderQrCodeUrl"), data.strOf("payUrl"), data.strOf("qrCodeUrl"),
         data.strOf("payOrderUrl"),
     )
-    var launched = false
-    var weixinOnly = false
+    // Android 11+ 的包可见性会让 resolveActivity 对 weixin:// 一律返回 null，
+    // 但 startActivity 本身照样能发出去。所以不探，直接试，失败再退下一个候选。
+    if (candidates.isEmpty()) return "瑞幸没回支付凭据"
+    var lastError: String? = null
     for (url in candidates) {
         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (intent.resolveActivity(context.packageManager) == null) {
-            if (url.startsWith("weixin://")) weixinOnly = true
-            continue
-        }
-        runCatching { context.startActivity(intent) }.onSuccess { launched = true }.onFailure { continue }
-        break
+        runCatching { context.startActivity(intent) }
+            .onSuccess { return null }
+            .onFailure { lastError = it.message ?: it.javaClass.simpleName }
     }
-    return when {
-        launched && weixinOnly -> null
-        launched -> null
-        candidates.isEmpty() -> "瑞幸没回支付凭据"
-        else -> "这台机没有能打开收银台的浏览器，微信也接不了这个链接——先确认微信已登录"
-    }
+    return "打不开付款页：$lastError"
 }
 
 private fun com.google.gson.JsonObject.strOf(key: String): String? =

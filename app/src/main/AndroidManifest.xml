@@ -16,6 +16,18 @@
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <queries>
+        <!-- 瑞幸回的支付凭据要交给浏览器或微信；不声明的话 resolve 查询一律看不见 -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="weixin" />
+        </intent>
+    </queries>
+
     <application
         android:name=".LinXinApp"
         android:allowBackup="false"
