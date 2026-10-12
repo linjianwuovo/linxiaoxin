@@ -11,6 +11,8 @@ import com.linxin.core.network.IzuoyeRetrofit
 import com.linxin.feature.aiclass.domain.AiCourse
 import com.linxin.feature.aiclass.domain.AiMicroLesson
 import com.linxin.feature.aiclass.domain.AiCourseware
+import com.linxin.feature.aiclass.domain.AiCoursewareDetail
+import com.linxin.feature.aiclass.domain.AiLiveRecord
 import com.linxin.feature.aiclass.domain.AiGroupDiscuss
 import com.linxin.feature.aiclass.domain.AiStudentGroup
 import com.linxin.feature.aiclass.domain.AiQuiz
@@ -48,6 +50,8 @@ private const val WEBVIEW_REQUESTED_WITH = "com.linxin"
 private const val AICLASS_PRIMARY_REQUEST_TIMEOUT_MS = 12_000L
 private const val AICLASS_SUPPLEMENT_REQUEST_TIMEOUT_MS = 6_000L
 private const val AICLASS_TIMETABLE_REQUEST_TIMEOUT_MS = 5_000L
+// 课件逐页图和直录播列表一发就是十几到几十 KB，学校那边慢的时候 12 秒不够，单独放宽
+private const val AICLASS_COURSEWARE_REQUEST_TIMEOUT_MS = 25_000L
 // 小组详情要按活动逐个补，接口一发一组，这里限死补前 3 个，免得课程页被拖慢
 private const val GROUP_DETAIL_FETCH_LIMIT = 3
 
@@ -280,12 +284,132 @@ class AiClassRepository @Inject constructor(
                     fileType = it.fileType.orEmpty(),
                     url = it.resourceUrl.orEmpty(),
                     createdAt = it.createTime.orEmpty(),
+                    // 点开那一发要的是这两个 id，跟上面那个用来做列表 key 的 id 不是一回事
+                    resourceId = it.resourceId.orEmpty(),
+                    coursewareId = it.coursewareId.orEmpty(),
                 )
             }
             Result.success(list)
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    /**
+     * 点开一个课件：换逐页渲染图。
+     * 走 viewCoursewareTeacher 的 data.pages[].imgUrl —— 学校已经把 pptx 一页一张渲染成 PNG
+     * （抓包实测一节 75 张），安小信自己那个「1 / 75」的翻页查看器吃的就是这批图，
+     * 所以看全篇不用跳出去。拿不到逐页图就如实报失败，不拿没验过的兜底地址充成功。
+     */
+    suspend fun getCoursewareDetail(
+        courseware: AiCourseware,
+        teachClassId: String,
+    ): Result<AiCoursewareDetail> {
+        val auth = try {
+            ensureSession()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return Result.failure(Exception(mapError("打开课件", e), e))
+        }
+        val schoolId = fifSession.getSchoolId().orEmpty()
+        if (courseware.resourceId.isBlank() || courseware.coursewareId.isBlank()) {
+            // 列表里就没给这两个 id，硬发只会拿到一个空对象，不如直说
+            return Result.failure(Exception("课件标识不完整，打不开"))
+        }
+
+        val data = withNetworkTimeout("打开课件", AICLASS_COURSEWARE_REQUEST_TIMEOUT_MS) {
+            api.getCoursewareDetail(
+                resourceId = courseware.resourceId,
+                schoolId = schoolId,
+                courseWareId = courseware.coursewareId,
+                teachClassId = teachClassId,
+                auth = auth,
+            )
+        }.getOrElse { error -> return Result.failure(error) }.data
+            ?: return Result.failure(Exception("学校没把这个课件渲染出来"))
+
+        // 逐页图：抓到的键是 imgUrl，但类型没逐个记，照旧候选键试
+        val pages = data.childArray("pages").orEmpty().mapNotNull { page ->
+            page.stringValue("imgUrl", "imageUrl", "url", "pageUrl").takeIf { it.isNotBlank() }
+        }
+        val sourceUrl = data.stringValue("resourceUrl", "url").ifBlank { courseware.url }
+        val videoUrl = data.stringValue("videoPath", "audioPath")
+
+        if (pages.isEmpty() && videoUrl.isBlank()) {
+            // 这时候才值得再问一次在线预览地址（preview/owas/url，接口已经挂在 AiClassApi 上）。
+            // 但那条地址要 WebView 才渲染得动，这一轮先把「没渲染出页来」如实报出来，
+            // 不拿一条我们没在屏幕上放过的地址去填成功。
+            return Result.failure(Exception("学校没把这个课件渲染出来"))
+        }
+        return Result.success(
+            AiCoursewareDetail(
+                name = data.stringValue("resourceName").ifBlank { courseware.name },
+                pages = pages,
+                previewUrl = "",
+                sourceUrl = sourceUrl,
+                videoUrl = videoUrl,
+            )
+        )
+    }
+
+    /**
+     * 「直录播」列表。参数是照安小信那一发抄的：roomType/liveStatus 都传 0（= 不限），
+     * weekNum/dayNum/timeRange 留空，termId 从学期接口按这门课的学年学期对出来。
+     * 学期 id 拿不到也照发（空串），回空列表就当这门课这学期没有直录播，不编一条状态出来。
+     */
+    suspend fun getLiveRecords(course: AiCourse): Result<List<AiLiveRecord>> {
+        val auth = try {
+            ensureSession()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return Result.failure(Exception(mapError("获取直录播", e), e))
+        }
+        if (course.courseId.isBlank() || course.teachClassId.isBlank()) {
+            return Result.failure(Exception("AI课堂身份不完整"))
+        }
+
+        val termId = withNetworkTimeout("获取学期", AICLASS_SUPPLEMENT_REQUEST_TIMEOUT_MS) {
+            api.getTermList(auth)
+        }.getOrNull()?.data?.dataList.orEmpty().let { terms ->
+            terms.firstOrNull { it.year == course.termYear && it.num == course.term }
+                ?: terms.firstOrNull { it.selected == "1" }
+                ?: terms.firstOrNull()
+        }.let { it?.id.orEmpty() }
+
+        val response = withNetworkTimeout("获取直录播", AICLASS_COURSEWARE_REQUEST_TIMEOUT_MS) {
+            api.getLiveAndRecordList(
+                termId = termId,
+                courseId = course.courseId,
+                teachClassId = course.teachClassId,
+                auth = auth,
+            )
+        }.getOrElse { error -> return Result.failure(error) }
+
+        val records = response.data.orEmpty().mapIndexed { index, item ->
+            val playUrl = item.stringValue("livePath", "playUrl", "url")
+            val resourceId = item.stringValue("resourceId")
+            AiLiveRecord(
+                id = item.stringValue("id", "recordId", "courseRecordId").ifBlank { "live_$index" },
+                title = item.stringValue("liveRecordName", "courseName", "name")
+                    .ifBlank { item.stringValue("courseSchedulingName", "itemName") },
+                roomText = listOf(
+                    item.stringValue("roomName"),
+                    item.stringValue("buildingName"),
+                ).filter { it.isNotBlank() }.joinToString(" · "),
+                whenText = listOf(
+                    item.stringValue("currentDate"),
+                    item.stringValue("currentWeek").takeIf { it.isNotBlank() }?.let { "第${it}周" }.orEmpty(),
+                ).filter { it.isNotBlank() }.joinToString("  "),
+                // 只认 isNowPlay 这一个键判「正在直播」；liveStatus 的枚举值没实测过，不解它
+                isNowPlaying = item.truthy("isNowPlay", "isLiving"),
+                canPlay = playUrl.isNotBlank() || resourceId.isNotBlank(),
+                playUrl = playUrl,
+                resourceId = resourceId,
+            )
+        }
+        return Result.success(records)
     }
 
     /** A.I微课列表。字段名没实测过，所以按候选键取，一个都对不上就用整条 JSON 的前几个字符兜底 */

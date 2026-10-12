@@ -192,6 +192,67 @@ interface AiClassApi {
         @Header("Visit-Type") visitType: String = "mobile",
     ): AiClassUnreadResponse
 
+    /**
+     * 「直录播」那一屏的本体。八个字段是 2026-10-12 深夜在 OPPO 上从安小信自己那一发里量出来的：
+     * roomType=0、liveStatus=0、termId(32 位学期 id)、weekNum / dayNum / timeRange 那次是空串（= 不限）、
+     * courseId、teachClassId。实测回 17621 字节 / 20 条。
+     * 条目键名记到了 livePath、liveStatus、isNowPlay、isOpen、isAllowDownload、resourceId、
+     * roomId、roomName、courseName、currentDate、currentDay、currentWeek、classType，
+     * 但每个键的类型没记下来，照旧只收 JsonObject，取值一律按候选键试。
+     */
+    @FormUrlEncoded
+    @POST("studycenter/mobile/course/getTeachHourLiveAndRecordList")
+    suspend fun getLiveAndRecordList(
+        @Field("roomType") roomType: String = "0",
+        @Field("liveStatus") liveStatus: String = "0",
+        @Field("termId") termId: String,
+        @Field("weekNum") weekNum: String = "",
+        @Field("dayNum") dayNum: String = "",
+        @Field("timeRange") timeRange: String = "",
+        @Field("courseId") courseId: String,
+        @Field("teachClassId") teachClassId: String,
+        @Header("authorization") auth: String,
+        @Header("Visit-Type") visitType: String = "mobile",
+    ): AiClassLiveRecordListResponse
+
+    /** 直录播的周次选择：回 data.currentWeek 和 data.weekList（实测 22 个整数） */
+    @GET("studycenter/mobile/course/liveAndRecord/getWeekList")
+    suspend fun getLiveRecordWeekList(
+        @Query("identity") identity: String = "2",
+        @Header("authorization") auth: String,
+        @Header("Visit-Type") visitType: String = "mobile",
+    ): AiClassWeekListResponse
+
+    /**
+     * 点开一个课件。抓包参数：resourceId + schoolId + type=3 + courseWareId + openCourse=1 + teachClassId。
+     * 关键是 data.pages[] —— 每页一张已经渲染好的 minio PNG（imgUrl、page、flagType、questionList），
+     * 安小信自己那个「1 / 75」的翻页查看器吃的就是这批图。所以我们不必跳去 Office 在线预览就能看全篇。
+     * data 里另有 resourceName、resourceUrl（又一条签名不同的源文件直链）、audioPath、videoPath、resourceType。
+     */
+    @GET("coursecenter-interaction/afterClassCoursewarePaper/viewCoursewareTeacher")
+    suspend fun getCoursewareDetail(
+        @Query("resourceId") resourceId: String,
+        @Query("schoolId") schoolId: String,
+        @Query("type") type: String = "3",
+        @Query("courseWareId") courseWareId: String,
+        @Query("openCourse") openCourse: String = "1",
+        @Query("teachClassId") teachClassId: String,
+        @Header("authorization") auth: String,
+        @Header("Visit-Type") visitType: String = "mobile",
+    ): AiClassCoursewareDetailResponse
+
+    /**
+     * 换一条 Office 在线预览地址。逐页图那一发拿不到东西时的兜底，
+     * 实测回 data = 一条 owas.fifedu.com 的 PowerPointFrame 地址（里面套 wopi 和 access_token）。
+     */
+    @GET("studycenter/mobile/preview/owas/url")
+    suspend fun getOwasPreviewUrl(
+        @Query("resourceId") resourceId: String,
+        @Query("fileType") fileType: String = "2",
+        @Header("authorization") auth: String,
+        @Header("Visit-Type") visitType: String = "mobile",
+    ): AiClassPreviewUrlResponse
+
 
     @GET("coursecenter-interaction/izuoye/homework/public/listStudent")
     suspend fun listStudentHomework(
