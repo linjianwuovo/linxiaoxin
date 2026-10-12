@@ -81,6 +81,15 @@ fun AiClassCourseDetailScreen(
                 coursewareError = uiState.coursewareError,
                 microLessons = uiState.microLessons,
                 microError = uiState.microError,
+                studentGroups = uiState.studentGroups,
+                isGroupLoading = uiState.isGroupLoading,
+                groupError = uiState.groupError,
+                onRetryGroup = viewModel::retryGroup,
+                selectedGroupId = uiState.selectedGroupId,
+                groupDiscusses = uiState.groupDiscusses,
+                isGroupDiscussLoading = uiState.isGroupDiscussLoading,
+                groupDiscussError = uiState.groupDiscussError,
+                onGroupClick = viewModel::toggleGroupDiscusses,
                 isHomeworkLoading = uiState.isHomeworkLoading,
                 homeworkError = uiState.homeworkError,
                 onHomeworkClick = onOpenHomeworkDetail,
@@ -103,6 +112,15 @@ private fun AiClassCourseDetailContent(
     coursewareError: String? = null,
     microLessons: List<com.linxin.feature.aiclass.domain.AiMicroLesson> = emptyList(),
     microError: String? = null,
+    studentGroups: List<com.linxin.feature.aiclass.domain.AiStudentGroup> = emptyList(),
+    isGroupLoading: Boolean = false,
+    groupError: String? = null,
+    onRetryGroup: () -> Unit = {},
+    selectedGroupId: String? = null,
+    groupDiscusses: List<com.linxin.feature.aiclass.domain.AiGroupDiscuss> = emptyList(),
+    isGroupDiscussLoading: Boolean = false,
+    groupDiscussError: String? = null,
+    onGroupClick: (com.linxin.feature.aiclass.domain.AiStudentGroup) -> Unit = {},
     isHomeworkLoading: Boolean = false,
     homeworkError: String? = null,
     onHomeworkClick: (String) -> Unit = {},
@@ -290,6 +308,98 @@ private fun AiClassCourseDetailContent(
                 }
             }
         }
+
+        // ── 小组 section ──
+        item(key = "group_title") {
+            Text(
+                text = stringResource(R.string.ai_group_title),
+                style = MiuixTheme.textStyles.title3,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+            )
+        }
+
+        when {
+            isGroupLoading -> {
+                item(key = "group_loading") {
+                    LxLoading()
+                }
+            }
+
+            groupError != null -> {
+                item(key = "group_error") {
+                    LxError(
+                        message = groupError,
+                        onRetry = onRetryGroup,
+                    )
+                }
+            }
+
+            studentGroups.isEmpty() -> {
+                item(key = "group_empty") {
+                    LxCard {
+                        Text(
+                            text = stringResource(R.string.ai_no_group),
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            modifier = Modifier.padding(20.dp),
+                        )
+                    }
+                }
+            }
+
+            else -> {
+                items(studentGroups, key = { "group_" + it.id }) { group ->
+                    StudentGroupCard(
+                        group = group,
+                        expanded = selectedGroupId == group.id,
+                        onClick = { onGroupClick(group) },
+                    )
+                }
+            }
+        }
+
+        if (selectedGroupId != null) {
+            when {
+                isGroupDiscussLoading -> {
+                    item(key = "group_discuss_loading") {
+                        LxLoading()
+                    }
+                }
+
+                groupDiscussError != null -> {
+                    item(key = "group_discuss_error") {
+                        LxCard {
+                            Text(
+                                text = groupDiscussError,
+                                style = MiuixTheme.textStyles.footnote1,
+                                color = MiuixTheme.colorScheme.error,
+                                modifier = Modifier.padding(16.dp),
+                            )
+                        }
+                    }
+                }
+
+                groupDiscusses.isEmpty() -> {
+                    item(key = "group_discuss_empty") {
+                        LxCard {
+                            Text(
+                                text = stringResource(R.string.ai_no_group_discuss),
+                                style = MiuixTheme.textStyles.body2,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                modifier = Modifier.padding(20.dp),
+                            )
+                        }
+                    }
+                }
+
+                else -> {
+                    items(groupDiscusses, key = { "gdiscuss_" + it.id }) { discuss ->
+                        GroupDiscussCard(discuss = discuss)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -395,6 +505,108 @@ private fun buildQuizMeta(quiz: AiQuiz): String {
         quiz.answerDurationMinutes?.takeIf { it > 0 }?.let { add(stringResource(R.string.ai_minutes, it)) }
     }
     return parts.joinToString(" · ").ifBlank { stringResource(R.string.ai_fif_quiz) }
+}
+
+@Composable
+private fun StudentGroupCard(
+    group: com.linxin.feature.aiclass.domain.AiStudentGroup,
+    expanded: Boolean,
+    onClick: () -> Unit,
+) {
+    LxCard(onClick = onClick) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = group.name.ifBlank { stringResource(R.string.ai_unnamed_group) },
+                    style = MiuixTheme.textStyles.body2,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = buildGroupMeta(group = group, expanded = expanded),
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            GroupRoleBadge(group = group)
+        }
+    }
+}
+
+@Composable
+private fun GroupRoleBadge(group: com.linxin.feature.aiclass.domain.AiStudentGroup) {
+    val text = when {
+        !group.roleKnown -> stringResource(R.string.ai_group_role_unknown)
+        group.isLeader -> stringResource(R.string.ai_group_role_leader)
+        else -> stringResource(R.string.ai_group_role_member)
+    }
+    val color = if (group.roleKnown && group.isLeader) LxSuccess else MiuixTheme.colorScheme.secondary
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(color.copy(alpha = 0.12f))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+    ) {
+        Text(
+            text = text,
+            style = MiuixTheme.textStyles.footnote2,
+            fontWeight = FontWeight.SemiBold,
+            color = color,
+        )
+    }
+}
+
+@Composable
+private fun buildGroupMeta(group: com.linxin.feature.aiclass.domain.AiStudentGroup, expanded: Boolean): String {
+    val parts = buildList {
+        add(
+            if (group.memberCount > 0) stringResource(R.string.ai_group_members, group.memberCount)
+            else stringResource(R.string.ai_group_members_unknown),
+        )
+        // 活动名和自己组名不是一条的时候，把活动名也带上，免得看着像凭空冒出来的组
+        if (group.activityName.isNotBlank() && group.activityName != group.name) {
+            add(group.activityName)
+        }
+        val pending = listOfNotNull(
+            group.pendingHomework?.let { stringResource(R.string.ai_group_pending_homework, it) },
+            group.pendingDiscuss?.let { stringResource(R.string.ai_group_pending_discuss, it) },
+            group.pendingVote?.let { stringResource(R.string.ai_group_pending_vote, it) },
+        )
+        if (pending.isNotEmpty()) add(pending.joinToString(" "))
+        add(stringResource(if (expanded) R.string.ai_group_collapse else R.string.ai_group_expand))
+    }
+    return parts.joinToString(" · ")
+}
+
+@Composable
+private fun GroupDiscussCard(discuss: com.linxin.feature.aiclass.domain.AiGroupDiscuss) {
+    LxCard {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = discuss.title.ifBlank { stringResource(R.string.ai_unnamed_group_discuss) },
+                style = MiuixTheme.textStyles.body1,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (discuss.meta.isNotBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = discuss.meta,
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+            }
+        }
+    }
 }
 
 private fun quizItemKey(quiz: AiQuiz): String {

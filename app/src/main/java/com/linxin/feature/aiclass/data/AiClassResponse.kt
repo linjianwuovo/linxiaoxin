@@ -189,3 +189,38 @@ data class AiClassHomeworkUrlResponse(
     val message: String?,
     val data: String?,
 )
+
+/**
+ * 小组教学活动列表：抓到的信封是 data(数组) + code/status/message/location。
+ * data 元素只记到键名没记到类型，原样收 JsonObject，由 Repository 按候选键取。
+ */
+data class AiClassGroupListResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: List<com.google.gson.JsonObject>?,
+)
+
+/** 小组成员与我所在小组：data 是对象，抓到的键是 groupList / microGroupInfo / isBind / groupScreenName */
+data class AiClassStudentGroupInfoResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: com.google.gson.JsonObject?,
+)
+
+/** 小组待办数：抓到的 data 是三个数字，discuss 那个键服务端拼成了 discsuss，按原样取 */
+data class AiClassGroupTodoResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: com.google.gson.JsonObject?,
+)
+
+/** 我的小组讨论：抓到的那次 data.studentDis 是空数组，条目字段名未知，先整个收着 */
+data class AiClassGroupDiscussResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: com.google.gson.JsonElement?,
+)

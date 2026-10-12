@@ -122,6 +122,67 @@ interface AiClassApi {
         @Header("Visit-Type") visitType: String = "mobile",
     ): AiClassWeikeResponse
 
+    /**
+     * 小组教学：这门课开了哪些小组教学活动。
+     * 参数是抓包里安小信实际发的那一发，只有 teachClassId。
+     * 抓到的信封是 data(数组)/code/status/message/location，data 里每条的键名见到过
+     * id、gName、gCount、gNum、gCountLimit、groupStuNum、gStatus、classId、creatorId、
+     * createTime、updateTime、endTime、rule，但每个键的类型没记下来，所以只收 JsonObject，
+     * 取值一律按候选键试。
+     */
+    @GET("studycenter/mobile/groupTeaching/groupList")
+    suspend fun getGroupTeachingList(
+        @Query("teachClassId") teachClassId: String,
+        @Header("authorization") auth: String,
+        @Header("Visit-Type") visitType: String = "mobile",
+    ): AiClassGroupListResponse
+
+    /**
+     * 某个小组里有谁、我在不在里面、是不是组长。抓包参数：teachClassId + studentId(32 位成员 id) + groupId。
+     * data 里 groupList 是成员数组（键名见到过 id、isLeader、stuName、stuNum、className、majorName、
+     * departmentName、photoUrl），microGroupInfo 是我自己那个组（键名见到过 gId、groupId、xName、xNum、
+     * xCount、xCode、createTime、creatorId）。同样只记到了键名没记到类型，继续只收 JsonObject。
+     */
+    @GET("studycenter/mobile/groupTeaching/getStudentGroupInfo")
+    suspend fun getStudentGroupInfo(
+        @Query("teachClassId") teachClassId: String,
+        @Query("studentId") studentId: String,
+        @Query("groupId") groupId: String,
+        @Header("authorization") auth: String,
+        @Header("Visit-Type") visitType: String = "mobile",
+    ): AiClassStudentGroupInfoResponse
+
+    /**
+     * 小组待办数。抓包参数：microGroupId + schoolId + teachClassId + studentId + courseId + groupId
+     * （那次 microGroupId 传的是空串，接口照样回）。
+     * 抓到的 data 是 homeWorkNoCommit / discsussNoCommit / voteNoCommit 三个数字，
+     * 中间那个 discuss 服务端就是拼错的，这里照抄不改。
+     */
+    @GET("coursecenter-interaction/groupTeaching/getOpeningGroupCourseCountInfo")
+    suspend fun getGroupTodoCount(
+        @Query("microGroupId") microGroupId: String,
+        @Query("schoolId") schoolId: String,
+        @Query("teachClassId") teachClassId: String,
+        @Query("studentId") studentId: String,
+        @Query("courseId") courseId: String,
+        @Query("groupId") groupId: String,
+        @Header("authorization") auth: String,
+        @Header("Visit-Type") visitType: String = "mobile",
+    ): AiClassGroupTodoResponse
+
+    /**
+     * 我的小组讨论列表。抓包参数：microGroupId(32 位，就是 microGroupInfo 里的 gId) + studentId。
+     * 那次回的 data.studentDis 是个空数组，所以讨论条目的字段名一点实测依据都没有，
+     * 全部按候选键试，一个都对不上就把这一行当无名讨论显示，绝不假设某个键一定存在。
+     */
+    @GET("studycenter/mobile/groupTeaching/findStudentSelfGroupDiscuss")
+    suspend fun getStudentSelfGroupDiscuss(
+        @Query("microGroupId") microGroupId: String,
+        @Query("studentId") studentId: String,
+        @Header("authorization") auth: String,
+        @Header("Visit-Type") visitType: String = "mobile",
+    ): AiClassGroupDiscussResponse
+
     /** 课程作业列表 */
     /** AI 课堂消息中心未读数：安小信进 AI 课堂时会打这一发，我们之前没有 */
     @FormUrlEncoded
