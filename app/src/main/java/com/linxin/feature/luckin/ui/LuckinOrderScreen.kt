@@ -327,18 +327,9 @@ fun LuckinProductDetailScreen(
                             Text(stringResource(R.string.luckin_pay_yourself), fontSize = 12.sp,
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
                             val oid = orderIndexOf(data)
-                            val hasLkApp = remember(context) { luckinAppInstalled(context) }
-                            if (oid != null && hasLkApp) {
-                                Spacer(Modifier.height(12.dp))
-                                LxPillButton(stringResource(R.string.luckin_pay_in_app)) {
-                                    if (!openLuckinOrderPage(context, oid)) {
-                                        cashierOf(data)?.let { payPage = it }
-                                    }
-                                }
-                                Spacer(Modifier.height(6.dp))
-                                Text(stringResource(R.string.luckin_pay_in_app_hint), fontSize = 12.sp,
-                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-                            } else cashierOf(data)?.let { cashier ->
+                            // 2026-10-12：跳瑞幸 App 那颗按钮拆掉了。跳出去的方案等于没做，
+                            // 付款要停在安大信里（capi 登录之后走 core/v2/pay/topay / quickPay）。
+                            cashierOf(data)?.let { cashier ->
                                 Spacer(Modifier.height(12.dp))
                                 LxPillButton(stringResource(R.string.luckin_go_pay)) { payPage = cashier }
                             }
@@ -416,33 +407,11 @@ private fun renderOrderField(key: String, value: JsonElement): String? {
 }
 
 
-/** 瑞幸 App 装了没。AndroidManifest 里声明过 queries，否则这里一律看见「没装」。 */
-private fun luckinAppInstalled(context: android.content.Context): Boolean =
-    runCatching {
-        context.packageManager.getLaunchIntentForPackage("com.lucky.luckyclient") != null
-    }.getOrDefault(false)
-
 /**
- * 把这一单交给瑞幸 App 自己的订单页。
- * 深链是从 m.lkcoffee.com 的前端源码里挖出来的：apphost/web/page?url=、
- * apphost/tab/menu?tabType=0、apphost/mine/user/profile?from=1 都是它们自己页面在用的；
- * apphost/order/detail?orderId= 在米11 实测由 com.luckin.lkb.engine.EngineActivity 接住。
- * 拿不下来就返回 false，调用方回退到内嵌收银台。
+ * 跳瑞幸 App 的两个函数（luckinAppInstalled / openLuckinOrderPage）2026-10-12 拆掉了：
+ * 深链本身是通的（apphost/order/detail?orderId= 由 com.luckin.lkb.engine.EngineActivity 接住，
+ * 记在这儿免得以后找不到），但「跳出去点」这个方案判死，付款要停在安大信里。
  */
-private fun openLuckinOrderPage(context: android.content.Context, orderId: String): Boolean =
-    listOf(
-        "luckycoffee://apphost/order/detail?orderId=$orderId",
-        "luckincoffee://apphost/order/detail?orderId=$orderId",
-    ).any { url ->
-        runCatching {
-            context.startActivity(
-                android.content.Intent(
-                    android.content.Intent.ACTION_VIEW,
-                    android.net.Uri.parse(url),
-                ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-        }.isSuccess
-    }
 
 /** 收银台地址：MCP 只回扫码链；`payOrderUrl` 那条 weixin:// 是一次性扫码用的，直接点开没反应 */
 private fun cashierOf(data: com.google.gson.JsonObject): String? =
