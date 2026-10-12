@@ -1,19 +1,16 @@
 package com.linxin.feature.luckin.ui
 
-import android.annotation.SuppressLint
-import android.webkit.CookieManager
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -21,200 +18,140 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
+import com.linxin.core.designsystem.component.LxTextField
 import com.linxin.core.designsystem.component.LxTopBar
-import com.linxin.core.settings.LuckinPrefs
+import com.linxin.core.luckin.LuckinAuth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
- * 瑞幸登录：只在瑞幸官方开放平台域名里发生，我们不经手手机号和验证码。
+ * 瑞幸登录：手机号 + 验证码，走瑞幸自家网关 `m.lkcoffee.com/capi/`。
  *
- * 登录成功后，开放平台会在页面上给出个人 token。这里做的事是轮询那段页面，
- * 把 token 从 localStorage / sessionStorage / 可见文本里捞出来存进本机 DataStore，
- * 然后关掉这页，之后所有下单链路都是我们自己直连 MCP 接口。
- *
- * 捞不到就让他自己按页面提示复制——兜底，不是主路。
+ * 这条不是官方 AI 开放平台那套「跳去网页登录再把 token 捞回来」——那套要人在页面里
+ * 点一次复制，捞不到还得手填。这里手机号和验证码直接进登录请求，不落文件、不进日志，
+ * 会话 Cookie 只存在应用私有的 SharedPreferences 里。
  */
-private const val LOGIN_URL = "https://open.lkcoffee.com/"
-
-/**
- * 页面脚本执行前先注进去：把 navigator.clipboard.writeText 包一层，顺手在 copy 事件里读一次选区，
- * 谁复制就把内容留在 window.__lxClip。
- *
- * 为什么非要绕这一道：开放平台那串访问凭证既不在可见文字里，也不在这个 origin 的 localStorage 里，
- * 只在用户点「复制」的一瞬间被 JS 写进剪贴板。不包这一层，轮询页面就永远捞不到（10-11 实测卡在这）。
- */
-private const val CLIP_SHIM = """
-(function(){
-  try {
-    window.__lxClip = '';
-    var p = window.navigator && window.navigator.clipboard;
-    if (p && p.writeText) {
-      var orig = p.writeText.bind(p);
-      p.writeText = function(t){
-        try { window.__lxClip = String(t || ''); } catch (e) {}
-        return orig(t);
-      };
-    }
-    document.addEventListener('copy', function(){
-      try {
-        var sel = String(window.getSelection());
-        if (sel && sel.length > 20) window.__lxClip = sel;
-      } catch (e) {}
-    }, true);
-  } catch (e) {}
-})();
-"""
-
-/** token 长这样：一串十六进制 + "mcp" + 后缀。三个来源都按这一个正则找 */
-private const val HARVEST_JS = """
-(function(){
-  var re = /[0-9a-fA-F]{20,}mcp[A-Za-z0-9_]{2,}/;
-  try {
-    var c = String(window.__lxClip || '');
-    if (c.length > 20) {
-      var mc = c.match(re);
-      if (mc) return mc[0];
-      if (/^[0-9A-Za-z_\-]{24,}$/.test(c.trim())) return c.trim();
-    }
-  } catch (e) {}
-  function fromStore(st){
-    try {
-      for (var i = 0; i < st.length; i++) {
-        var k = st.key(i) || '';
-        var v; try { v = st.getItem(k) || ''; } catch (e) { continue; }
-        var m = v.match(re) || k.match(re);
-        if (m) return m[0];
-      }
-    } catch (e) {}
-    return '';
-  }
-  var out = fromStore(window.localStorage) || fromStore(window.sessionStorage);
-  if (!out) {
-    try {
-      var t = document.body ? document.body.innerText : '';
-      var m3 = t.match(re);
-      if (m3) out = m3[0];
-    } catch (e) {}
-  }
-  return out || '';
-})()
-"""
-@SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun LuckinLoginScreen(onBack: () -> Unit, onDone: () -> Unit) {
     val context = LocalContext.current
-    var wv by remember { mutableStateOf<WebView?>(null) }
-    val waitText = stringResource(R.string.luckin_login_wait)
-    var status by remember { mutableStateOf(waitText) }
-    var reloadTick by remember { mutableStateOf(0) }
-    var done by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(reloadTick, done) {
-        if (done) return@LaunchedEffect
-        // 登录是异步的，轮询页面直到拿到 token；每 1.5 秒一次，最多 5 分钟
-        val web = wv
-        if (web == null) return@LaunchedEffect
-        var tries = 0
-        while (!done && tries < 200) {
-            tries++
-            web.evaluateJavascript(HARVEST_JS) { raw ->
-                val v = raw.trim().removeSurrounding("\"")
-                if (v.length > 24) {
-                    done = true
-                    status = context.getString(R.string.luckin_login_ok)
-                    scope.launch { LuckinPrefs(context).setToken(v); onDone() }
-                }
-            }
-            delay(1500)
+    var phone by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf("") }
+    var tip by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var left by remember { mutableStateOf(0) }
+    var logged by remember { mutableStateOf(LuckinAuth.isLoggedIn()) }
+    var who by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) { LuckinAuth.init(context) }
+    LaunchedEffect(left) {
+        while (left > 0) {
+            delay(1000)
+            left--
         }
-        if (!done) status = context.getString(R.string.luckin_login_timeout)
+    }
+    LaunchedEffect(logged) {
+        if (logged && who == null) {
+            who = runCatching { LuckinAuth.profile().name }.getOrNull()
+        }
     }
 
-    Scaffold(
-        topBar = {
-            LxTopBar(
-                title = stringResource(R.string.luckin_login_title),
-                onBack = onBack,
-                actions = {
-                    IconButton(onClick = { reloadTick++ }) {
-                        Icon(imageVector = Icons.Outlined.Refresh, contentDescription = null)
-                    }
-                },
-            )
-        }
-    ) { pad ->
+    Scaffold(topBar = { LxTopBar(title = stringResource(R.string.luckin_login_title), onBack = onBack) }) { pad ->
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(pad)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                stringResource(R.string.luckin_login_note),
-                fontSize = 12.sp,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            )
-            Box(Modifier.weight(1f)) {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { c ->
-                        WebView(c).apply {
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            CookieManager.getInstance().setAcceptCookie(true)
-                            webViewClient = object : WebViewClient() {
-                                override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
-                                    // 必须赶在页面自己的 JS 之前包住 clipboard，晚了它已经把原文塞进剪贴板了
-                                    view.evaluateJavascript(CLIP_SHIM, null)
-                                }
-
-                                override fun onPageFinished(view: WebView, url: String?) {
-                                    view.evaluateJavascript(CLIP_SHIM, null)
-                                    reloadTick++
-                                }
-                            }
-                            loadUrl(LOGIN_URL)
-                            wv = this
+            if (logged) {
+                LxCard {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(
+                            stringResource(R.string.luckin_login_already, who ?: "—"),
+                            fontSize = 14.sp, fontWeight = FontWeight.Medium,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        LxPillButton(stringResource(R.string.luckin_login_continue)) { onDone() }
+                        Spacer(Modifier.height(10.dp))
+                        LxPillButton(stringResource(R.string.luckin_login_logout)) {
+                            LuckinAuth.logout()
+                            logged = false
+                            who = null
                         }
-                    },
+                    }
+                }
+            } else {
+                Text(
+                    stringResource(R.string.luckin_login_note),
+                    fontSize = 12.sp,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
-            }
-            LxCard {
-                Column(
-                    Modifier.padding(14.dp).verticalScroll(rememberScrollState()),
+                LxTextField(
+                    value = phone,
+                    onValueChange = { if (it.length <= 13) phone = it },
+                    label = stringResource(R.string.luckin_login_phone),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                LxPillButton(
+                    if (left > 0) stringResource(R.string.luckin_login_again, left)
+                    else stringResource(R.string.luckin_login_send),
+                    enabled = left == 0 && phone.length >= 11,
                 ) {
-                    Text(status, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                    Spacer3()
-                    Text(
-                        stringResource(R.string.luckin_login_manual),
-                        fontSize = 12.sp,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    )
+                    scope.launch {
+                        busy = true
+                        tip = runCatching { LuckinAuth.sendCode(phone.trim()) }
+                            .getOrElse { it.message ?: context.getString(R.string.luckin_login_failed) }
+                        if (tip == context.getString(R.string.luckin_login_failed)) Unit
+                        else left = 60
+                        busy = false
+                    }
+                }
+                LxTextField(
+                    value = code,
+                    onValueChange = { if (it.length <= 8) code = it },
+                    label = stringResource(R.string.luckin_login_code),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                LxPillButton(
+                    if (busy) stringResource(R.string.luckin_login_busy)
+                    else stringResource(R.string.luckin_login_do),
+                    enabled = !busy && phone.length >= 11 && code.length >= 4,
+                ) {
+                    scope.launch {
+                        busy = true
+                        runCatching { LuckinAuth.login(phone.trim(), code.trim()) }
+                            .onSuccess {
+                                logged = true
+                                tip = null
+                                onDone()
+                            }
+                            .onFailure { tip = it.message ?: context.getString(R.string.luckin_login_failed) }
+                        busy = false
+                    }
                 }
             }
+            tip?.let {
+                Text(it, fontSize = 13.sp, color = MiuixTheme.colorScheme.error)
+            }
+            Spacer(Modifier.height(24.dp))
         }
     }
-}
-
-@Composable
-private fun Spacer3() {
-    Box(Modifier.fillMaxWidth().padding(top = 2.dp))
 }
