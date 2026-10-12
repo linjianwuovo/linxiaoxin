@@ -59,7 +59,7 @@ object LuckinOrderApi {
      * 实测这一层对 `eatway` 的取值另有要求（传 1 回「eatway值不正确」），还没定死，
      * 所以下面把 eatway 单独留成参数，不跟着 Draft 走。
      */
-    suspend fun preCreate(d0: Draft, lines: List<Map<String, Any?>>, eatway: String = ""): JsonObject {
+    suspend fun preCreate(d0: Draft, lines: List<Map<String, Any?>>): JsonObject {
         val d = withCity(d0)
         val j = LuckinAuth.postApi(PRE_CREATE, mapOf(
             "deptId" to d.deptId,
@@ -67,7 +67,6 @@ object LuckinOrderApi {
             "longitude" to d.longitude,
             "latitude" to d.latitude,
             "channel" to "GCJ-02",
-            "eatway" to eatway,
             "productList" to lines,
         ))
         // 不把失败的 content 往下传：预下单没成就直接报它自己的话，
