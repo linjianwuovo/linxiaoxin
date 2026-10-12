@@ -135,12 +135,14 @@ object LuckinAuth {
     }
 
     private fun get(path: String, params: Map<String, Any?>): JsonObject {
+        ensureSession()
         // 这里只让 URLEncoder 编码一次，所以直接拼字符串，不走 HttpUrl（那个版本没有 toHttpUrl 扩展）
         val q = if (params.isEmpty()) "" else "?queryParamsStr=" + URLEncoder.encode(gson.toJson(params), "UTF-8")
         return exec(Request.Builder().url("$BASE$path$q").header("User-Agent", UA).build())
     }
 
     private fun post(path: String, params: Map<String, Any?>): JsonObject {
+        ensureSession()
         val fb = FormBody.Builder()
         // 嵌套的列表和对象必须按 JSON 字符串递。直接 toString() 会拼成 "[{a=1}]" 这种 Java 味字符串，
         // 服务端认不出来，只会回「商品列表参数不能为空」
@@ -162,8 +164,24 @@ object LuckinAuth {
             .build())
     }
 
-    private fun exec(req: Request): JsonObject {
-        client.newCall(req).execute().use { resp ->
+    @Volatile
+    private var warmed = false
+
+    /**
+     * 得先打一次站点首页，网关才会发 csrf 和会话 ssid。少了这一步，POST 没有 _csrf，
+     * 发码那条会被它默默吃掉——10-12 在安大信里点「获取验证码」收不到短信就是这个原因。
+     */
+    private fun ensureSession() {
+        if (warmed) return
+        runCatching {
+            client.newCall(
+                Request.Builder().url("https://m.lkcoffee.com/").header("User-Agent", UA).build()
+            ).execute().use { it.body?.string() }
+        }
+        warmed = true
+    }
+
+    private fun exec(req: Request): JsonObject {        client.newCall(req).execute().use { resp ->
             val body = resp.body?.string() ?: throw ApiError("空响应")
             // 网关正常回的是 JSON。回 HTML 说明根本没到瑞幸的业务层，是被前面的 WAF 挡了
             if (body.trimStart().startsWith("<")) {
