@@ -15,6 +15,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
 import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -90,12 +95,29 @@ fun AiClassCourseDetailScreen(
                 isGroupDiscussLoading = uiState.isGroupDiscussLoading,
                 groupDiscussError = uiState.groupDiscussError,
                 onGroupClick = viewModel::toggleGroupDiscusses,
+                liveRecords = uiState.liveRecords,
+                isLiveLoading = uiState.isLiveLoading,
+                liveError = uiState.liveError,
+                onRetryLive = viewModel::retryLiveRecords,
+                onCoursewareClick = viewModel::openCourseware,
                 isHomeworkLoading = uiState.isHomeworkLoading,
                 homeworkError = uiState.homeworkError,
                 onHomeworkClick = onOpenHomeworkDetail,
                 modifier = Modifier.padding(padding),
             )
         }
+    }
+
+    // 点开课件就在这一页上层看，不推新页面也不离开应用
+    if (uiState.isOpeningCourseware || uiState.openedCourseware != null || uiState.openCoursewareError != null) {
+        CoursewareViewerDialog(
+            title = uiState.openingCourseware?.name.orEmpty(),
+            isLoading = uiState.isOpeningCourseware,
+            detail = uiState.openedCourseware,
+            error = uiState.openCoursewareError,
+            onRetry = viewModel::retryOpenCourseware,
+            onDismiss = viewModel::closeCourseware,
+        )
     }
 }
 
@@ -121,6 +143,11 @@ private fun AiClassCourseDetailContent(
     isGroupDiscussLoading: Boolean = false,
     groupDiscussError: String? = null,
     onGroupClick: (com.linxin.feature.aiclass.domain.AiStudentGroup) -> Unit = {},
+    liveRecords: List<com.linxin.feature.aiclass.domain.AiLiveRecord> = emptyList(),
+    isLiveLoading: Boolean = false,
+    liveError: String? = null,
+    onRetryLive: () -> Unit = {},
+    onCoursewareClick: (com.linxin.feature.aiclass.domain.AiCourseware) -> Unit = {},
     isHomeworkLoading: Boolean = false,
     homeworkError: String? = null,
     onHomeworkClick: (String) -> Unit = {},
@@ -133,6 +160,52 @@ private fun AiClassCourseDetailContent(
     ) {
         item(key = "course_summary") {
             CourseSummaryCard(course = course)
+        }
+
+        // ── 直录播 section ──（安小信自己这一排 tab 里「直录播」排第一个，所以放最前面）
+        item(key = "live_title") {
+            Text(
+                text = stringResource(R.string.ai_live_title),
+                style = MiuixTheme.textStyles.title3,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+            )
+        }
+
+        when {
+            isLiveLoading -> {
+                item(key = "live_loading") {
+                    LxLoading()
+                }
+            }
+
+            liveError != null -> {
+                item(key = "live_error") {
+                    LxError(
+                        message = liveError,
+                        onRetry = onRetryLive,
+                    )
+                }
+            }
+
+            liveRecords.isEmpty() -> {
+                item(key = "live_empty") {
+                    LxCard {
+                        Text(
+                            text = stringResource(R.string.ai_no_live_record),
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            modifier = Modifier.padding(20.dp),
+                        )
+                    }
+                }
+            }
+
+            else -> {
+                items(liveRecords, key = { "live_" + it.id }) { record ->
+                    LiveRecordCard(record = record)
+                }
+            }
         }
 
         item(key = "quiz_title") {
@@ -265,7 +338,7 @@ private fun AiClassCourseDetailContent(
                     )
                 }
                 items(coursewareList, key = { "cw_" + it.id }) { courseware ->
-                    LxCard {
+                    LxCard(onClick = { onCoursewareClick(courseware) }) {
                         Column(modifier = Modifier.padding(20.dp)) {
                             Text(
                                 text = courseware.name,
@@ -277,6 +350,15 @@ private fun AiClassCourseDetailContent(
                                 style = MiuixTheme.textStyles.footnote1,
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             )
+                            // 点开要的那两个 id 列表不一定给，缺了就是打不开，提前说清楚
+                            if (courseware.resourceId.isBlank() || courseware.coursewareId.isBlank()) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = stringResource(R.string.ai_courseware_no_id),
+                                    style = MiuixTheme.textStyles.footnote1,
+                                    color = MiuixTheme.colorScheme.error,
+                                )
+                            }
                         }
                     }
                 }
@@ -611,6 +693,152 @@ private fun GroupDiscussCard(discuss: com.linxin.feature.aiclass.domain.AiGroupD
 
 private fun quizItemKey(quiz: AiQuiz): String {
     return quiz.id.ifBlank { "${quiz.title}|${quiz.publishDateTime}|${quiz.publishTime}|${quiz.publishWeek}" }
+}
+
+/**
+ * 直录播的一节。这一行只把「哪节课、什么时候、在哪个教室、现在是什么状态」摆出来，
+ * 点开来放不放在下一轮：回放地址 livePath 到底长什么样（完整直链还是要再换一次）没在屏幕上对过，
+ * 拿一个没验过的串去起播放器，只会得到一句看不出是谁的错的失败。
+ */
+@Composable
+private fun LiveRecordCard(record: com.linxin.feature.aiclass.domain.AiLiveRecord) {
+    val meta = listOf(record.whenText, record.roomText).filter { it.isNotBlank() }.joinToString(" · ")
+    LxCard {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = record.title.ifBlank { stringResource(R.string.ai_unnamed_live) },
+                    style = MiuixTheme.textStyles.body2,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (meta.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = meta,
+                        style = MiuixTheme.textStyles.footnote2,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            LiveStatusBadge(record = record)
+        }
+    }
+}
+
+/**
+ * 状态只认两件实测到的事：isNowPlay 有没有真、有没有留下可看的东西。
+ * liveStatus 那一列一共几档、每档什么意思没在屏幕上对过，所以不解它，
+ * 免得把「直播中」这种话安到一个我们其实不知道的数上。
+ */
+@Composable
+private fun LiveStatusBadge(record: com.linxin.feature.aiclass.domain.AiLiveRecord) {
+    val text = when {
+        record.isNowPlaying -> stringResource(R.string.ai_live_now)
+        record.canPlay -> stringResource(R.string.ai_live_replay)
+        else -> stringResource(R.string.ai_live_none)
+    }
+    val color = when {
+        record.isNowPlaying -> LxSuccess
+        record.canPlay -> MiuixTheme.colorScheme.secondary
+        else -> MiuixTheme.colorScheme.onSurfaceVariantSummary
+    }
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(color.copy(alpha = 0.12f))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+    ) {
+        Text(
+            text = text,
+            style = MiuixTheme.textStyles.footnote2,
+            fontWeight = FontWeight.SemiBold,
+            color = color,
+        )
+    }
+}
+
+/**
+ * 点开课件之后的全屏查看器。
+ * 逐页图是学校自己渲染好的 PNG（实测一节 pptx 75 张），这里就一条条滚，
+ * 不跳安小信、不跳浏览器，也不去碰那条 Office 在线预览地址。
+ */
+@Composable
+private fun CoursewareViewerDialog(
+    title: String,
+    isLoading: Boolean,
+    detail: com.linxin.feature.aiclass.domain.AiCoursewareDetail?,
+    error: String?,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnClickOutside = false,
+        ),
+    ) {
+        Scaffold(
+            containerColor = MiuixTheme.colorScheme.background,
+            topBar = {
+                LxTopBar(
+                    title = title.ifBlank { stringResource(R.string.ai_courseware_viewer) },
+                    onBack = onDismiss,
+                )
+            },
+        ) { padding ->
+            when {
+                isLoading -> LxLoading(modifier = Modifier.padding(padding))
+
+                detail == null -> LxError(
+                    message = error ?: stringResource(R.string.ai_courseware_open_failed),
+                    onRetry = onRetry,
+                    modifier = Modifier.padding(padding),
+                )
+
+                detail.pages.isNotEmpty() -> LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                ) {
+                    itemsIndexed(detail.pages) { index, url ->
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            AsyncImage(
+                                model = url,
+                                contentDescription = null,
+                                contentScale = ContentScale.FillWidth,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text(
+                                text = stringResource(R.string.ai_courseware_page_of, index + 1, detail.pages.size),
+                                style = MiuixTheme.textStyles.footnote2,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                            )
+                        }
+                    }
+                }
+
+                else -> Text(
+                    text = stringResource(R.string.ai_courseware_no_pages),
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    modifier = Modifier
+                        .padding(padding)
+                        .padding(20.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable

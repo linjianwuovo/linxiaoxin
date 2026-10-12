@@ -11,6 +11,8 @@ import com.linxin.feature.aiclass.data.AiClassRepository
 import com.linxin.feature.aiclass.domain.AiCourse
 import com.linxin.feature.aiclass.domain.AiMicroLesson
 import com.linxin.feature.aiclass.domain.AiCourseware
+import com.linxin.feature.aiclass.domain.AiCoursewareDetail
+import com.linxin.feature.aiclass.domain.AiLiveRecord
 import com.linxin.feature.aiclass.domain.AiQuiz
 import com.linxin.feature.aiclass.domain.AiGroupDiscuss
 import com.linxin.feature.aiclass.domain.AiStudentGroup
@@ -65,6 +67,16 @@ data class AiClassUiState(
     val groupDiscusses: List<AiGroupDiscuss> = emptyList(),
     val isGroupDiscussLoading: Boolean = false,
     val groupDiscussError: String? = null,
+    /** 「直录播」这一屏：一节一节，直播中的和能回放的混在一起 */
+    val liveRecords: List<AiLiveRecord> = emptyList(),
+    val isLiveLoading: Boolean = false,
+    val liveError: String? = null,
+    /** 当前点开的那个课件；null 表示没在看课件 */
+    val openedCourseware: AiCoursewareDetail? = null,
+    /** 正在打开或打开失败的那个课件，标题和「再试一次」都靠它 */
+    val openingCourseware: AiCourseware? = null,
+    val isOpeningCourseware: Boolean = false,
+    val openCoursewareError: String? = null,
 )
 
 @HiltViewModel
@@ -273,6 +285,13 @@ class AiClassViewModel @Inject constructor(
                 groupDiscusses = emptyList(),
                 isGroupDiscussLoading = false,
                 groupDiscussError = null,
+                liveRecords = emptyList(),
+                isLiveLoading = true,
+                liveError = null,
+                openedCourseware = null,
+                openingCourseware = null,
+                isOpeningCourseware = false,
+                openCoursewareError = null,
                 isHomeworkLoading = true,
                 quizError = null,
                 homeworkError = null,
@@ -336,6 +355,23 @@ class AiClassViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            val liveResult = withResultTimeout(
+                AppText.str(R.string.aivm_act_live),
+                COURSEWARE_LOAD_TIMEOUT_MS,
+            ) {
+                repository.getLiveRecords(course)
+            }
+            _uiState.update { current ->
+                if (current.selectedCourse?.stableId != classId) return@update current
+                current.copy(
+                    liveRecords = liveResult.getOrDefault(emptyList()),
+                    isLiveLoading = false,
+                    liveError = liveResult.exceptionOrNull()?.message,
+                )
+            }
+        }
+
+        viewModelScope.launch {
             val hwResult = withResultTimeout(AppText.str(R.string.aivm_act_hw), AICLASS_DETAIL_LOAD_TIMEOUT_MS) {
                 repository.getHomeworkList(course.courseId, course.teachClassId)
             }
@@ -355,6 +391,11 @@ class AiClassViewModel @Inject constructor(
     }
 
     fun retryGroup() {
+        _uiState.value.selectedCourse?.stableId?.let(::openCourseDetail)
+    }
+
+    /** 直录播那一发失败时单独重跑，不用把整页六条请求再打一遍 */
+    fun retryLiveRecords() {
         _uiState.value.selectedCourse?.stableId?.let(::openCourseDetail)
     }
 
@@ -412,6 +453,52 @@ class AiClassViewModel @Inject constructor(
                 groupDiscusses = emptyList(),
                 isGroupDiscussLoading = false,
                 groupDiscussError = null,
+            )
+        }
+    }
+
+    /** 点开一个课件：换逐页渲染图，全程在我们自己界面里看，不跳安小信也不跳浏览器 */
+    fun openCourseware(courseware: AiCourseware) {
+        val course = _uiState.value.selectedCourse ?: return
+        _uiState.update {
+            it.copy(
+                openingCourseware = courseware,
+                openedCourseware = null,
+                isOpeningCourseware = true,
+                openCoursewareError = null,
+            )
+        }
+        viewModelScope.launch {
+            val detailResult = withResultTimeout(
+                AppText.str(R.string.aivm_act_courseware_open),
+                COURSEWARE_LOAD_TIMEOUT_MS,
+            ) {
+                repository.getCoursewareDetail(courseware, course.teachClassId)
+            }
+            _uiState.update { current ->
+                // 用户中途又点了别的一条，这一发就作废，不把旧的盖到新的上面
+                if (current.openingCourseware?.id != courseware.id) return@update current
+                current.copy(
+                    openedCourseware = detailResult.getOrNull(),
+                    isOpeningCourseware = false,
+                    openCoursewareError = detailResult.exceptionOrNull()?.message,
+                )
+            }
+        }
+    }
+
+    /** 打开失败后再来一次，参数还是那条课件 */
+    fun retryOpenCourseware() {
+        _uiState.value.openingCourseware?.let(::openCourseware)
+    }
+
+    fun closeCourseware() {
+        _uiState.update {
+            it.copy(
+                openedCourseware = null,
+                openingCourseware = null,
+                isOpeningCourseware = false,
+                openCoursewareError = null,
             )
         }
     }

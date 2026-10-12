@@ -61,13 +61,48 @@ data class AiMicroLesson(
     val meta: String,
 )
 
-/** 一门课下的课件 */
+/**
+ * 一门课下的课件。
+ * resourceId / coursewareId 是点开那一发要的两个 id —— 抓包实测它们跟列表里的 id 不是同一个值，
+ * 少了任何一个就换不到逐页图，所以列表解析时必须原样带下来。
+ */
 data class AiCourseware(
     val id: String,
     val name: String,
     val fileType: String,
     val url: String,
     val createdAt: String,
+    val resourceId: String = "",
+    val coursewareId: String = "",
+)
+
+/**
+ * 「直录播」的一节。只带事实不带文案：是不是正在直播、有没有东西可看，
+ * 由界面翻成中英文，仓库不写死给人看的那句话。
+ * canPlay 只认有没有 livePath 或 resourceId —— liveStatus 的取值枚举没实测过，不拿它判。
+ */
+data class AiLiveRecord(
+    val id: String,
+    val title: String,
+    val roomText: String,
+    val whenText: String,
+    val isNowPlaying: Boolean,
+    val canPlay: Boolean,
+    val playUrl: String,
+    val resourceId: String,
+)
+
+/**
+ * 点开一个课件之后拿到的东西。pages 是学校已经渲染好的逐页 PNG 直链（实测一节 pptx 75 页），
+ * 这是安小信自己那个翻页查看器吃的同一批图，所以看全篇不用跳出去。
+ * previewUrl / sourceUrl / videoUrl 是三层兜底：换到 Office 在线预览地址、源文件直链、视频地址。
+ */
+data class AiCoursewareDetail(
+    val name: String,
+    val pages: List<String>,
+    val previewUrl: String,
+    val sourceUrl: String,
+    val videoUrl: String,
 )
 
 /**

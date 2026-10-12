@@ -31,6 +31,8 @@ data class AiClassCoursewareResponse(
     data class CoursewareItem(
         val id: String?,
         val resourceId: String?,
+        /** 点开课件那一发（viewCoursewareTeacher）要的 courseWareId，跟 resourceId 不是同一个值 */
+        val coursewareId: String?,
         val resourceName: String?,
         val fileType: String?,
         val resourceUrl: String?,
@@ -223,4 +225,39 @@ data class AiClassGroupDiscussResponse(
     val code: String?,
     val message: String?,
     val data: com.google.gson.JsonElement?,
+)
+
+/**
+ * 直录播列表：信封跟课件那族一样（data 直接是数组）。条目里 liveStatus / isNowPlay / isOpen
+ * 这几个键到底是 "1" 还是 1 还是 true 没记下来，所以原样收 JsonObject，取值时数字布尔字符串都能读进 String。
+ */
+data class AiClassLiveRecordListResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: List<com.google.gson.JsonObject>?,
+)
+
+/** 直录播周次：data 是对象，里面有 currentWeek 和 weekList（数组） */
+data class AiClassWeekListResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: com.google.gson.JsonObject?,
+)
+
+/** 课件详情 + 逐页渲染图：data 是对象，pages 是数组，类型没逐个记，整个收着按候选键取 */
+data class AiClassCoursewareDetailResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: com.google.gson.JsonObject?,
+)
+
+/** 换 Office 在线预览地址：这一发 data 直接是一条字符串地址 */
+data class AiClassPreviewUrlResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: String?,
 )

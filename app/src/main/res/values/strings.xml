@@ -644,4 +644,21 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="aivm_act_group">小组</string>
     <string name="aivm_act_group_discuss">小组讨论</string>
 
+    <!-- 直录播 -->
+    <string name="ai_live_title">直录播</string>
+    <string name="ai_no_live_record">这门课这学期没有直录播</string>
+    <string name="ai_live_now">直播中</string>
+    <string name="ai_live_replay">可回放</string>
+    <string name="ai_live_none">没有回放</string>
+    <string name="ai_unnamed_live">未命名课堂</string>
+    <string name="aivm_act_live">直录播</string>
+
+    <!-- 点开课件 -->
+    <string name="ai_courseware_viewer">课件</string>
+    <string name="ai_courseware_page_of">第 %1$d 页 / 共 %2$d 页</string>
+    <string name="ai_courseware_no_id">学校没给这个课件的标识，点不开</string>
+    <string name="ai_courseware_open_failed">课件没打开</string>
+    <string name="ai_courseware_no_pages">这一条学校没渲染出页来，可能是视频</string>
+    <string name="aivm_act_courseware_open">打开课件</string>
+
 </resources>
