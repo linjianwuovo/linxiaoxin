@@ -689,6 +689,10 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="luckin_go_pay_wx">WeChat direct</string>
     <string name="luckin_cashier_title">Checkout</string>
     <string name="luckin_go_pay">Pay (confirm in WeChat)</string>
+
+    <string name="luckin_pay_in_app">Pay this order in the Luckin app</string>
+    <string name="luckin_pay_in_app_hint">The order already exists on the Luckin side. This only opens their own order page for you to confirm payment, and LinXin never touches your money.</string>
+    <string name="luckin_open_app_failed">Could not open the Luckin app, so this order falls back to the built-in cashier.</string>
     <string name="luckin_specs_count">%1$d option groups, tap to see</string>
     <string name="luckin_detail_title">Item options</string>
     <string name="luckin_detail_origin">list ¥%1$s</string>

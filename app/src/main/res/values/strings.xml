@@ -689,6 +689,10 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="luckin_go_pay_wx">只走微信直付</string>
     <string name="luckin_cashier_title">收银台</string>
     <string name="luckin_go_pay">去付款（在微信里自己确认）</string>
+
+    <string name="luckin_pay_in_app">在瑞幸 App 里付款这一单</string>
+    <string name="luckin_pay_in_app_hint">订单已经在瑞幸那边建好了，这一步只是把它的订单页打开给你自己点支付，安大信不碰你的钱。</string>
+    <string name="luckin_open_app_failed">打不开瑞幸 App，这单改用内嵌收银台。</string>
     <string name="luckin_specs_count">%1$d 组规格，点卡片看</string>
     <string name="luckin_detail_title">商品规格</string>
     <string name="luckin_detail_origin">原价 ¥%1$s</string>
