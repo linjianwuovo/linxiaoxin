@@ -93,6 +93,7 @@ fun LuckinProductDetailScreen(
     var orderData by remember { mutableStateOf<com.google.gson.JsonObject?>(null) }
     var canceling by remember { mutableStateOf(false) }
     var cancelMsg by remember { mutableStateOf<String?>(null) }
+    var payError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         val s = prefs.current()
@@ -328,7 +329,15 @@ fun LuckinProductDetailScreen(
                                                 android.net.Uri.parse(payUrl),
                                             ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                                         )
-                                    }.onFailure { orderError = it.message ?: it.javaClass.simpleName }
+                                    }.onFailure { payError = it.message ?: it.javaClass.simpleName }
+                                }
+                                payError?.let {
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        stringResource(R.string.luckin_pay_failed, it),
+                                        fontSize = 12.sp,
+                                        color = MiuixTheme.colorScheme.error,
+                                    )
                                 }
                             }
                             val oid = orderIndexOf(data)
@@ -407,7 +416,9 @@ private fun renderOrderField(key: String, value: JsonElement): String? {
 
 /** 瑞幸回的支付凭据：优先微信调起链接，其次二维码地址，两个都没有就不给按钮 */
 private fun payUrlOf(data: com.google.gson.JsonObject): String? {
-    for (k in listOf("payOrderUrl", "payOrderQrCodeUrl", "payUrl", "qrCodeUrl")) {
+    // 收银台是 https 的，交给浏览器/微信它会自己再跳；直接丢 weixin:// 深链，
+    // 微信接过一次实测是「弹一下就退回」，所以 https 优先。
+    for (k in listOf("payOrderQrCodeUrl", "payUrl", "qrCodeUrl", "payOrderUrl")) {
         data.get(k)?.takeIf { !it.isJsonNull }?.let {
             val v = runCatching { it.asString }.getOrNull()
             if (!v.isNullOrBlank()) return v
