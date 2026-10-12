@@ -27,6 +27,8 @@ private const val VIEWMODEL_LOG_TAG = "AiClassVM"
 private const val AICLASS_INITIAL_LOAD_TIMEOUT_MS = 18_000L
 private const val AICLASS_OPTIONAL_LOAD_TIMEOUT_MS = 8_000L
 private const val AICLASS_DETAIL_LOAD_TIMEOUT_MS = 12_000L
+/** 课件这一发实测比测验慢得多，先给它到 25 秒，再拿屏幕上的出现时间判断是慢还是回不来 */
+private const val COURSEWARE_LOAD_TIMEOUT_MS = 25_000L
 
 data class AiClassUiState(
     val courses: List<AiCourse> = emptyList(),
@@ -270,7 +272,7 @@ class AiClassViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            val cwResult = withResultTimeout(AppText.str(R.string.aivm_act_courseware), AICLASS_DETAIL_LOAD_TIMEOUT_MS) {
+            val cwResult = withResultTimeout(AppText.str(R.string.aivm_act_courseware), COURSEWARE_LOAD_TIMEOUT_MS) {
                 repository.getCoursewareList(course.courseId, course.teachClassId)
             }
             _uiState.update { current ->
