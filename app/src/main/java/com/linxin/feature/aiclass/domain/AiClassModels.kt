@@ -77,16 +77,22 @@ data class AiCourseware(
 )
 
 /**
- * 「直录播」的一节。只带事实不带文案：是不是正在直播、有没有东西可看，
- * 由界面翻成中英文，仓库不写死给人看的那句话。
- * canPlay 只认有没有 livePath 或 resourceId —— liveStatus 的取值枚举没实测过，不拿它判。
+ * 「直录播」的一节。只带事实不带文案，状态由界面翻成中英文。
+ *
+ * 状态为什么是 isUpcoming + canPlay 这两个布尔，而不是照抄服务端的 isNowPlay：
+ * 2026-10-12 在 OPPO 屏幕上验过，整学期每一条（包括 10-13、11-10 这些还没上的）
+ * isNowPlay 都是真，所以它说的是「这是一节直播课」，不是「现在正在播」。
+ * 拿它当「直播中」显示，会把两个月后的课标成正在播，所以这个键我们不用。
+ *
+ * dateText 是服务端给的 yyyy-MM-dd，界面不显示它，只用来跟今天比出 isUpcoming。
  */
 data class AiLiveRecord(
     val id: String,
     val title: String,
     val roomText: String,
     val whenText: String,
-    val isNowPlaying: Boolean,
+    val dateText: String,
+    val isUpcoming: Boolean,
     val canPlay: Boolean,
     val playUrl: String,
     val resourceId: String,

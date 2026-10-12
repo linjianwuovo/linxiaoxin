@@ -646,9 +646,11 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
 
     <string name="ai_live_title">Live and recorded</string>
     <string name="ai_no_live_record">No live or recorded class for this term</string>
-    <string name="ai_live_now">Live now</string>
+    <string name="ai_live_upcoming">Not started</string>
     <string name="ai_live_replay">Replay ready</string>
     <string name="ai_live_none">No replay</string>
+    <string name="ai_live_show_all">Show all %1$d sessions</string>
+    <string name="ai_live_collapse">Show recent only</string>
     <string name="ai_unnamed_live">Untitled class</string>
     <string name="aivm_act_live">live and recorded</string>
 
@@ -657,6 +659,8 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ai_courseware_no_id">School did not return an id for this file, cannot open it</string>
     <string name="ai_courseware_open_failed">Could not open this courseware</string>
     <string name="ai_courseware_no_pages">School rendered no pages for this item, it may be a video</string>
+    <string name="ai_courseware_page_loading">Loading this page...</string>
+    <string name="ai_courseware_page_failed">This page did not load, scroll away and back to retry</string>
     <string name="aivm_act_courseware_open">opening courseware</string>
 
 </resources>
