@@ -6,6 +6,7 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.Query
+import retrofit2.http.Url
 
 interface AiClassApi {
 
@@ -242,16 +243,18 @@ interface AiClassApi {
     ): AiClassCoursewareDetailResponse
 
     /**
-     * 换一条 Office 在线预览地址。逐页图那一发拿不到东西时的兜底，
-     * 实测回 data = 一条 owas.fifedu.com 的 PowerPointFrame 地址（里面套 wopi 和 access_token）。
+     * 换录播的播放地址。这个口挂在资源中心（resc.fifedu.com）上，跟主站不是一个 base，
+     * 所以用 @Url 传整条地址。抓包实测 data.videoList 是数组，一条一个机位
+     * （videoCode=1 教师机位 / 2 HDMI），每条的 videoPath 是**当场签名**的 minio mp4 直链
+     * （authKey/timestamp/memberId/X-Amz-Signature 每次调用都变），videoSize 是字节数。
+     * audioPath 和 phaseUrl 实测是空串，别指望它们。
      */
-    @GET("studycenter/mobile/preview/owas/url")
-    suspend fun getOwasPreviewUrl(
-        @Query("resourceId") resourceId: String,
-        @Query("fileType") fileType: String = "2",
+    @GET
+    suspend fun getVideoClassInfo(
+        @Url url: String,
         @Header("authorization") auth: String,
         @Header("Visit-Type") visitType: String = "mobile",
-    ): AiClassPreviewUrlResponse
+    ): AiClassVideoClassInfoResponse
 
 
     @GET("coursecenter-interaction/izuoye/homework/public/listStudent")

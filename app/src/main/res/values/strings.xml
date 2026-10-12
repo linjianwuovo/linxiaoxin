@@ -654,6 +654,12 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ai_live_collapse">只看最近几节</string>
     <string name="ai_unnamed_live">未命名课堂</string>
     <string name="aivm_act_live">直录播</string>
+    <string name="aivm_act_live_open">打开录播</string>
+    <string name="ai_live_player">录播</string>
+    <string name="ai_live_no_video">这一节换不到播放地址</string>
+    <string name="ai_live_no_resource">这一节没有资源标识，换不到播放地址</string>
+    <string name="ai_live_play_failed">播放没起来（%1$s）</string>
+    <string name="ai_live_play_retry">再试一次</string>
 
     <!-- 点开课件 -->
     <string name="ai_courseware_viewer">课件</string>

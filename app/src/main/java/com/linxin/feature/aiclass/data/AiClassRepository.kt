@@ -13,6 +13,7 @@ import com.linxin.feature.aiclass.domain.AiMicroLesson
 import com.linxin.feature.aiclass.domain.AiCourseware
 import com.linxin.feature.aiclass.domain.AiCoursewareDetail
 import com.linxin.feature.aiclass.domain.AiLiveRecord
+import com.linxin.feature.aiclass.domain.AiRecordedVideo
 import com.linxin.feature.aiclass.domain.AiGroupDiscuss
 import com.linxin.feature.aiclass.domain.AiStudentGroup
 import com.linxin.feature.aiclass.domain.AiQuiz
@@ -337,8 +338,8 @@ class AiClassRepository @Inject constructor(
         val videoUrl = data.stringValue("videoPath", "audioPath")
 
         if (pages.isEmpty() && videoUrl.isBlank()) {
-            // 这时候才值得再问一次在线预览地址（preview/owas/url，接口已经挂在 AiClassApi 上）。
-            // 但那条地址要 WebView 才渲染得动，这一轮先把「没渲染出页来」如实报出来，
+            // 这时候才值得再问一次在线预览地址（studycenter/mobile/preview/owas/url），这一轮没接：
+            // 那条地址要 WebView 才渲染得动，先把「没渲染出页来」如实报出来，
             // 不拿一条我们没在屏幕上放过的地址去填成功。
             return Result.failure(Exception("学校没把这个课件渲染出来"))
         }
@@ -418,6 +419,50 @@ class AiClassRepository @Inject constructor(
         val past = records.filterNot { it.isUpcoming }.sortedByDescending { it.dateText }
         val upcoming = records.filter { it.isUpcoming }.sortedBy { it.dateText }
         return Result.success(past + upcoming)
+    }
+
+    /**
+     * 换一节录播的播放地址。
+     * 抓包实测：resc.fifedu.com 的 videoClassInfo 回 data.videoList，一条一个机位
+     * （教师机位 / HDMI），videoPath 是**当场签名**的 minio mp4 直链，签名里带 timestamp，
+     * 所以这一发必须在点开的当下打，不能提前缓存、也不能拿上一次的地址重放。
+     * 多个机位按 videoSize 倒序，最大的那个（实测是教师机位 530MB）当默认。
+     */
+    suspend fun getLiveRecordVideos(resourceId: String): Result<List<AiRecordedVideo>> {
+        val auth = try {
+            ensureSession()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return Result.failure(Exception(mapError("打开录播", e), e))
+        }
+        if (resourceId.isBlank()) {
+            return Result.failure(Exception("这一节没有资源标识，换不到播放地址"))
+        }
+
+        val url = ApiConstants.BASE_FIF_RESC +
+            "/resource-center/app/api/videoClassInfo?isApp=1&resourceId=" +
+            java.net.URLEncoder.encode(resourceId, "UTF-8")
+        val data = withNetworkTimeout("打开录播", AICLASS_COURSEWARE_REQUEST_TIMEOUT_MS) {
+            api.getVideoClassInfo(url, auth)
+        }.getOrElse { error -> return Result.failure(error) }.data
+            ?: return Result.failure(Exception("资源中心没回这一节的信息"))
+
+        val videos = data.childArray("videoList").orEmpty().mapNotNull { item ->
+            val path = item.stringValue("videoPath", "videoUrl", "url").takeIf { it.isNotBlank() }
+                ?: return@mapNotNull null
+            AiRecordedVideo(
+                name = item.stringValue("videoName", "name")
+                    .ifBlank { "机位" + item.stringValue("videoCode") },
+                url = path,
+                sizeBytes = item.stringValue("videoSize").toLongOrNull() ?: 0L,
+            )
+        }.sortedByDescending { it.sizeBytes }
+
+        if (videos.isEmpty()) {
+            return Result.failure(Exception("这一节没有可播的地址"))
+        }
+        return Result.success(videos)
     }
 
     /** A.I微课列表。字段名没实测过，所以按候选键取，一个都对不上就用整条 JSON 的前几个字符兜底 */
