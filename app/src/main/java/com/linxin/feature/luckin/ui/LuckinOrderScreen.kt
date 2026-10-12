@@ -324,6 +324,10 @@ fun LuckinProductDetailScreen(
                                 LxPillButton(stringResource(R.string.luckin_go_pay)) {
                                     payError = launchPay(context, data)
                                 }
+                                Spacer(Modifier.height(8.dp))
+                                LxPillButton(stringResource(R.string.luckin_go_pay_wx)) {
+                                    payError = launchWeixin(context, data)
+                                }
                                 payError?.let {
                                     Spacer(Modifier.height(8.dp))
                                     Text(
@@ -456,4 +460,15 @@ private fun orderIndexOf(data: com.google.gson.JsonObject): String? {
         data.get(k)?.takeIf { !it.isJsonNull }?.let { return runCatching { it.asString }.getOrNull() }
     }
     return null
+}
+
+/** 只发 weixin:// 深链：让「能不能直接进微信支付」可以单独试，不被收银台挡在前面 */
+private fun launchWeixin(context: android.content.Context, data: com.google.gson.JsonObject): String? {
+    val url = data.strOf("payOrderUrl") ?: return "瑞幸没回 weixin 支付链接"
+    return runCatching {
+        context.startActivity(
+            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    }.fold(onSuccess = { null }, onFailure = { it.message ?: it.javaClass.simpleName })
 }
