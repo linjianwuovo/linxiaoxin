@@ -99,6 +99,16 @@ data class AiLiveRecord(
 )
 
 /**
+ * 一节录播的一个可播机位。url 是资源中心当场签名的 minio mp4 直链，
+ * 签名里带 timestamp，过期就得重新换一次，别把它存下来下次用。
+ */
+data class AiRecordedVideo(
+    val name: String,
+    val url: String,
+    val sizeBytes: Long,
+)
+
+/**
  * 点开一个课件之后拿到的东西。pages 是学校已经渲染好的逐页 PNG 直链（实测一节 pptx 75 页），
  * 这是安小信自己那个翻页查看器吃的同一批图，所以看全篇不用跳出去。
  * previewUrl / sourceUrl / videoUrl 是三层兜底：换到 Office 在线预览地址、源文件直链、视频地址。

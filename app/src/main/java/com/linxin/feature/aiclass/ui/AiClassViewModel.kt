@@ -13,6 +13,7 @@ import com.linxin.feature.aiclass.domain.AiMicroLesson
 import com.linxin.feature.aiclass.domain.AiCourseware
 import com.linxin.feature.aiclass.domain.AiCoursewareDetail
 import com.linxin.feature.aiclass.domain.AiLiveRecord
+import com.linxin.feature.aiclass.domain.AiRecordedVideo
 import com.linxin.feature.aiclass.domain.AiQuiz
 import com.linxin.feature.aiclass.domain.AiGroupDiscuss
 import com.linxin.feature.aiclass.domain.AiStudentGroup
@@ -71,6 +72,12 @@ data class AiClassUiState(
     val liveRecords: List<AiLiveRecord> = emptyList(),
     val isLiveLoading: Boolean = false,
     val liveError: String? = null,
+    /** 正在放的那节录播：换到的机位列表 + 选中的那条；空列表 = 没在放 */
+    val liveVideos: List<AiRecordedVideo> = emptyList(),
+    val selectedVideoIndex: Int = 0,
+    val openingLiveTitle: String = "",
+    val isOpeningLive: Boolean = false,
+    val openLiveError: String? = null,
     /** 当前点开的那个课件；null 表示没在看课件 */
     val openedCourseware: AiCoursewareDetail? = null,
     /** 正在打开或打开失败的那个课件，标题和「再试一次」都靠它 */
@@ -397,6 +404,67 @@ class AiClassViewModel @Inject constructor(
     /** 直录播那一发失败时单独重跑，不用把整页六条请求再打一遍 */
     fun retryLiveRecords() {
         _uiState.value.selectedCourse?.stableId?.let(::openCourseDetail)
+    }
+
+    /**
+     * 点开一节录播：去资源中心换当场签名的 mp4 直链，然后在我们自己的全屏页里放。
+     * 签名带 timestamp，所以每次点开都重新换，不缓存上一次的地址。
+     */
+    fun openLiveRecord(record: AiLiveRecord) {
+        if (record.resourceId.isBlank()) {
+            _uiState.update {
+                it.copy(
+                    openingLiveTitle = record.title,
+                    liveVideos = emptyList(),
+                    selectedVideoIndex = 0,
+                    isOpeningLive = false,
+                    openLiveError = AppText.str(R.string.ai_live_no_resource),
+                )
+            }
+            return
+        }
+        _uiState.update {
+            it.copy(
+                openingLiveTitle = record.title,
+                liveVideos = emptyList(),
+                selectedVideoIndex = 0,
+                isOpeningLive = true,
+                openLiveError = null,
+            )
+        }
+        viewModelScope.launch {
+            val result = withResultTimeout(
+                AppText.str(R.string.aivm_act_live_open),
+                COURSEWARE_LOAD_TIMEOUT_MS,
+            ) {
+                repository.getLiveRecordVideos(record.resourceId)
+            }
+            _uiState.update { current ->
+                if (current.openingLiveTitle != record.title) return@update current
+                current.copy(
+                    liveVideos = result.getOrDefault(emptyList()),
+                    isOpeningLive = false,
+                    openLiveError = result.exceptionOrNull()?.message,
+                )
+            }
+        }
+    }
+
+    /** 有多个机位时切一个，播放器跟着换地址重开 */
+    fun selectLiveVideo(index: Int) {
+        _uiState.update { it.copy(selectedVideoIndex = index) }
+    }
+
+    fun closeLiveRecord() {
+        _uiState.update {
+            it.copy(
+                liveVideos = emptyList(),
+                selectedVideoIndex = 0,
+                openingLiveTitle = "",
+                isOpeningLive = false,
+                openLiveError = null,
+            )
+        }
     }
 
     /** 点开一个小组看它的讨论列表，再点同一个组就收起 */

@@ -653,6 +653,12 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ai_live_collapse">Show recent only</string>
     <string name="ai_unnamed_live">Untitled class</string>
     <string name="aivm_act_live">live and recorded</string>
+    <string name="aivm_act_live_open">opening recording</string>
+    <string name="ai_live_player">Recording</string>
+    <string name="ai_live_no_video">No playable address for this session</string>
+    <string name="ai_live_no_resource">This session has no resource id, cannot get a playable address</string>
+    <string name="ai_live_play_failed">Playback did not start (%1$s)</string>
+    <string name="ai_live_play_retry">Try again</string>
 
     <string name="ai_courseware_viewer">Courseware</string>
     <string name="ai_courseware_page_of">Page %1$d of %2$d</string>

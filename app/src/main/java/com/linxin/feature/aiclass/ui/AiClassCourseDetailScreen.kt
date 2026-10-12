@@ -1,13 +1,18 @@
 package com.linxin.feature.aiclass.ui
 
+import android.net.Uri
+import android.widget.MediaController
+import android.widget.VideoView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,9 +37,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
@@ -123,6 +130,24 @@ fun AiClassCourseDetailScreen(
             onDismiss = viewModel::closeCourseware,
         )
     }
+
+    // 点开录播同理：换到地址就在这一页上层放
+    if (uiState.isOpeningLive || uiState.liveVideos.isNotEmpty() || uiState.openLiveError != null) {
+        LivePlayerDialog(
+            title = uiState.openingLiveTitle,
+            videos = uiState.liveVideos,
+            selectedIndex = uiState.selectedVideoIndex,
+            isLoading = uiState.isOpeningLive,
+            error = uiState.openLiveError,
+            onSelect = viewModel::selectLiveVideo,
+            onRetry = {
+                uiState.liveRecords
+                    .firstOrNull { it.title == uiState.openingLiveTitle }
+                    ?.let(viewModel::openLiveRecord)
+            },
+            onDismiss = viewModel::closeLiveRecord,
+        )
+    }
 }
 
 @Composable
@@ -151,6 +176,7 @@ private fun AiClassCourseDetailContent(
     isLiveLoading: Boolean = false,
     liveError: String? = null,
     onRetryLive: () -> Unit = {},
+    onLiveClick: (com.linxin.feature.aiclass.domain.AiLiveRecord) -> Unit = {},
     onCoursewareClick: (com.linxin.feature.aiclass.domain.AiCourseware) -> Unit = {},
     isHomeworkLoading: Boolean = false,
     homeworkError: String? = null,
@@ -210,7 +236,7 @@ private fun AiClassCourseDetailContent(
                 val shown = if (liveExpanded) liveRecords else liveRecords.take(LIVE_RECORD_PREVIEW_COUNT)
                 // 不给 key：同一门课每周都可能出现，服务端那个 id 撞了的话整页会崩在重复 key 上
                 items(shown) { record ->
-                    LiveRecordCard(record = record)
+                    LiveRecordCard(record = record, onClick = { onLiveClick(record) })
                 }
                 if (liveRecords.size > LIVE_RECORD_PREVIEW_COUNT) {
                     item(key = "live_toggle") {
@@ -719,14 +745,16 @@ private fun quizItemKey(quiz: AiQuiz): String {
 }
 
 /**
- * 直录播的一节。这一行只把「哪节课、什么时候、在哪个教室、现在是什么状态」摆出来，
- * 点开来放不放在下一轮：回放地址 livePath 到底长什么样（完整直链还是要再换一次）没在屏幕上对过，
- * 拿一个没验过的串去起播放器，只会得到一句看不出是谁的错的失败。
+ * 直录播的一节。能看的（服务端留了 resourceId）整行可点，点进去在我们自己这放；
+ * 没留资源标识的就只是一行课表信息，点了也不会有反应，所以不给它按下的反馈。
  */
 @Composable
-private fun LiveRecordCard(record: com.linxin.feature.aiclass.domain.AiLiveRecord) {
+private fun LiveRecordCard(
+    record: com.linxin.feature.aiclass.domain.AiLiveRecord,
+    onClick: () -> Unit,
+) {
     val meta = listOf(record.whenText, record.roomText).filter { it.isNotBlank() }.joinToString(" · ")
-    LxCard {
+    LxCard(onClick = if (record.canPlay) onClick else null) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -856,6 +884,141 @@ private fun CoursewareViewerDialog(
                         .padding(padding)
                         .padding(20.dp),
                 )
+            }
+        }
+    }
+}
+
+/**
+ * 录播播放器。地址是资源中心当场签名的 minio mp4 直链，用系统自带的 VideoView 放
+ * （工程里没有 media3，而这个就是普通渐进式 mp4，Range 请求播放器自己会发）。
+ * 多个机位（教师机位 / HDMI）在上面给一排小签切换，切了就换地址重开。
+ * 播放失败不猜原因，直接把系统给的两个码摆出来，下次插线拿这个对日志。
+ */
+@Composable
+private fun LivePlayerDialog(
+    title: String,
+    videos: List<com.linxin.feature.aiclass.domain.AiRecordedVideo>,
+    selectedIndex: Int,
+    isLoading: Boolean,
+    error: String?,
+    onSelect: (Int) -> Unit,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnClickOutside = false,
+        ),
+    ) {
+        Scaffold(
+            containerColor = Color.Black,
+            topBar = {
+                LxTopBar(
+                    title = title.ifBlank { stringResource(R.string.ai_live_player) },
+                    onBack = onDismiss,
+                )
+            },
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+            ) {
+                if (videos.size > 1) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        videos.forEachIndexed { index, video ->
+                            val selected = index == selectedIndex
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (selected) LxSuccess.copy(alpha = 0.25f)
+                                        else Color.White.copy(alpha = 0.12f),
+                                    )
+                                    .clickable { onSelect(index) }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                            ) {
+                                Text(
+                                    text = video.name,
+                                    style = MiuixTheme.textStyles.footnote2,
+                                    color = Color.White,
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    when {
+                        isLoading -> LxLoading()
+
+                        videos.isEmpty() -> Text(
+                            text = error ?: stringResource(R.string.ai_live_no_video),
+                            style = MiuixTheme.textStyles.body2,
+                            color = Color.White,
+                            modifier = Modifier.padding(24.dp),
+                        )
+
+                        else -> {
+                            val video = videos[selectedIndex.coerceIn(0, videos.lastIndex)]
+                            var failed by remember(video.url) { mutableStateOf(false) }
+                            var errorCode by remember(video.url) { mutableStateOf("") }
+                            if (failed) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = stringResource(R.string.ai_live_play_failed, errorCode),
+                                        style = MiuixTheme.textStyles.body2,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 24.dp),
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = stringResource(R.string.ai_live_play_retry),
+                                        style = MiuixTheme.textStyles.body2,
+                                        color = LxSuccess,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable(onClick = onRetry)
+                                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    )
+                                }
+                            } else {
+                                AndroidView(
+                                    factory = { context ->
+                                        VideoView(context).apply {
+                                            keepScreenOn = true
+                                            setVideoURI(Uri.parse(video.url))
+                                            setMediaController(MediaController(context))
+                                            setOnPreparedListener { start() }
+                                            setOnErrorListener { _, what, extra ->
+                                                failed = true
+                                                errorCode = "$what/$extra"
+                                                true
+                                            }
+                                        }
+                                    },
+                                    onRelease = { it.stopPlayback() },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(16f / 9f),
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

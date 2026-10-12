@@ -47,6 +47,9 @@ object ApiConstants {
     const val BASE_FIF_SSO = "https://aiitpass.fifedu.com"
     const val BASE_FIF = "https://sttp.fifedu.com"
 
+    /** 资源中心：录播的播放地址从这儿换（videoClassInfo 的 videoList 里是现签名的 minio mp4 直链） */
+    const val BASE_FIF_RESC = "https://resc.fifedu.com"
+
     // 爱作业平台
     const val BASE_IZUOYE = "https://izuoye.fifedu.com"
 

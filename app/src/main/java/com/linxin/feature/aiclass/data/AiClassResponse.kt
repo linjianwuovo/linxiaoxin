@@ -261,3 +261,12 @@ data class AiClassPreviewUrlResponse(
     val message: String?,
     val data: String?,
 )
+
+/** 录播播放地址：data 是对象，videoList 是数组（一条一个机位），类型没逐个记，整个收着 */
+data class AiClassVideoClassInfoResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val success: Boolean?,
+    val data: com.google.gson.JsonObject?,
+)
