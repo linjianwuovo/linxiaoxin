@@ -625,6 +625,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="luckin_account_title">Luckin account</string>
     <string name="luckin_account_off">Not signed in. The credential stays on this device and expires in about 30 days.</string>
     <string name="luckin_account_on">Signed in, local credential %1$s</string>
+    <string name="luckin_account_web_on">Signed in with your phone number. The session stays on this device.</string>
     <string name="luckin_account_login">Sign in to Luckin</string>
     <string name="luckin_account_relogin">Re-sign in</string>
     <string name="luckin_account_logout">Sign out</string>
