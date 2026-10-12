@@ -32,7 +32,7 @@ import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxChoiceChip
 import com.linxin.core.designsystem.component.LxTopBar
-import com.linxin.core.luckin.LuckinMcp
+import com.linxin.core.luckin.*
 import com.linxin.core.luckin.LuckinWeb
 import com.linxin.core.settings.LuckinPrefs
 import kotlinx.coroutines.async
@@ -57,14 +57,13 @@ fun LuckinProductsScreen(
     deptId: Long,
     deptName: String,
     onBack: () -> Unit,
-    onPickProduct: (LuckinMcp.Product) -> Unit,
+    onPickProduct: (Product) -> Unit,
 ) {
     val context = LocalContext.current
     val prefs = remember { LuckinPrefs(context) }
     val scope = rememberCoroutineScope()
-    var token by remember { mutableStateOf("") }
     var query by remember { mutableStateOf("") }
-    var products by remember { mutableStateOf<List<LuckinMcp.Product>>(emptyList()) }
+    var products by remember { mutableStateOf<List<Product>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var searched by remember { mutableStateOf(false) }
@@ -76,21 +75,16 @@ fun LuckinProductsScreen(
     var briefs by remember { mutableStateOf<Map<Long, LuckinWeb.ItemBrief>>(emptyMap()) }
     var hydrating by remember { mutableStateOf(false) }
 
+    // 搜索不再走开放平台：就在这家店已经拉到的菜单里按名字筛
     val runSearch: (String) -> Unit = { raw ->
         val q = raw.trim()
-        if (q.isNotBlank() && token.isNotBlank()) {
-            query = q
-            scope.launch {
-                loading = true; error = null; searched = true
-                runCatching { LuckinMcp.searchProducts(token, deptId, q) }
-                    .onSuccess { products = it }
-                    .onFailure { error = it.message ?: it.javaClass.simpleName }
-                loading = false
-            }
+        query = q
+        if (q.isNotEmpty()) {
+            searched = true
+            error = null
+            products = products.filter { it.productName.contains(q, ignoreCase = true) }
         }
     }
-
-    LaunchedEffect(Unit) { token = prefs.current().token }
 
     LaunchedEffect(deptId) {
         kindsLoading = true; kindsError = null
@@ -130,7 +124,7 @@ fun LuckinProductsScreen(
                 Spacer(Modifier.width(10.dp))
                 LxPillButton(
                     stringResource(R.string.luckin_search),
-                    enabled = query.isNotBlank() && token.isNotBlank(),
+                    enabled = query.isNotBlank(),
                 ) { runSearch(query) }
             }
             Spacer(Modifier.height(10.dp))
@@ -152,7 +146,7 @@ fun LuckinProductsScreen(
                     LxChoiceChip(
                         text = name,
                         selected = query == name && products.isNotEmpty(),
-                        enabled = token.isNotBlank(),
+                        enabled = true,
                         onClick = { runSearch(name) },
                     )
                 }
@@ -226,7 +220,7 @@ fun LuckinProductsScreen(
                             val brief = briefs[item.productId]
                             LuckinMenuRow(item, brief) {
                                 onPickProduct(
-                                    LuckinMcp.Product(
+                                    Product(
                                         productId = item.productId,
                                         productName = brief?.name.orEmpty(),
                                         skuCode = null,

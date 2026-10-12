@@ -44,8 +44,8 @@ import com.linxin.core.designsystem.component.LxChoiceChip
 import com.linxin.core.designsystem.component.LxDialog
 import com.linxin.core.designsystem.component.LxTopBar
 import com.linxin.core.luckin.LuckinAuth
-import com.linxin.core.luckin.LuckinMcp
 import com.linxin.core.luckin.LuckinOrderApi
+import com.linxin.core.luckin.*
 import com.linxin.core.luckin.LuckinWeb
 import com.linxin.core.settings.LuckinPrefs
 import kotlinx.coroutines.launch
@@ -88,7 +88,7 @@ fun LuckinProductDetailScreen(
     var error by remember { mutableStateOf<String?>(null) }
 
     var amount by remember { mutableStateOf(1) }
-    var preview by remember { mutableStateOf<LuckinMcp.Preview?>(null) }
+    var preview by remember { mutableStateOf<Preview?>(null) }
     var previewing by remember { mutableStateOf(false) }
     var previewError by remember { mutableStateOf<String?>(null) }
 
@@ -118,7 +118,7 @@ fun LuckinProductDetailScreen(
     }
 
     val sku = spec?.skuFor(choice)
-    val lines = sku?.let { listOf(LuckinMcp.lineItem(productId, it, amount)) }.orEmpty()
+    val lines = sku?.let { listOf(lineItem(productId, it, amount)) }.orEmpty()
 
     // 改了规格或数量，先前那次预览就不作数了
     LaunchedEffect(choice, amount) { preview = null; previewError = null; orderError = null }

@@ -1,5 +1,7 @@
 package com.linxin.core.settings
 
+import com.linxin.core.luckin.Shop
+
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -7,7 +9,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.linxin.core.luckin.LuckinMcp
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -80,7 +81,7 @@ class LuckinPrefs(private val context: Context) {
         }
     }
 
-    suspend fun pickShop(shop: LuckinMcp.Shop) {
+    suspend fun pickShop(shop: Shop) {
         context.luckinDataStore.edit {
             it[KEY_DEPT_ID] = shop.deptId
             it[KEY_DEPT_NAME] = shop.deptName
