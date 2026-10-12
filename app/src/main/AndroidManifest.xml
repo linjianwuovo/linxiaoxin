@@ -26,6 +26,12 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="weixin" />
         </intent>
+        <!-- 把订单交给瑞幸 App 自己的订单页：不声明就查不到它装没装 -->
+        <package android:name="com.lucky.luckyclient" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="luckycoffee" />
+        </intent>
     </queries>
 
     <application
