@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.linxin.core.luckin.*
 import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxChoiceChip
@@ -49,7 +50,6 @@ import com.linxin.core.designsystem.theme.LxSandDeep
 import com.linxin.core.designsystem.theme.LxTerra
 import com.linxin.core.designsystem.theme.LxTerraSoft
 import com.linxin.core.luckin.LuckinAuth
-import com.linxin.core.luckin.LuckinMcp
 import com.linxin.core.settings.LuckinPrefs
 import com.linxin.core.settings.LuckinState
 import kotlinx.coroutines.launch
@@ -151,13 +151,13 @@ private fun LuckinAccountCard(state: LuckinState, onLogin: () -> Unit, onLogout:
 fun LuckinShopsScreen(
     onBack: () -> Unit,
     onLogin: () -> Unit,
-    onPickShop: (LuckinMcp.Shop) -> Unit,
+    onPickShop: (Shop) -> Unit,
 ) {
     val context = LocalContext.current
     val prefs = remember { LuckinPrefs(context) }
     val scope = rememberCoroutineScope()
     var state by remember { mutableStateOf(LuckinState()) }
-    var shops by remember { mutableStateOf<List<LuckinMcp.Shop>>(emptyList()) }
+    var shops by remember { mutableStateOf<List<Shop>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var lng by remember { mutableStateOf(state.lng) }
@@ -199,7 +199,7 @@ fun LuckinShopsScreen(
 
     LaunchedEffect(Unit) { prefs.state.collect { s -> state = s; lng = s.lng; lat = s.lat } }
 
-    LaunchedEffect(tick, state.token) {
+    LaunchedEffect(tick, lng, lat) {
         val point = lng.toDoubleOrNull()?.let { l -> lat.toDoubleOrNull()?.let { l to it } } ?: return@LaunchedEffect
         loading = true; error = null
         // 走 capi：不要 MCP token，换号也能出门店。
@@ -294,7 +294,7 @@ fun LuckinShopsScreen(
 
 /** 商品卡：菜单和搜索结果共用一张样子 */
 @Composable
-internal fun LuckinProductCard(p: LuckinMcp.Product, onPick: (LuckinMcp.Product) -> Unit) {
+internal fun LuckinProductCard(p: Product, onPick: (Product) -> Unit) {
     LxCard(onClick = { onPick(p) }) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

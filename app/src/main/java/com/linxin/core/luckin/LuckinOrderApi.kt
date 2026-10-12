@@ -83,11 +83,11 @@ object LuckinOrderApi {
      * 把 capi 预览的返回摊成界面上那张卡。字段按 10-12 实测响应取的，
      * 认不出来的一律给 0，不猜。
      */
-    suspend fun previewCard(d: Draft, lines: List<Map<String, Any?>>): LuckinMcp.Preview {
+    suspend fun previewCard(d: Draft, lines: List<Map<String, Any?>>): Preview {
         val j = preview(d, lines)
         val c = j.obj("content") ?: throw LuckinAuth.ApiError("瑞幸没回订单内容")
         val items = c.arr("productList").ifEmpty { c.arr("comboList") }
-        return LuckinMcp.Preview(
+        return Preview(
             shopName = c.str("deptName") ?: c.str("shopName") ?: "",
             aboutTime = parseClock(c.str("aboutTime")),
             totalInitialPrice = c.num("initialPrice") ?: c.num("befCouponDiscount") ?: 0.0,
@@ -96,7 +96,7 @@ object LuckinOrderApi {
             couponCodeList = emptyList(),
             lines = items.map { o ->
                 val it = o.asJsonObject
-                LuckinMcp.PreviewLine(
+                PreviewLine(
                     name = it.str("name") ?: "",
                     amount = it.num("amount")?.toInt() ?: 1,
                     addition = it.str("skuSaleAttrValue") ?: "",
