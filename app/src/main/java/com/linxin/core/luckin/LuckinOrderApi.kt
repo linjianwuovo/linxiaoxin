@@ -36,10 +36,15 @@ object LuckinOrderApi {
         val eatway: Int = 1,
     )
 
-    /** 预览：算价用，回原价/优惠/实付/预计可取时间 */
-    suspend fun preview(d: Draft, comboList: List<JsonObject>): JsonObject =
+    /**
+     * 预览：算价用，回 aboutTime / canOrder / befCouponDiscount / 各种折扣。
+     *
+     * 2026-10-12 实测定死的两点：商品列表的字段名是 `productList`（`comboList` 不认），
+     * 而且**不能带 `delivery`**——带任何值都回「delivery值不正确」，整条不传才过。
+     */
+    suspend fun preview(d: Draft, lines: List<JsonObject>): JsonObject =
         LuckinAuth.postApi(PREVIEW, base(d).plus(mapOf(
-            "comboList" to comboList,
+            "productList" to lines,
             "couponCodeList" to emptyList<String>(),
             "activityPlanKeysList" to emptyList<String>(),
             "useDiscount" to 1,
@@ -47,18 +52,23 @@ object LuckinOrderApi {
             "isFirst" to 0,
             "payCardChecked" to "0",
             "channel" to "GCJ-02",
-            "delivery" to (if (d.eatway == 2) 1 else 0),
         )))
 
     /**
      * 预下单。回的对象就是要交给 [create] 的那一坨，这里不改字段名。
-     * comboList 先沿用预览那份；真跑通后要按响应里的差异调整。
+     * 实测这一层对 `eatway` 的取值另有要求（传 1 回「eatway值不正确」），还没定死，
+     * 所以下面把 eatway 单独留成参数，不跟着 Draft 走。
      */
-    suspend fun preCreate(d: Draft, comboList: List<JsonObject>): JsonObject =
-        LuckinAuth.postApi(PRE_CREATE, base(d).plus(mapOf(
-            "comboList" to comboList,
+    suspend fun preCreate(d: Draft, lines: List<JsonObject>, eatway: String = ""): JsonObject =
+        LuckinAuth.postApi(PRE_CREATE, mapOf(
+            "deptId" to d.deptId,
+            "cityId" to d.cityId,
+            "longitude" to d.longitude,
+            "latitude" to d.latitude,
             "channel" to "GCJ-02",
-        )))
+            "eatway" to eatway,
+            "productList" to lines,
+        ))
 
     /** 正式下单：把 preCreate 回来的对象原样发回去，嵌套对象按 JSON 字符串递 */
     suspend fun create(payload: JsonObject): JsonObject {
