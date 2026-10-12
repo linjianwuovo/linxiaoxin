@@ -31,6 +31,9 @@ class LinXinApp : Application(), Configuration.Provider {
         super.onCreate()
         installCrashLogger()
         ShortcutRegistrar.register(this)
+        // 瑞幸的会话 Cookie 存在私有 SharedPreferences 里，冷启动就要捞回来，
+        // 否则重进 App 会以为没登录
+        com.linxin.core.luckin.LuckinAuth.init(this)
     }
 
     /**

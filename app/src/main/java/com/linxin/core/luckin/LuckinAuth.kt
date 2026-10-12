@@ -124,6 +124,38 @@ object LuckinAuth {
         )
     }
 
+    /**
+     * 门店列表。capi 这条匿名就读，不需要 MCP token、也不需要登录——
+     * 之前门店刷不出来就是因为卡在 MCP 那颗 token 上，换号之后没 token 就静默返回空。
+     */
+    suspend fun shops(longitude: Double, latitude: Double, offset: Int = 1, pageSize: Int = 20): List<LuckinMcp.Shop> =
+        withContext(Dispatchers.IO) {
+            val j = get("resource/m/shop/list", mapOf(
+                "offset" to offset,
+                "pageSize" to pageSize,
+                "longitude" to longitude,
+                "latitude" to latitude,
+            ))
+            requireSuccess(j)
+            val arr = runCatching { j.getAsJsonArray("content") }.getOrNull() ?: return@withContext emptyList()
+            List(arr.size()) { i ->
+                val o = arr.get(i).asJsonObject
+                val closed = runCatching { o.get("isShopClosed").asInt }.getOrDefault(0)
+                LuckinMcp.Shop(
+                    deptId = runCatching { o.get("deptId").asLong }.getOrDefault(0L),
+                    deptName = o.str("name") ?: "",
+                    address = o.str("address"),
+                    longitude = runCatching { o.get("longitude").asDouble }.getOrDefault(0.0),
+                    latitude = runCatching { o.get("latitude").asDouble }.getOrDefault(0.0),
+                    workTimeStart = o.str("workTimeStart"),
+                    workTimeEnd = o.str("workTimeEnd"),
+                    distanceKm = runCatching { o.get("distance").asDouble }.getOrNull(),
+                    number = o.str("number"),
+                    workStatus = if (closed == 1) "已打烊" else "营业中",
+                )
+            }
+        }
+
     // ---------------- 通用请求，后面下单/订单/支付都走这两个 ----------------
 
     suspend fun getApi(path: String, params: Map<String, Any?>): JsonObject =

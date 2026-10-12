@@ -48,6 +48,7 @@ import com.linxin.core.designsystem.theme.LxInkMuted
 import com.linxin.core.designsystem.theme.LxSandDeep
 import com.linxin.core.designsystem.theme.LxTerra
 import com.linxin.core.designsystem.theme.LxTerraSoft
+import com.linxin.core.luckin.LuckinAuth
 import com.linxin.core.luckin.LuckinMcp
 import com.linxin.core.settings.LuckinPrefs
 import com.linxin.core.settings.LuckinState
@@ -191,9 +192,9 @@ fun LuckinShopsScreen(
 
     LaunchedEffect(tick, state.token) {
         val point = lng.toDoubleOrNull()?.let { l -> lat.toDoubleOrNull()?.let { l to it } } ?: return@LaunchedEffect
-        if (state.token.isBlank()) return@LaunchedEffect
         loading = true; error = null
-        runCatching { LuckinMcp.queryShops(state.token, point.first, point.second) }
+        // 走 capi：不要 MCP token，换号也能出门店
+        runCatching { LuckinAuth.shops(point.first, point.second) }
             .onSuccess { shops = it }
             .onFailure { error = it.message ?: it.javaClass.simpleName }
         loading = false
