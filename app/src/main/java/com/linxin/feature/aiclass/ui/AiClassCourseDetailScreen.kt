@@ -79,6 +79,8 @@ fun AiClassCourseDetailScreen(
                 coursewareList = uiState.coursewareList,
                 isCoursewareLoading = uiState.isCoursewareLoading,
                 coursewareError = uiState.coursewareError,
+                microLessons = uiState.microLessons,
+                microError = uiState.microError,
                 isHomeworkLoading = uiState.isHomeworkLoading,
                 homeworkError = uiState.homeworkError,
                 onHomeworkClick = onOpenHomeworkDetail,
@@ -99,6 +101,8 @@ private fun AiClassCourseDetailContent(
     coursewareList: List<com.linxin.feature.aiclass.domain.AiCourseware> = emptyList(),
     isCoursewareLoading: Boolean = false,
     coursewareError: String? = null,
+    microLessons: List<com.linxin.feature.aiclass.domain.AiMicroLesson> = emptyList(),
+    microError: String? = null,
     isHomeworkLoading: Boolean = false,
     homeworkError: String? = null,
     onHomeworkClick: (String) -> Unit = {},
@@ -255,6 +259,32 @@ private fun AiClassCourseDetailContent(
                                 style = MiuixTheme.textStyles.footnote1,
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             )
+                        }
+                    }
+                }
+            }
+        }
+        when {
+            microError != null -> item(key = "weike_error") {
+                LxCard {
+                    Text(text = microError, style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.error, modifier = Modifier.padding(16.dp))
+                }
+            }
+            microLessons.isNotEmpty() -> {
+                item(key = "weike_header") {
+                    Text(text = stringResource(R.string.ai_weike_title), style = MiuixTheme.textStyles.title3,
+                        modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp))
+                }
+                items(microLessons, key = { "wk_" + it.id }) { lesson ->
+                    LxCard {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Text(text = lesson.name, style = MiuixTheme.textStyles.body1)
+                            if (lesson.meta.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(text = lesson.meta, style = MiuixTheme.textStyles.footnote1,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                            }
                         }
                     }
                 }

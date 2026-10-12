@@ -54,6 +54,13 @@ fun AiCourse.studentCountText(): String {
     return studentNum.takeIf { it > 0 }?.let { "${it}人" } ?: "人数未知"
 }
 
+/** 一门课下的 A.I微课 */
+data class AiMicroLesson(
+    val id: String,
+    val name: String,
+    val meta: String,
+)
+
 /** 一门课下的课件 */
 data class AiCourseware(
     val id: String,

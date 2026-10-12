@@ -10,6 +10,18 @@ data class AiClassBaseResponse(
 )
 
 /** 学期列表响应 */
+/** A.I微课：data 是个分页对象，list 里每条字段名还没实测，先原样收着 */
+data class AiClassWeikeResponse(
+    val status: String?,
+    val message: String?,
+    val data: WeikePage?,
+) {
+    data class WeikePage(
+        val dataList: List<com.google.gson.JsonObject>?,
+        val total: Int?,
+    )
+}
+
 /** 课件资源列表：这一族接口的信封是 data/location/message/status，data 直接就是数组 */
 data class AiClassCoursewareResponse(
     val status: String?,
