@@ -33,6 +33,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.viewinterop.AndroidView
 import coil3.compose.AsyncImage
 import com.google.gson.JsonElement
 import com.linxin.R
@@ -93,7 +96,7 @@ fun LuckinProductDetailScreen(
     var orderData by remember { mutableStateOf<com.google.gson.JsonObject?>(null) }
     var canceling by remember { mutableStateOf(false) }
     var cancelMsg by remember { mutableStateOf<String?>(null) }
-    var payError by remember { mutableStateOf<String?>(null) }
+    var payPage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         val s = prefs.current()
@@ -117,6 +120,11 @@ fun LuckinProductDetailScreen(
 
     // 改了规格或数量，先前那次预览就不作数了
     LaunchedEffect(choice, amount) { preview = null; previewError = null; orderError = null }
+
+    payPage?.let { url ->
+        LuckinCashierPage(url = url, onBack = { payPage = null })
+        return
+    }
 
     Scaffold(topBar = {
         LxTopBar(
@@ -318,24 +326,9 @@ fun LuckinProductDetailScreen(
                             } }
                             Text(stringResource(R.string.luckin_pay_yourself), fontSize = 12.sp,
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-                            val payUrl = payUrlOf(data)
-                            if (payUrl != null) {
+                            cashierOf(data)?.let { cashier ->
                                 Spacer(Modifier.height(12.dp))
-                                LxPillButton(stringResource(R.string.luckin_go_pay)) {
-                                    payError = launchPay(context, data)
-                                }
-                                Spacer(Modifier.height(8.dp))
-                                LxPillButton(stringResource(R.string.luckin_go_pay_wx)) {
-                                    payError = launchWeixin(context, data)
-                                }
-                                payError?.let {
-                                    Spacer(Modifier.height(8.dp))
-                                    Text(
-                                        stringResource(R.string.luckin_pay_failed, it),
-                                        fontSize = 12.sp,
-                                        color = MiuixTheme.colorScheme.error,
-                                    )
-                                }
+                                LxPillButton(stringResource(R.string.luckin_go_pay)) { payPage = cashier }
                             }
                             val oid = orderIndexOf(data)
                             if (oid != null) {
@@ -412,47 +405,64 @@ private fun renderOrderField(key: String, value: JsonElement): String? {
 }
 
 
-/**
- * 把瑞幸给的支付凭据交出去。顺序不能反：
- * 收银台 https 优先（它自己会再跳微信，体验最顺），但这台测试机一个浏览器都没装，
- * 直接 startActivity 会抛 ActivityNotFound，所以先用 resolveActivity 探一下；
- * 探不到就退回 weixin:// 深链——微信 8.0.79 实测能接，但**没登录时会弹一下就退回**，
- * 那种情况给它一句人话，别默默什么都不发生。
- */
-private fun launchPay(context: android.content.Context, data: com.google.gson.JsonObject): String? {
-    val candidates = listOfNotNull(
-        data.strOf("payOrderQrCodeUrl"), data.strOf("payUrl"), data.strOf("qrCodeUrl"),
-        data.strOf("payOrderUrl"),
-    )
-    // Android 11+ 的包可见性会让 resolveActivity 对 weixin:// 一律返回 null，
-    // 但 startActivity 本身照样能发出去。所以不探，直接试，失败再退下一个候选。
-    if (candidates.isEmpty()) return "瑞幸没回支付凭据"
-    var lastError: String? = null
-    for (url in candidates) {
-        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-        runCatching { context.startActivity(intent) }
-            .onSuccess { return null }
-            .onFailure { lastError = it.message ?: it.javaClass.simpleName }
+/** 收银台地址：MCP 只回扫码链；`payOrderUrl` 那条 weixin:// 是一次性扫码用的，直接点开没反应 */
+private fun cashierOf(data: com.google.gson.JsonObject): String? =
+    listOf("payOrderQrCodeUrl", "payUrl", "qrCodeUrl").firstNotNullOfOrNull { k ->
+        data.get(k)?.takeIf { !it.isJsonNull }
+            ?.let { runCatching { it.asString }.getOrNull() }?.takeIf { it.isNotBlank() }
     }
-    return "打不开付款页：$lastError"
-}
 
-private fun com.google.gson.JsonObject.strOf(key: String): String? =
-    get(key)?.takeIf { !it.isJsonNull }?.let { runCatching { it.asString }.getOrNull() }
-    ?.takeIf { it.isNotBlank() }
-
-/** 瑞幸回的支付凭据：优先微信调起链接，其次二维码地址，两个都没有就不给按钮 */
-private fun payUrlOf(data: com.google.gson.JsonObject): String? {
-    // 收银台是 https 的，交给浏览器/微信它会自己再跳；直接丢 weixin:// 深链，
-    // 微信接过一次实测是「弹一下就退回」，所以 https 优先。
-    for (k in listOf("payOrderQrCodeUrl", "payUrl", "qrCodeUrl", "payOrderUrl")) {
-        data.get(k)?.takeIf { !it.isJsonNull }?.let {
-            val v = runCatching { it.asString }.getOrNull()
-            if (!v.isNullOrBlank()) return v
+/**
+ * 全屏收银台。关键在 shouldOverrideUrlLoading：页面里的 JS 跳 weixin:// 时，
+ * 发起方是网页，微信只认网页，不认我们的包名——所以这条能成，
+ * 而我们自己 startActivity(weixin://) 实测点了没动静（没有商户 appid/prepay_id）。
+ */
+@Composable
+private fun LuckinCashierPage(url: String, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val webView = remember {
+        android.webkit.WebView(context).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            webViewClient = object : android.webkit.WebViewClient() {
+                override fun shouldOverrideUrlLoading(
+                    view: android.webkit.WebView?,
+                    request: android.webkit.WebResourceRequest?,
+                ): Boolean {
+                    val target = request?.url?.toString().orEmpty()
+                    if (target.startsWith("weixin://") || target.startsWith("wxpay://")) {
+                        runCatching {
+                            context.startActivity(
+                                android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse(target),
+                                ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                        return true
+                    }
+                    return false
+                }
+            }
         }
     }
-    return null
+    LaunchedEffect(url) { webView.loadUrl(url) }
+    Dialog(
+        onDismissRequest = onBack,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Scaffold(topBar = {
+            LxTopBar(title = stringResource(R.string.luckin_cashier_title), onBack = onBack)
+        }) { pad ->
+            Box(Modifier.fillMaxSize().padding(pad)) {
+                AndroidView(
+                    factory = { webView },
+                    onRelease = { webView.destroy() },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+    }
 }
 
 private fun orderIndexOf(data: com.google.gson.JsonObject): String? {
@@ -462,13 +472,3 @@ private fun orderIndexOf(data: com.google.gson.JsonObject): String? {
     return null
 }
 
-/** 只发 weixin:// 深链：让「能不能直接进微信支付」可以单独试，不被收银台挡在前面 */
-private fun launchWeixin(context: android.content.Context, data: com.google.gson.JsonObject): String? {
-    val url = data.strOf("payOrderUrl") ?: return "瑞幸没回 weixin 支付链接"
-    return runCatching {
-        context.startActivity(
-            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
-    }.fold(onSuccess = { null }, onFailure = { it.message ?: it.javaClass.simpleName })
-}
