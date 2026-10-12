@@ -156,6 +156,11 @@ object LuckinAuth {
     private fun exec(req: Request): JsonObject {
         client.newCall(req).execute().use { resp ->
             val body = resp.body?.string() ?: throw ApiError("空响应")
+            // 网关正常回的是 JSON。回 HTML 说明根本没到瑞幸的业务层，是被前面的 WAF 挡了
+            if (body.trimStart().startsWith("<")) {
+                throw ApiError("HTTP ${resp.code}：请求被网关挡在外面，没到瑞幸业务层。" +
+                    "手机挂着 VPN/代理的话，让 m.lkcoffee.com 走直连再试一次。")
+            }
             return runCatching { gson.fromJson(body, JsonObject::class.java) }
                 .getOrElse { throw ApiError("回的不是 JSON：${body.take(60)}") }
         }

@@ -115,10 +115,12 @@ fun LuckinLoginScreen(onBack: () -> Unit, onDone: () -> Unit) {
                 ) {
                     scope.launch {
                         busy = true
-                        tip = runCatching { LuckinAuth.sendCode(phone.trim()) }
-                            .getOrElse { it.message ?: context.getString(R.string.luckin_login_failed) }
-                        if (tip == context.getString(R.string.luckin_login_failed)) Unit
-                        else left = 60
+                        runCatching { LuckinAuth.sendCode(phone.trim()) }
+                            .onSuccess {
+                                tip = null
+                                left = 60
+                            }
+                            .onFailure { tip = it.message ?: context.getString(R.string.luckin_login_failed) }
                         busy = false
                     }
                 }
