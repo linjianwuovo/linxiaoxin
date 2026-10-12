@@ -142,7 +142,16 @@ object LuckinAuth {
 
     private fun post(path: String, params: Map<String, Any?>): JsonObject {
         val fb = FormBody.Builder()
-        params.forEach { (k, v) -> fb.add(k, v?.toString() ?: "") }
+        // 嵌套的列表和对象必须按 JSON 字符串递。直接 toString() 会拼成 "[{a=1}]" 这种 Java 味字符串，
+        // 服务端认不出来，只会回「商品列表参数不能为空」
+        params.forEach { (k, v) ->
+            fb.add(k, when (v) {
+                null -> ""
+                is JsonElement -> v.toString()
+                is List<*>, is Map<*, *> -> gson.toJson(v)
+                else -> v.toString()
+            })
+        }
         jar.get(K_CSRF)?.let { fb.add("_csrf", it) }
         return exec(Request.Builder()
             .url(BASE + path)
