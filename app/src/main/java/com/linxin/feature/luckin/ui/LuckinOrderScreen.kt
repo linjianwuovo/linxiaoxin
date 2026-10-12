@@ -322,14 +322,7 @@ fun LuckinProductDetailScreen(
                             if (payUrl != null) {
                                 Spacer(Modifier.height(12.dp))
                                 LxPillButton(stringResource(R.string.luckin_go_pay)) {
-                                    runCatching {
-                                        context.startActivity(
-                                            android.content.Intent(
-                                                android.content.Intent.ACTION_VIEW,
-                                                android.net.Uri.parse(payUrl),
-                                            ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        )
-                                    }.onFailure { payError = it.message ?: it.javaClass.simpleName }
+                                    payError = launchPay(context, data)
                                 }
                                 payError?.let {
                                     Spacer(Modifier.height(8.dp))
@@ -413,6 +406,43 @@ private fun renderOrderField(key: String, value: JsonElement): String? {
     val text = runCatching { value.asString }.getOrNull()
     return if (text != null) "$key: $text" else "$key: ${value.toString().take(160)}"
 }
+
+
+/**
+ * 把瑞幸给的支付凭据交出去。顺序不能反：
+ * 收银台 https 优先（它自己会再跳微信，体验最顺），但这台测试机一个浏览器都没装，
+ * 直接 startActivity 会抛 ActivityNotFound，所以先用 resolveActivity 探一下；
+ * 探不到就退回 weixin:// 深链——微信 8.0.79 实测能接，但**没登录时会弹一下就退回**，
+ * 那种情况给它一句人话，别默默什么都不发生。
+ */
+private fun launchPay(context: android.content.Context, data: com.google.gson.JsonObject): String? {
+    val candidates = listOfNotNull(
+        data.strOf("payOrderQrCodeUrl"), data.strOf("payUrl"), data.strOf("qrCodeUrl"),
+        data.strOf("payOrderUrl"),
+    )
+    var launched = false
+    var weixinOnly = false
+    for (url in candidates) {
+        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (intent.resolveActivity(context.packageManager) == null) {
+            if (url.startsWith("weixin://")) weixinOnly = true
+            continue
+        }
+        runCatching { context.startActivity(intent) }.onSuccess { launched = true }.onFailure { continue }
+        break
+    }
+    return when {
+        launched && weixinOnly -> null
+        launched -> null
+        candidates.isEmpty() -> "瑞幸没回支付凭据"
+        else -> "这台机没有能打开收银台的浏览器，微信也接不了这个链接——先确认微信已登录"
+    }
+}
+
+private fun com.google.gson.JsonObject.strOf(key: String): String? =
+    get(key)?.takeIf { !it.isJsonNull }?.let { runCatching { it.asString }.getOrNull() }
+    ?.takeIf { it.isNotBlank() }
 
 /** 瑞幸回的支付凭据：优先微信调起链接，其次二维码地址，两个都没有就不给按钮 */
 private fun payUrlOf(data: com.google.gson.JsonObject): String? {
