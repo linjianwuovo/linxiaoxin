@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.linxin.core.network.FifSessionManager
 import com.linxin.feature.aiclass.data.AiClassRepository
 import com.linxin.feature.aiclass.domain.AiCourse
+import com.linxin.feature.aiclass.domain.AiMicroLesson
 import com.linxin.feature.aiclass.domain.AiCourseware
 import com.linxin.feature.aiclass.domain.AiQuiz
 import com.linxin.feature.aiclass.domain.AiClassQrPayload
@@ -52,6 +53,8 @@ data class AiClassUiState(
     val coursewareList: List<AiCourseware> = emptyList(),
     val isCoursewareLoading: Boolean = false,
     val coursewareError: String? = null,
+    val microLessons: List<AiMicroLesson> = emptyList(),
+    val microError: String? = null,
 )
 
 @HiltViewModel
@@ -248,6 +251,8 @@ class AiClassViewModel @Inject constructor(
                 quizList = emptyList(),
                 homeworkList = emptyList(),
                 isQuizLoading = true,
+                microLessons = emptyList(),
+                microError = null,
                 isCoursewareLoading = true,
                 coursewareError = null,
                 coursewareList = emptyList(),
@@ -267,6 +272,19 @@ class AiClassViewModel @Inject constructor(
                     quizList = quizResult.getOrDefault(emptyList()),
                     isQuizLoading = false,
                     quizError = quizResult.exceptionOrNull()?.message,
+                )
+            }
+        }
+
+        viewModelScope.launch {
+            val wkResult = withResultTimeout(AppText.str(R.string.aivm_act_weike), COURSEWARE_LOAD_TIMEOUT_MS) {
+                repository.getMicroLessons(course.courseId)
+            }
+            _uiState.update { current ->
+                if (current.selectedCourse?.stableId != classId) return@update current
+                current.copy(
+                    microLessons = wkResult.getOrDefault(emptyList()),
+                    microError = wkResult.exceptionOrNull()?.message,
                 )
             }
         }

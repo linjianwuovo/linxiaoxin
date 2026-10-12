@@ -9,6 +9,7 @@ import com.linxin.core.network.FifRetrofit
 import com.linxin.core.network.FifSessionManager
 import com.linxin.core.network.IzuoyeRetrofit
 import com.linxin.feature.aiclass.domain.AiCourse
+import com.linxin.feature.aiclass.domain.AiMicroLesson
 import com.linxin.feature.aiclass.domain.AiCourseware
 import com.linxin.feature.aiclass.domain.AiQuiz
 import com.linxin.feature.aiclass.domain.AiClassQrPayload
@@ -274,6 +275,31 @@ class AiClassRepository @Inject constructor(
                     url = it.resourceUrl.orEmpty(),
                     createdAt = it.createTime.orEmpty(),
                 )
+            }
+            Result.success(list)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /** A.I微课列表。字段名没实测过，所以按候选键取，一个都对不上就用整条 JSON 的前几个字符兜底 */
+    suspend fun getMicroLessons(courseId: String): Result<List<AiMicroLesson>> {
+        return try {
+            val auth = ensureSession()
+            val userName = fifSession.getUserName().orEmpty()
+            if (courseId.isBlank() || userName.isBlank()) return Result.failure(Exception("AI课堂身份不完整"))
+            val resp = api.getWeikeList(courseId, userName, "1", "50", auth)
+            val list = resp.data?.dataList.orEmpty().map { o ->
+                val name = listOf("weikeName", "name", "resourceName", "title", "courseName")
+                    .firstNotNullOfOrNull { k -> o.get(k)?.takeIf { !it.isJsonNull }?.asString?.takeIf { it.isNotBlank() } }
+                    ?: "微课"
+                val id = listOf("weikeId", "id", "resourceId")
+                    .firstNotNullOfOrNull { k -> o.get(k)?.takeIf { !it.isJsonNull }?.asString?.takeIf { it.isNotBlank() } }
+                    ?: name
+                val meta = listOf("createTime", "duration", "teacherName")
+                    .firstNotNullOfOrNull { k -> o.get(k)?.takeIf { !it.isJsonNull }?.asString?.takeIf { it.isNotBlank() } }
+                    ?: ""
+                AiMicroLesson(id = id, name = name, meta = meta)
             }
             Result.success(list)
         } catch (e: Exception) {

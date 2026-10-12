@@ -106,6 +106,22 @@ interface AiClassApi {
         @Header("Visit-Type") visitType: String = "mobile",
     ): AiClassCoursewareResponse
 
+    /**
+     * A.I微课列表。参数是 2026-10-12 在 OPPO 上从安小信自己那次点击里量出来的：
+     * courseId(19) + userName(14) + pageNum + pageSize(4)，信封 data{dataList,pageNum,pageSize,total}。
+     * dataList 里每条的字段名没验过（那次回的 112 字节是空页），所以这里只吃 JsonObject，
+     * 取名字时按几个候选键试，不硬写一个没见过的字段名。
+     */
+    @GET("coursecenter-interaction/weike/listWeikeByCourseId")
+    suspend fun getWeikeList(
+        @Query("courseId") courseId: String,
+        @Query("userName") userName: String,
+        @Query("pageNum") pageNum: String = "1",
+        @Query("pageSize") pageSize: String = "50",
+        @Header("authorization") auth: String,
+        @Header("Visit-Type") visitType: String = "mobile",
+    ): AiClassWeikeResponse
+
     /** 课程作业列表 */
     /** AI 课堂消息中心未读数：安小信进 AI 课堂时会打这一发，我们之前没有 */
     @FormUrlEncoded

@@ -621,5 +621,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="card_trades_count">Showing %1$d of %2$d</string>    <string name="ai_class_unread">%1$d unread</string>    <string name="ai_courseware_title">Courseware</string>
     <string name="ai_no_courseware">No courseware for this course yet</string>
     <string name="aivm_act_courseware">courseware</string>
+    <string name="ai_weike_title">Micro lessons</string>
+    <string name="aivm_act_weike">micro lessons</string>
 
 </resources>
