@@ -44,6 +44,8 @@ data class Shop(
     @SerializedName("distance") val distanceKm: Double?,
     @SerializedName("number") val number: String?,
     @SerializedName("workStatus") val workStatus: String?,
+    /** 城市号。预览和下单要带，给 0 瑞幸就不算价 */
+    @SerializedName("cityId") val cityId: Int = 0,
 )
 
 data class PreviewLine(
