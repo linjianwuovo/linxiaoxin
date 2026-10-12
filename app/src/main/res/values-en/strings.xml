@@ -477,7 +477,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="msg_return_title">Return to campus</string>
     <string name="msg_return_body">%1$s ends %2$s — remember to register your return</string>
     <string name="msg_settings_title">Message alerts</string>
-    <string name="msg_settings_desc">Checked every 15 minutes, only when online</string>
+    <string name="msg_settings_desc">Checked every 15 minutes, and every minute once a class starts within 15 minutes. Only when online</string>
     <string name="msg_src_news">New announcements</string>
     <string name="msg_src_checkin">Pending check-ins</string>
     <string name="msg_src_return">Return reminders</string>
