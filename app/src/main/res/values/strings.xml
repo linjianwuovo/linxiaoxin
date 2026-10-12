@@ -477,7 +477,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="msg_return_title">返校提醒</string>
     <string name="msg_return_body">%1$s 假期 %2$s 结束，记得登记返校</string>
     <string name="msg_settings_title">消息提醒</string>
-    <string name="msg_settings_desc">每 15 分钟检查一次，只在有网时跑</string>
+    <string name="msg_settings_desc">平时每 15 分钟查一次；15 分钟内要上课时自动改成每分钟一次，只在有网时跑</string>
     <string name="msg_src_news">新公告</string>
     <string name="msg_src_checkin">查寝待签</string>
     <string name="msg_src_return">返校提醒</string>

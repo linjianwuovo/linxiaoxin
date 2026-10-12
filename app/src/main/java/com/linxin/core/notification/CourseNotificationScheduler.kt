@@ -18,6 +18,7 @@ import javax.inject.Singleton
 @Singleton
 class CourseNotificationScheduler @Inject constructor(
     private val notifier: LiveActivityNotifier,
+    private val nextClass: NextClassWindowStore,
 ) {
     companion object {
         private const val KEY = "course_countdown"
@@ -53,11 +54,16 @@ class CourseNotificationScheduler @Inject constructor(
 
         if (target == null) {
             notifier.cancel(KEY)
+            nextClass.clear()
             return
         }
 
         val startTime = SectionSchedule.startOf(target.startSection) ?: return
         val minutesUntilStart = ChronoUnit.MINUTES.between(now, startTime)
+
+        // 把「下一节几点开始」交给后台那条链：快开课的这 15 分钟里，消息检查从 15 分钟一次
+        // 提到一分钟一次（WorkManager 的周期任务最短就是 15 分钟，只能靠一次性任务自己续）
+        nextClass.publish(target.startSection, target.name)
 
         val (title, statusText) = if (minutesUntilStart > 0) {
             target.name to AppText.str(R.string.notif_upcoming, minutesUntilStart.toString())
