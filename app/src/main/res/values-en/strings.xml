@@ -624,4 +624,24 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ai_weike_title">Micro lessons</string>
     <string name="aivm_act_weike">micro lessons</string>
 
+    <string name="ai_group_title">Groups</string>
+    <string name="ai_no_group">No groups for this course yet</string>
+    <string name="ai_group_discuss_title">Group discussions</string>
+    <string name="ai_no_group_discuss">No discussions in this group yet</string>
+    <string name="ai_unnamed_group">Unnamed group</string>
+    <string name="ai_unnamed_group_discuss">Unnamed discussion</string>
+    <string name="ai_group_members">%1$d members</string>
+    <string name="ai_group_members_unknown">Member count unknown</string>
+    <string name="ai_group_role_leader">I am the leader</string>
+    <string name="ai_group_role_member">I am a member</string>
+    <string name="ai_group_role_unknown">Role unknown</string>
+    <string name="ai_group_pending_homework">Homework %1$d</string>
+    <string name="ai_group_pending_discuss">Discussions %1$d</string>
+    <string name="ai_group_pending_vote">Votes %1$d</string>
+    <string name="ai_group_expand">View discussions</string>
+    <string name="ai_group_collapse">Hide discussions</string>
+    <string name="ai_group_no_micro_id">This group has no discussion id, cannot open discussions</string>
+    <string name="aivm_act_group">groups</string>
+    <string name="aivm_act_group_discuss">group discussions</string>
+
 </resources>

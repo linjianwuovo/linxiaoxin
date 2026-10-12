@@ -11,6 +11,8 @@ import com.linxin.core.network.IzuoyeRetrofit
 import com.linxin.feature.aiclass.domain.AiCourse
 import com.linxin.feature.aiclass.domain.AiMicroLesson
 import com.linxin.feature.aiclass.domain.AiCourseware
+import com.linxin.feature.aiclass.domain.AiGroupDiscuss
+import com.linxin.feature.aiclass.domain.AiStudentGroup
 import com.linxin.feature.aiclass.domain.AiQuiz
 import com.linxin.feature.aiclass.domain.AiClassQrPayload
 import com.linxin.feature.aiclass.domain.AiSignInInfo
@@ -20,11 +22,13 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import com.google.gson.JsonElement
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -44,6 +48,8 @@ private const val WEBVIEW_REQUESTED_WITH = "com.linxin"
 private const val AICLASS_PRIMARY_REQUEST_TIMEOUT_MS = 12_000L
 private const val AICLASS_SUPPLEMENT_REQUEST_TIMEOUT_MS = 6_000L
 private const val AICLASS_TIMETABLE_REQUEST_TIMEOUT_MS = 5_000L
+// 小组详情要按活动逐个补，接口一发一组，这里限死补前 3 个，免得课程页被拖慢
+private const val GROUP_DETAIL_FETCH_LIMIT = 3
 
 @Singleton
 class AiClassRepository @Inject constructor(
@@ -305,6 +311,182 @@ class AiClassRepository @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    /**
+     * 这门课下的小组。第一发 groupList 拿课程开了哪些小组教学活动，
+     * 再对每个活动补一发 getStudentGroupInfo，取我自己的组名、成员数和角色。
+     * 第二发挂了不牵连第一发：那一行照样列出来，只是组名回退成活动名、成员数和角色显示未知，
+     * 界面上「没有小组」和「请求失败」就还是两回事。
+     */
+    suspend fun getStudentGroups(courseId: String, teachClassId: String): Result<List<AiStudentGroup>> {
+        val auth = try {
+            ensureSession()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return Result.failure(Exception(mapError("获取小组列表", e), e))
+        }
+        // 抓包里这条口的 studentId 是 32 位成员 id，跟签到用的 8 位学号不是一个东西
+        val studentId = fifSession.getMemberUserId().orEmpty()
+        val schoolId = fifSession.getSchoolId().orEmpty()
+        if (teachClassId.isBlank() || studentId.isBlank()) {
+            return Result.failure(Exception("AI课堂身份不完整"))
+        }
+
+        val response = withNetworkTimeout("获取小组列表", AICLASS_PRIMARY_REQUEST_TIMEOUT_MS) {
+            api.getGroupTeachingList(teachClassId, auth)
+        }.getOrElse { error -> return Result.failure(error) }
+
+        val activities = response.data.orEmpty()
+        if (activities.isEmpty()) return Result.success(emptyList())
+
+        val details = coroutineScope {
+            activities.take(GROUP_DETAIL_FETCH_LIMIT).map { activity ->
+                async {
+                    loadStudentGroupDetail(
+                        auth = auth,
+                        activity = activity,
+                        teachClassId = teachClassId,
+                        courseId = courseId,
+                        schoolId = schoolId,
+                        studentId = studentId,
+                        userName = fifSession.getUserName().orEmpty(),
+                    )
+                }
+            }.awaitAll()
+        }
+
+        val groups = activities.mapIndexed { index, activity ->
+            val detail = details.getOrNull(index)
+            val activityName = activity.stringValue("gName", "name", "groupName", "title")
+            AiStudentGroup(
+                id = activity.stringValue("id", "groupId").ifBlank { "group_$index" },
+                microGroupId = detail?.microGroupId.orEmpty(),
+                name = detail?.groupName.orEmpty().ifBlank { activityName },
+                activityName = activityName,
+                memberCount = detail?.memberCount ?: 0,
+                roleKnown = detail?.roleKnown ?: false,
+                isLeader = detail?.isLeader ?: false,
+                pendingHomework = detail?.pendingHomework,
+                pendingDiscuss = detail?.pendingDiscuss,
+                pendingVote = detail?.pendingVote,
+            )
+        }
+        return Result.success(groups)
+    }
+
+    /**
+     * 一个小组的讨论列表。microGroupId 就是 getStudentGroupInfo 里 microGroupInfo 的 gId，
+     * 没有它这条请求发不出去，直接当失败报给界面，不瞎猜别的键。
+     */
+    suspend fun getGroupDiscusses(microGroupId: String): Result<List<AiGroupDiscuss>> {
+        return try {
+            val auth = ensureSession()
+            val studentId = fifSession.getMemberUserId().orEmpty()
+            if (microGroupId.isBlank() || studentId.isBlank()) {
+                return Result.failure(Exception("小组标识不完整，打不开讨论"))
+            }
+
+            val response = withNetworkTimeout("获取小组讨论", AICLASS_PRIMARY_REQUEST_TIMEOUT_MS) {
+                api.getStudentSelfGroupDiscuss(microGroupId, studentId, auth)
+            }.getOrElse { error -> return Result.failure(error) }
+
+            // 抓到的那次是 data.studentDis = []，条目字段名一个都没见过，全靠候选键
+            val items = response.data.findJsonArray("studentDis", "discussList", "dataList", "list")
+            val discusses = items.mapIndexed { index, item ->
+                AiGroupDiscuss(
+                    id = item.stringValue("id", "discussId", "refDiscussId").ifBlank { "discuss_$index" },
+                    title = item.stringValue("title", "discussTitle", "topic", "name", "content"),
+                    meta = listOf(
+                        item.stringValue("createTime", "publishTime", "startTime", "updateTime"),
+                        item.stringValue("replyCount", "discussCount", "answerCount", "reNum", "num"),
+                    ).filter { it.isNotBlank() }.joinToString(" · "),
+                )
+            }
+            Result.success(discusses)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(Exception(mapError("获取小组讨论", e), e))
+        }
+    }
+
+    private data class StudentGroupDetail(
+        val microGroupId: String,
+        val groupName: String,
+        val memberCount: Int,
+        val roleKnown: Boolean,
+        val isLeader: Boolean,
+        val pendingHomework: Int?,
+        val pendingDiscuss: Int?,
+        val pendingVote: Int?,
+    )
+
+    /** 补一个小组活动的详情：任何一环拿不到就只缺哪块显示哪块未知，不往外抛 */
+    private suspend fun loadStudentGroupDetail(
+        auth: String,
+        activity: JsonObject,
+        teachClassId: String,
+        courseId: String,
+        schoolId: String,
+        studentId: String,
+        userName: String,
+    ): StudentGroupDetail? {
+        val groupId = activity.stringValue("id", "groupId")
+        if (groupId.isBlank()) return null
+
+        val data = withNetworkTimeout("获取小组详情", AICLASS_SUPPLEMENT_REQUEST_TIMEOUT_MS) {
+            api.getStudentGroupInfo(
+                teachClassId = teachClassId,
+                studentId = studentId,
+                groupId = groupId,
+                auth = auth,
+            )
+        }.getOrElse { error ->
+            Log.w(REPOSITORY_LOG_TAG, "loadStudentGroupDetail: getStudentGroupInfo failed")
+            return null
+        }.data
+
+        val micro = data.childObject("microGroupInfo")
+        val members = data.childArray("groupList")
+        val microGroupId = micro?.stringValue("gId", "groupId", "id").orEmpty()
+
+        // 待办数这发纯粹是锦上添花，缺了不显示，也不影响这一行
+        val todo = withNetworkTimeout("获取小组待办", AICLASS_TIMETABLE_REQUEST_TIMEOUT_MS) {
+            api.getGroupTodoCount(
+                microGroupId = microGroupId,
+                schoolId = schoolId,
+                teachClassId = teachClassId,
+                studentId = studentId,
+                courseId = courseId,
+                groupId = groupId,
+                auth = auth,
+            )
+        }.getOrNull()?.data
+
+        // 我是成员表里的哪一条：成员对象上抓到的键只有 id / stuNum 有可能对上我的身份，
+        // 拿手上的 32 位成员 id 和登录名去比；比不中就承认角色未知，不猜。
+        val mine = members?.firstOrNull { member ->
+            val keys = listOf(
+                member.stringValue("id", "studentId", "userId"),
+                member.stringValue("stuNum", "userName"),
+            )
+            keys.any { it.isNotBlank() && (it == studentId || it == userName) }
+        }
+
+        return StudentGroupDetail(
+            microGroupId = microGroupId,
+            // 组名先取我自己那个组的，microGroupInfo 里没有再退回活动名
+            groupName = micro?.stringValue("xName", "gName", "name", "groupName").orEmpty(),
+            // 成员数只认成员数组的长度；microGroupInfo 里那几个 xCount/xNum 没验过含义，不拿来充数
+            memberCount = members?.size ?: 0,
+            roleKnown = mine != null,
+            isLeader = mine.truthy("isLeader", "leader", "isGroupLeader"),
+            pendingHomework = todo.intOf("homeWorkNoCommit"),
+            pendingDiscuss = todo.intOf("discsussNoCommit", "discussNoCommit"),
+            pendingVote = todo.intOf("voteNoCommit"),
+        )
     }
 
     suspend fun getQuizList(courseId: String): Result<List<AiQuiz>> {
@@ -744,6 +926,63 @@ class AiClassRepository @Inject constructor(
         Log.i(REPOSITORY_LOG_TAG, "Timetable supplement: ${courses.size} courses loaded, schoolId=$schoolId, memberId=$memberId")
         return courses
     }
+}
+
+/** 取子对象，键不存在或不是对象都回 null，不抛 */
+private fun JsonObject?.childObject(key: String): JsonObject? {
+    val child = this?.get(key) ?: return null
+    return if (child.isJsonObject) child.asJsonObject else null
+}
+
+/** 取子数组里的对象元素，键不存在或不是数组回 null（null 和空数组在调用处都按「没拿到」处理） */
+private fun JsonObject?.childArray(key: String): List<JsonObject>? {
+    val child = this?.get(key) ?: return null
+    return if (child.isJsonArray) child.asJsonArray.jsonObjects() else null
+}
+
+private fun JsonArray.jsonObjects(): List<JsonObject> =
+    mapNotNull { if (it.isJsonObject) it.asJsonObject else null }
+
+/** 数字标志位：抓包只记到键名没记到类型，1 / "1" / true 都算真，取不出来算假 */
+private fun JsonObject?.truthy(vararg keys: String): Boolean {
+    val value = this?.let { owner ->
+        keys.firstNotNullOfOrNull { key -> owner.get(key)?.takeIf { !it.isJsonNull } }
+    } ?: return false
+    if (!value.isJsonPrimitive) return false
+    val primitive = value.asJsonPrimitive
+    return when {
+        primitive.isBoolean -> primitive.asBoolean
+        primitive.isNumber -> runCatching { primitive.asDouble != 0.0 }.getOrDefault(false)
+        else -> primitive.asString.trim().lowercase() in setOf("1", "true", "y", "yes")
+    }
+}
+
+private fun JsonObject?.intOf(vararg keys: String): Int? {
+    val owner = this ?: return null
+    return keys.firstNotNullOfOrNull { key ->
+        owner.get(key)?.takeIf { !it.isJsonNull && it.isJsonPrimitive }
+            ?.let { runCatching { it.asInt }.getOrNull() }
+    }
+}
+
+/** 列表可能直接是数组，也可能裹在 studentDis 这类键底下，深度限三层内按候选键找 */
+private fun JsonElement?.findJsonArray(vararg keys: String, depth: Int = 0): List<JsonObject> {
+    val node = this ?: return emptyList()
+    if (node.isJsonNull) return emptyList()
+    if (node.isJsonArray) return node.asJsonArray.jsonObjects()
+    if (!node.isJsonObject) return emptyList()
+
+    val obj = node.asJsonObject
+    for (key in keys) {
+        val child = obj.get(key) ?: continue
+        if (child.isJsonArray) return child.asJsonArray.jsonObjects()
+    }
+    if (depth >= 2) return emptyList()
+    for ((_, child) in obj.entrySet()) {
+        val found = child.findJsonArray(*keys, depth = depth + 1)
+        if (found.isNotEmpty()) return found
+    }
+    return emptyList()
 }
 
 private fun String.previewForLog(maxLen: Int = 16): String {

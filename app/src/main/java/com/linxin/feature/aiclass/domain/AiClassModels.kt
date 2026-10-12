@@ -69,3 +69,28 @@ data class AiCourseware(
     val url: String,
     val createdAt: String,
 )
+
+/**
+ * 课程详情页「小组」的一行：一个小组教学活动下我自己那个组。
+ * name / activityName / memberCount 这些能拿到多少取决于接口回多少，
+ * 拿不到的一律留空或 0，由界面显式区分「未知」和「没有」。
+ */
+data class AiStudentGroup(
+    val id: String,
+    val microGroupId: String,
+    val name: String,
+    val activityName: String,
+    val memberCount: Int,
+    val roleKnown: Boolean,
+    val isLeader: Boolean,
+    val pendingHomework: Int?,
+    val pendingDiscuss: Int?,
+    val pendingVote: Int?,
+)
+
+/** 小组里的一条讨论 */
+data class AiGroupDiscuss(
+    val id: String,
+    val title: String,
+    val meta: String,
+)

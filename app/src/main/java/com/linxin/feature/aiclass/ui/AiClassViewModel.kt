@@ -12,6 +12,8 @@ import com.linxin.feature.aiclass.domain.AiCourse
 import com.linxin.feature.aiclass.domain.AiMicroLesson
 import com.linxin.feature.aiclass.domain.AiCourseware
 import com.linxin.feature.aiclass.domain.AiQuiz
+import com.linxin.feature.aiclass.domain.AiGroupDiscuss
+import com.linxin.feature.aiclass.domain.AiStudentGroup
 import com.linxin.feature.aiclass.domain.AiClassQrPayload
 import com.linxin.feature.aiclass.domain.AiWorkingRecord
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -55,6 +57,14 @@ data class AiClassUiState(
     val coursewareError: String? = null,
     val microLessons: List<AiMicroLesson> = emptyList(),
     val microError: String? = null,
+    val studentGroups: List<AiStudentGroup> = emptyList(),
+    val isGroupLoading: Boolean = false,
+    val groupError: String? = null,
+    /** 展开看讨论的那个小组的 id；null 表示没展开 */
+    val selectedGroupId: String? = null,
+    val groupDiscusses: List<AiGroupDiscuss> = emptyList(),
+    val isGroupDiscussLoading: Boolean = false,
+    val groupDiscussError: String? = null,
 )
 
 @HiltViewModel
@@ -256,6 +266,13 @@ class AiClassViewModel @Inject constructor(
                 isCoursewareLoading = true,
                 coursewareError = null,
                 coursewareList = emptyList(),
+                studentGroups = emptyList(),
+                isGroupLoading = true,
+                groupError = null,
+                selectedGroupId = null,
+                groupDiscusses = emptyList(),
+                isGroupDiscussLoading = false,
+                groupDiscussError = null,
                 isHomeworkLoading = true,
                 quizError = null,
                 homeworkError = null,
@@ -304,6 +321,21 @@ class AiClassViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            val groupResult = withResultTimeout(AppText.str(R.string.aivm_act_group), COURSEWARE_LOAD_TIMEOUT_MS) {
+                repository.getStudentGroups(course.courseId, course.teachClassId)
+            }
+            _uiState.update { current ->
+                if (current.selectedCourse?.stableId != classId) return@update current
+                current.copy(
+                    studentGroups = groupResult.getOrDefault(emptyList()),
+                    isGroupLoading = false,
+                    // 小组这条要区分「这门课没有小组」和「请求没成」，所以失败时把原因留着给界面
+                    groupError = groupResult.exceptionOrNull()?.message,
+                )
+            }
+        }
+
+        viewModelScope.launch {
             val hwResult = withResultTimeout(AppText.str(R.string.aivm_act_hw), AICLASS_DETAIL_LOAD_TIMEOUT_MS) {
                 repository.getHomeworkList(course.courseId, course.teachClassId)
             }
@@ -320,6 +352,68 @@ class AiClassViewModel @Inject constructor(
 
     fun retryQuiz() {
         _uiState.value.selectedCourse?.stableId?.let(::openCourseDetail)
+    }
+
+    fun retryGroup() {
+        _uiState.value.selectedCourse?.stableId?.let(::openCourseDetail)
+    }
+
+    /** 点开一个小组看它的讨论列表，再点同一个组就收起 */
+    fun toggleGroupDiscusses(group: AiStudentGroup) {
+        val groupId = group.id
+        if (_uiState.value.selectedGroupId == groupId) {
+            closeGroupDiscusses()
+            return
+        }
+        if (group.microGroupId.isBlank()) {
+            // 讨论那发只认 microGroupId，没拿到就直说，不拿别的键去凑
+            _uiState.update {
+                it.copy(
+                    selectedGroupId = groupId,
+                    groupDiscusses = emptyList(),
+                    isGroupDiscussLoading = false,
+                    groupDiscussError = AppText.str(R.string.ai_group_no_micro_id),
+                )
+            }
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                selectedGroupId = groupId,
+                groupDiscusses = emptyList(),
+                isGroupDiscussLoading = true,
+                groupDiscussError = null,
+            )
+        }
+
+        viewModelScope.launch {
+            val discussResult = withResultTimeout(
+                AppText.str(R.string.aivm_act_group_discuss),
+                AICLASS_DETAIL_LOAD_TIMEOUT_MS,
+            ) {
+                repository.getGroupDiscusses(group.microGroupId)
+            }
+            _uiState.update { current ->
+                if (current.selectedGroupId != groupId) return@update current
+                current.copy(
+                    groupDiscusses = discussResult.getOrDefault(emptyList()),
+                    isGroupDiscussLoading = false,
+                    groupDiscussError = discussResult.exceptionOrNull()?.message,
+                )
+            }
+        }
+    }
+
+    fun closeGroupDiscusses() {
+        _uiState.update {
+            it.copy(
+                selectedGroupId = null,
+                groupDiscusses = emptyList(),
+                isGroupDiscussLoading = false,
+                groupDiscussError = null,
+            )
+        }
     }
 
     /** 从"正在上课"卡片进入测验详情 */
