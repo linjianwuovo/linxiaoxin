@@ -152,6 +152,7 @@ object LuckinAuth {
                     distanceKm = runCatching { o.get("distance").asDouble }.getOrNull(),
                     number = o.str("number"),
                     workStatus = if (closed == 1) "已打烊" else "营业中",
+                    cityId = runCatching { o.get("cityId").asInt }.getOrDefault(0),
                 )
             }
         }

@@ -42,8 +42,8 @@ object LuckinOrderApi {
      * 2026-10-12 实测定死的两点：商品列表的字段名是 `productList`（`comboList` 不认），
      * 而且**不能带 `delivery`**——带任何值都回「delivery值不正确」，整条不传才过。
      */
-    suspend fun preview(d: Draft, lines: List<Map<String, Any?>>): JsonObject =
-        LuckinAuth.postApi(PREVIEW, base(d).plus(mapOf(
+    suspend fun preview(d0: Draft, lines: List<Map<String, Any?>>): JsonObject =
+        LuckinAuth.postApi(PREVIEW, base(withCity(d0)).plus(mapOf(
             "productList" to lines,
             "couponCodeList" to emptyList<String>(),
             "activityPlanKeysList" to emptyList<String>(),
@@ -59,8 +59,9 @@ object LuckinOrderApi {
      * 实测这一层对 `eatway` 的取值另有要求（传 1 回「eatway值不正确」），还没定死，
      * 所以下面把 eatway 单独留成参数，不跟着 Draft 走。
      */
-    suspend fun preCreate(d: Draft, lines: List<Map<String, Any?>>, eatway: String = ""): JsonObject =
-        LuckinAuth.postApi(PRE_CREATE, mapOf(
+    suspend fun preCreate(d0: Draft, lines: List<Map<String, Any?>>, eatway: String = ""): JsonObject {
+        val d = withCity(d0)
+        val j = LuckinAuth.postApi(PRE_CREATE, mapOf(
             "deptId" to d.deptId,
             "cityId" to d.cityId,
             "longitude" to d.longitude,
@@ -69,6 +70,14 @@ object LuckinOrderApi {
             "eatway" to eatway,
             "productList" to lines,
         ))
+        // 不把失败的 content 往下传：预下单没成就直接报它自己的话，
+        // 否则建单会拿到 {"location":"deptId"} 这种错误体，回一句误导人的「deptId不能为空」
+        if ((j.get("status")?.takeIf { !it.isJsonNull }?.asString ?: "") != "SUCCESS") {
+            throw LuckinAuth.ApiError(
+                "预下单没过：" + (j.get("msg")?.takeIf { !it.isJsonNull }?.asString ?: "瑞幸没回话"))
+        }
+        return j
+    }
 
     /** 正式下单：把 preCreate 回来的对象原样发回去，嵌套对象按 JSON 字符串递 */
     suspend fun create(payload: JsonObject): JsonObject {
@@ -157,6 +166,14 @@ object LuckinOrderApi {
 
     suspend fun cancel(orderId: String): JsonObject =
         LuckinAuth.postApi(CANCEL, mapOf("orderId" to orderId))
+
+    /** 界面没带城市号时，按门店号在 capi 的门店列表里查一次，别拿 0 去要价 */
+    suspend fun withCity(d: Draft): Draft =
+        if (d.cityId != 0) d else runCatching {
+            LuckinAuth.shops(d.longitude, d.latitude, pageSize = 50)
+                .firstOrNull { it.deptId == d.deptId }
+                ?.let { d.copy(cityId = it.cityId) } ?: d
+        }.getOrDefault(d)
 
     private fun base(d: Draft): Map<String, Any?> = mapOf(
         "deptId" to d.deptId,
