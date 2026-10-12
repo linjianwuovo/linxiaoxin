@@ -416,11 +416,9 @@ private fun renderOrderField(key: String, value: JsonElement): String? {
  * 那种情况给它一句人话，别默默什么都不发生。
  */
 private fun launchPay(context: android.content.Context, data: com.google.gson.JsonObject): String? {
-    // 米11 实测：https 收银台会被浏览器接走，屏上只剩一张二维码，本机扫不了。
-    // 微信登录后 weixin:// 应该能直接拉起飞去支付，所以它排第一，浏览器那张退成备选。
     val candidates = listOfNotNull(
-        data.strOf("payOrderUrl"), data.strOf("payUrl"),
-        data.strOf("payOrderQrCodeUrl"), data.strOf("qrCodeUrl"),
+        data.strOf("payOrderQrCodeUrl"), data.strOf("payUrl"), data.strOf("qrCodeUrl"),
+        data.strOf("payOrderUrl"),
     )
     // Android 11+ 的包可见性会让 resolveActivity 对 weixin:// 一律返回 null，
     // 但 startActivity 本身照样能发出去。所以不探，直接试，失败再退下一个候选。
