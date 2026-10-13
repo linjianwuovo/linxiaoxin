@@ -54,6 +54,11 @@ private const val WEBVIEW_REQUESTED_WITH = "com.linxin"
 // 「获取作业列表超时」都是这一句抛的，外面 ViewModel 给到 25 秒也轮不到用。
 // 提到 20 秒，仍然小于 ViewModel 的 25 秒，保证失败时说的是人话而不是 OkHttp 的栈。
 private const val AICLASS_PRIMARY_REQUEST_TIMEOUT_MS = 20_000L
+// 测验/作业这两发是间歇性挂死（2026-10-13 真机日志：一发 20 秒零字节，下一发 84 毫秒就回），
+// 所以它们走「两次各 10 秒」而不是「一次 20 秒」：正常一样快，挂的时候不把整页拖住
+private const val AICLASS_RETRY_REQUEST_TIMEOUT_MS = 10_000L
+// 课件、直录播这两发正常就要十几秒，单次 10 秒会误杀，所以给它们两次各 12 秒
+private const val AICLASS_LONG_RETRY_REQUEST_TIMEOUT_MS = 12_000L
 private const val AICLASS_SUPPLEMENT_REQUEST_TIMEOUT_MS = 6_000L
 private const val AICLASS_TIMETABLE_REQUEST_TIMEOUT_MS = 5_000L
 // 课件逐页图和直录播列表一发就是十几到几十 KB，学校那边慢的时候 12 秒不够，单独放宽
@@ -289,7 +294,11 @@ class AiClassRepository @Inject constructor(
             val auth = ensureSession()
             val userId = fifSession.getMemberUserId().orEmpty()
             if (courseId.isBlank() || userId.isBlank()) return Result.failure(Exception("AI课堂身份不完整"))
-            val resp = api.getCoursewareList(courseId, teachClassId, "1", userId, auth)
+            // 这一发以前完全不包超时，全靠 ViewModel 那 25 秒兜着：学校一挂死，屏幕上就是「课件超时」。
+            // 改成两次各 12 秒，第一次挂了就重发，真回不来也还是 25 秒内给人话。
+            val resp = withNetworkRetry("获取课件列表", AICLASS_LONG_RETRY_REQUEST_TIMEOUT_MS) {
+                api.getCoursewareList(courseId, teachClassId, "1", userId, auth)
+            }.getOrElse { error -> return Result.failure(error) }
             val list = (resp.data ?: emptyList()).map { it ->
                 AiCourseware(
                     id = it.id ?: it.resourceId ?: it.resourceName.orEmpty(),
@@ -393,7 +402,7 @@ class AiClassRepository @Inject constructor(
             }.let { it?.id.orEmpty() }.also { cachedTermId = it }
         }
 
-        val response = withNetworkTimeout("获取直录播", AICLASS_COURSEWARE_REQUEST_TIMEOUT_MS) {
+        val response = withNetworkRetry("获取直录播", AICLASS_LONG_RETRY_REQUEST_TIMEOUT_MS) {
             api.getLiveAndRecordList(
                 termId = termId,
                 courseId = course.courseId,
@@ -496,7 +505,9 @@ class AiClassRepository @Inject constructor(
             val auth = ensureSession()
             val userName = fifSession.getUserName().orEmpty()
             if (courseId.isBlank() || userName.isBlank()) return Result.failure(Exception("AI课堂身份不完整"))
-            val resp = api.getWeikeList(courseId, userName, "1", "50", auth)
+            val resp = withNetworkRetry("获取微课列表", AICLASS_RETRY_REQUEST_TIMEOUT_MS) {
+                api.getWeikeList(courseId, userName, "1", "50", auth)
+            }.getOrElse { error -> return Result.failure(error) }
             val list = resp.data?.dataList.orEmpty().map { o ->
                 val name = listOf("weikeName", "name", "resourceName", "title", "courseName")
                     .firstNotNullOfOrNull { k -> o.get(k)?.takeIf { !it.isJsonNull }?.asString?.takeIf { it.isNotBlank() } }
@@ -536,7 +547,7 @@ class AiClassRepository @Inject constructor(
             return Result.failure(Exception("AI课堂身份不完整"))
         }
 
-        val response = withNetworkTimeout("获取小组列表", AICLASS_PRIMARY_REQUEST_TIMEOUT_MS) {
+        val response = withNetworkRetry("获取小组列表", AICLASS_RETRY_REQUEST_TIMEOUT_MS) {
             api.getGroupTeachingList(teachClassId, auth)
         }.getOrElse { error -> return Result.failure(error) }
 
@@ -599,6 +610,11 @@ class AiClassRepository @Inject constructor(
 
             // 抓到的那次是 data.studentDis = []，条目字段名一个都没见过，全靠候选键
             val items = response.data.findJsonArray("studentDis", "discussList", "dataList", "list")
+            // 只记形状不记值：分不清「真没讨论」和「候选键没蒙对」的时候，这一行就是唯一证据
+            Log.i(
+                REPOSITORY_LOG_TAG,
+                "groupDiscussList status=${response.status} items=${items.size} shape=${response.data.jsonShape()}",
+            )
             val discusses = items.mapIndexed { index, item ->
                 AiGroupDiscuss(
                     id = item.stringValue("id", "discussId", "refDiscussId").ifBlank { "discuss_$index" },
@@ -666,6 +682,11 @@ class AiClassRepository @Inject constructor(
         val topic = detailResult.getOrNull()?.data.asObjectOrNull()
         val replyItems = replyResult.getOrNull()?.data
             .findJsonArray("studentDis", "replyList", "discussList", "dataList", "list")
+        Log.i(
+            REPOSITORY_LOG_TAG,
+            "groupDiscussThread detail=${detailResult.getOrNull()?.data.jsonShape()} " +
+                "replies=${replyResult.getOrNull()?.data.jsonShape()} parsed=${replyItems.size}",
+        )
 
         val messages = replyItems.mapIndexed { index, item ->
             AiGroupMessage(
@@ -797,7 +818,7 @@ class AiClassRepository @Inject constructor(
             val publishPaperList = if (userId.isBlank()) {
                 emptyList()
             } else {
-                val publishResult = withNetworkTimeout("获取测验列表", AICLASS_PRIMARY_REQUEST_TIMEOUT_MS) {
+                val publishResult = withNetworkRetry("获取测验列表", AICLASS_RETRY_REQUEST_TIMEOUT_MS) {
                     api.getPublishPaperListOfStudent(
                         courseId = courseId,
                         studentId = studentId,
@@ -852,7 +873,7 @@ class AiClassRepository @Inject constructor(
         return try {
             val auth = ensureSession()
             val userName = fifSession.getUserName().orEmpty()
-            val resp = withNetworkTimeout("获取作业列表", AICLASS_PRIMARY_REQUEST_TIMEOUT_MS) {
+            val resp = withNetworkRetry("获取作业列表", AICLASS_RETRY_REQUEST_TIMEOUT_MS) {
                 api.listStudentHomework(
                     courseId = courseId,
                     teachClassId = teachClassId,
@@ -1158,8 +1179,31 @@ class AiClassRepository @Inject constructor(
         }
     }
 
-    private suspend fun <T> withNetworkTimeout(
+    /**
+     * 只读请求的「挂了就再发一次」。学校这几发是间歇性挂死：2026-10-13 真机日志里
+     * `getPublishPaperListOfStudent` 20 秒一个字节都没回，紧跟着补发的 `getPaperInCourseInfo`
+     * 84 毫秒就 200 了。所以把「一次等 20 秒」换成「两次各等 10 秒」——
+     * 正常情况一样快，挂的情况不至于把整页拖住，也不会把 25 秒的外层余量吃光。
+     * **只给读操作用**，写操作失败一律不自动重试。
+     */
+    private suspend fun <T> withNetworkRetry(
         action: String,
+        timeoutMs: Long,
+        attempts: Int = 2,
+        block: suspend () -> T,
+    ): Result<T> {
+        var last: Result<T> = Result.failure(Exception("${action}超时，请稍后重试"))
+        repeat(attempts) { attempt ->
+            last = withNetworkTimeout(action, timeoutMs, block)
+            if (last.isSuccess) return last
+            if (attempt + 1 < attempts) {
+                Log.w(REPOSITORY_LOG_TAG, "$action 第 ${attempt + 1} 次没回，再发一次")
+            }
+        }
+        return last
+    }
+
+    private suspend fun <T> withNetworkTimeout(        action: String,
         timeoutMs: Long,
         block: suspend () -> T,
     ): Result<T> {
@@ -1204,7 +1248,7 @@ class AiClassRepository @Inject constructor(
             return emptyList()
         }
 
-        val response = withNetworkTimeout("获取AI课堂课表", AICLASS_TIMETABLE_REQUEST_TIMEOUT_MS) {
+        val response = withNetworkRetry("获取AI课堂课表", AICLASS_TIMETABLE_REQUEST_TIMEOUT_MS) {
             api.getTimetableInfo(
                 schoolId = schoolId,
                 memberId = memberId,
@@ -1289,8 +1333,42 @@ private fun JsonElement?.findJsonArray(vararg keys: String, depth: Int = 0): Lis
     return emptyList()
 }
 
-private fun String.previewForLog(maxLen: Int = 16): String {
-    if (isBlank()) return "<blank>"
+/**
+ * 只报形状不报值：数组多长、对象有哪些键、原始值是数字还是字符串、字符串多长。
+ * 分不清「真的没有数据」和「候选键没蒙对」的时候，这一行是唯一证据。
+ * 长度截到 1200 字，logd 会把超长单条整条丢掉。
+ */
+private fun JsonElement?.jsonShape(depth: Int = 0): String {
+    val node = this ?: return "missing"
+    val shape = when {
+        node.isJsonNull -> "null"
+        node.isJsonArray -> {
+            val arr = node.asJsonArray
+            "array(n=${arr.size()})[" + arr.take(2).joinToString(",") { it.jsonShape(depth + 1) } + "]"
+        }
+        node.isJsonObject -> {
+            val obj = node.asJsonObject
+            if (depth >= 2) {
+                "object{${obj.keySet().joinToString(",")}}"
+            } else {
+                "object{" + obj.entrySet().joinToString(",") { (key, value) ->
+                    "$key=${value.jsonShape(depth + 1)}"
+                } + "}"
+            }
+        }
+        else -> {
+            val primitive = node.asJsonPrimitive
+            when {
+                primitive.isBoolean -> "bool"
+                primitive.isNumber -> "num"
+                else -> "str(${primitive.asString.length})"
+            }
+        }
+    }
+    return if (depth == 0) shape.take(1200) else shape
+}
+
+private fun String.previewForLog(maxLen: Int = 16): String {    if (isBlank()) return "<blank>"
     return if (length <= maxLen) this else take(maxLen) + "..."
 }
 
