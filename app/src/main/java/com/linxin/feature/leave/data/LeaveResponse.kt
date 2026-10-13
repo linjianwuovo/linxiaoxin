@@ -46,6 +46,33 @@ data class LeaveItem(
     val status: String,
     val time: String,
     val withdrawable: Boolean = false,
+    /** 详情页那一发 getForm.do 要这个节点号，列表行里本来就带着，别丢 */
+    val ruTaskNodeId: String = "",
+    /** 学校 H5 从「我的申请」进详情传 type=3、从「待办」进传 type=1，我们照抄 */
+    val formType: String = DETAIL_TYPE_APPLY,
+) {
+    companion object {
+        const val DETAIL_TYPE_APPLY = "3"
+        const val DETAIL_TYPE_TODO = "1"
+    }
+}
+
+/**
+ * `process/getForm.do` 的外层。`data` 里是 `formJson`（表单结构，JSON 字符串套 JSON）
+ * 和 `dataJson`（填过的值，同样套一层字符串），服务端不想要这条时会给 `{}` 或 null，
+ * 所以这里收 JsonElement 现场解，不声明成具体类 —— 声明死了 Gson 会先抛英文那句。
+ */
+data class LeaveFormResponse(
+    val flag: Boolean?,
+    val result: String?,
+    val data: com.google.gson.JsonElement?,
+)
+
+/** `flowRuTask/getApprovedInfoByExeId.do`：审批进度，一条一步，字段名是从它 H5 模板里读出来的 */
+data class LeaveFlowResponse(
+    val flag: Boolean?,
+    val result: String?,
+    val rows: List<com.google.gson.JsonObject>?,
 )
 
 /** getFlowSheet.do 的外层。flowSheet 是一段 JSON 字符串，用 org.json 现场解，不建死 DTO */

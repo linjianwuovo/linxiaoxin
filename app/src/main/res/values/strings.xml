@@ -572,6 +572,15 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="leave_submitted">申请已提交</string>
     <string name="leave_withdraw">撤回</string>
     <string name="leave_withdraw_confirm">确定要撤回这条申请吗？</string>
+    <string name="leave_detail_title">请假详情</string>
+    <string name="leave_detail_failed">这条请假的详情没取到</string>
+    <string name="leave_detail_fields">申请内容</string>
+    <string name="leave_detail_fields_empty">这条申请没有可读的填写内容</string>
+    <string name="leave_detail_fields_unavailable">申请内容没取到，返回去再点一次试试</string>
+    <string name="leave_detail_flow">审批进度</string>
+    <string name="leave_detail_flow_empty">还没有审批记录</string>
+    <string name="leave_detail_flow_unavailable">审批进度没取到，返回去再点一次试试</string>
+    <string name="leave_step_no_info">这一步学校没给信息</string>
     <string name="leave_start">开始时间 yyyy-MM-dd HH:mm</string>
     <string name="leave_end">结束时间 yyyy-MM-dd HH:mm</string>
     <string name="card_actions">卡操作</string>
