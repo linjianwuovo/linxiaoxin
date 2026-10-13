@@ -344,7 +344,11 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ui_011">正在上课</string>
     <string name="ui_012">数字码签到</string>
     <string name="ui_013">输入6位签到码</string>
-    <string name="ui_014">当前没有正在进行的课堂</string>
+    <string name="ui_014">没检测到正在进行的课堂也可以直接输码提交，服务器按这 6 位码认</string>
+    <string name="sign_in_progress">签到中…</string>
+    <string name="sign_submit">签到</string>
+    <string name="sign_code_too_short">签到码要 6 位，先输满再提交</string>
+    <string name="sign_ok">签到成功</string>
     <string name="ui_015">查看课程详情</string>
     <string name="ui_016">将二维码对准框内</string>
     <string name="ui_017">二维码放入框内自动识别</string>

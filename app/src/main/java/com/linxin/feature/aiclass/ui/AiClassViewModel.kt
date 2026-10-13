@@ -180,30 +180,29 @@ class AiClassViewModel @Inject constructor(
     }
 
     fun submitSignCode(signCode: String) {
-        val working = _uiState.value.workingRecord ?: return
+        if (signCode.length != 6) {
+            _uiState.update {
+                it.copy(signSucceeded = false, signResult = AppText.str(R.string.sign_code_too_short))
+            }
+            return
+        }
         viewModelScope.launch {
             _uiState.update { it.copy(isSigningIn = true, signResult = null) }
 
-            // 先查签到信息获取 signId
-            val signInfoResult = repository.getSignInInfo(
-                teachClassId = working.teachClassId,
-                courseRecordId = working.courseRecordId,
-            )
-            val signInfo = signInfoResult.getOrNull()
-
-            if (signInfo == null || !signInfo.hasActiveSign) {
-                _uiState.update {
-                    it.copy(
-                        isSigningIn = false,
-                        signSucceeded = false,
-                        signResult = signInfoResult.exceptionOrNull()?.message ?: AppText.str(R.string.aivm_no_signin),
-                    )
-                }
-                return@launch
+            // signId 只是加分项：官方那个输入框传的是 `this.signId || $route.query.signId`，
+            // 两个都没有就是空串，服务器照样按那 6 位码认人。
+            // 之前这里没查到"正在上课"就直接 return，用户按了签到屏幕上一点反应都没有。
+            val working = _uiState.value.workingRecord
+            var signId = ""
+            if (working != null) {
+                val info = repository.getSignInInfo(
+                    teachClassId = working.teachClassId,
+                    courseRecordId = working.courseRecordId,
+                ).getOrNull()
+                if (info != null && info.hasActiveSign) signId = info.signId
             }
 
-            // 提交数字码
-            val result = repository.submitSignCode(signInfo.signId, signCode)
+            val result = repository.submitSignCode(signId, signCode)
             _uiState.update {
                 it.copy(
                     isSigningIn = false,
