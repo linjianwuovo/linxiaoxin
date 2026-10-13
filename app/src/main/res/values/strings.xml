@@ -645,8 +645,18 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ai_group_expand">看讨论</string>
     <string name="ai_group_collapse">收起讨论</string>
     <string name="ai_group_no_micro_id">没拿到这个小组的标识，打不开讨论</string>
+    <string name="ai_group_open_thread">看聊天</string>
+    <string name="ai_group_thread_title">组内讨论</string>
+    <string name="ai_group_thread_failed">这条讨论没打开</string>
+    <string name="ai_group_no_topic_text">（接口没有回话题正文）</string>
+    <string name="ai_group_no_reply">还没有人回复</string>
+    <string name="ai_group_no_author">组内成员</string>
+    <string name="ai_group_no_content">（这条没有文字内容）</string>
+    <string name="ai_group_no_discuss_id">列表没给这条讨论的编号，打不开聊天</string>
+    <string name="ai_group_reply_failed">回复没拉到，返回去重进一次试试</string>
     <string name="aivm_act_group">小组</string>
     <string name="aivm_act_group_discuss">小组讨论</string>
+    <string name="aivm_act_group_thread">组内讨论</string>
 
     <!-- 直录播 -->
     <string name="ai_live_title">直录播</string>

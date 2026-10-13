@@ -185,6 +185,35 @@ interface AiClassApi {
         @Header("Visit-Type") visitType: String = "mobile",
     ): AiClassGroupDiscussResponse
 
+    /**
+     * 一条组内讨论的正文（话题本体）。参数是 2026-10-13 从安小信 H5 源码里读出来的那一发：
+     * discussId + groupId(活动 id) + microGroupId(我自己那个组的 gId)，GET 拼 query。
+     * 源码里判成功的条件是 status=="1"（跟别处的 "success" 不一样），所以信封照旧原样收着，
+     * data 里的键名一个都没实测过，一律按候选键试。
+     */
+    @GET("studycenter/mobile/groupTeaching/studentGroupTeachingDiscussDetail")
+    suspend fun getGroupDiscussDetail(
+        @Query("discussId") discussId: String,
+        @Query("groupId") groupId: String,
+        @Query("microGroupId") microGroupId: String,
+        @Header("authorization") auth: String,
+        @Header("Visit-Type") visitType: String = "mobile",
+    ): AiClassGroupDiscussResponse
+
+    /**
+     * 一条组内讨论下面的回复，就是「小组聊天」那串消息。参数同样是 H5 源码里的那一发：
+     * microGroupId + discussId + studentId(32 位成员 id)。
+     * 源码读的是 data.studentDis（数组），每条按 studentId 跟我自己比来分「我发的/别人发的」。
+     */
+    @GET("studycenter/mobile/groupTeaching/findStudentGroupDiscuss")
+    suspend fun getGroupDiscussReplies(
+        @Query("microGroupId") microGroupId: String,
+        @Query("discussId") discussId: String,
+        @Query("studentId") studentId: String,
+        @Header("authorization") auth: String,
+        @Header("Visit-Type") visitType: String = "mobile",
+    ): AiClassGroupDiscussResponse
+
     /** 课程作业列表 */
     /** AI 课堂消息中心未读数：安小信进 AI 课堂时会打这一发，我们之前没有 */
     @FormUrlEncoded
