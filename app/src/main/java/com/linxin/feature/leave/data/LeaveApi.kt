@@ -37,12 +37,17 @@ interface LeaveApi {
         @Field("xh") xh: String,
     ): LeaveListResponse
 
+    /**
+     * 「待我处理」。`approvedType` 其实是它 H5 那个页面的 tab 号：待处理=1、待阅=2
+     * （`activeName` 初值 "1"，`onLoad` 直接 `approvedType: this.activeName`，2026-10-13 读
+     * chunk-cb78b4cc 对上的）。我们以前发的是 2，等于一直在显示抄送件而不是真要办的，已改回 1。
+     */
     @FormUrlEncoded
     @POST("mobile/flowRuTask/getRunTaskByUserCode.do")
     suspend fun todoTasks(
         @Field("currentPageNo") currentPageNo: Int,
         @Field("pageSize") pageSize: Int,
-        @Field("approvedType") approvedType: String = "2",
+        @Field("approvedType") approvedType: String = "1",
         @Field("accessToken") accessToken: String,
         @Field("_userCode") userCodeUnderscore: String,
         @Field("_userType") userType: String,
