@@ -192,6 +192,85 @@ class LeaveRepository @Inject constructor(
     }
 
     /**
+     * 四个写操作（同意 / 驳回 / 批量已阅 / 删除）共用这一条规矩：
+     * 只认外层 `flag`，失败就把服务端给的原因原样（过一道人话化）报回去，
+     * **一律不自动重试** —— 这类请求重发一次可能就是多审一次、多点掉一次。
+     * 界面每个动作都得先弹确认，才走到这里。
+     */
+    private suspend fun write(
+        fallback: String,
+        block: suspend (Quint) -> LeaveListResponse,
+    ): Result<Unit> {
+        return try {
+            val me = identity()
+            val resp = block(me)
+            if (resp.flag != true) {
+                Result.failure(Exception(failureReason(resp.result, fallback = "$fallback，服务端没给原因")))
+            } else {
+                Result.success(Unit)
+            }
+        } catch (e: Exception) {
+            Result.failure(netFail(e, fallback))
+        }
+    }
+
+    /** 同意这条待办。dataJson 用详情页拿到的原文回显，remark 可以留空 */
+    suspend fun approve(
+        executionId: String,
+        ruTaskNodeId: String,
+        dataJson: String,
+        remark: String,
+    ): Result<Unit> = write("同意没成功") { me ->
+        api.agree(
+            dataJson,
+            executionId,
+            ruTaskNodeId,
+            remark,
+            System.currentTimeMillis(),
+            me.accessToken,
+            me.userCode,
+            me.userType,
+            me.userCode,
+            me.userCode,
+        )
+    }
+
+    /** 驳回这条待办 */
+    suspend fun reject(
+        executionId: String,
+        ruTaskNodeId: String,
+        dataJson: String,
+        remark: String,
+    ): Result<Unit> = write("驳回没成功") { me ->
+        api.disagree(
+            dataJson,
+            executionId,
+            ruTaskNodeId,
+            remark,
+            System.currentTimeMillis(),
+            me.accessToken,
+            me.userCode,
+            me.userType,
+            me.userCode,
+            me.userCode,
+        )
+    }
+
+    /** 删掉一条自己发起的流程 */
+    suspend fun deleteExecution(executionId: String): Result<Unit> = write("删除没成功") { me ->
+        api.deleteExecution(executionId, me.accessToken, me.userCode, me.userType, me.userCode, me.userCode)
+    }
+
+    /** 把选中的待阅一次标成已阅 */
+    suspend fun markRead(ids: List<String>): Result<Unit> {
+        val joined = ids.filter { it.isNotBlank() }.joinToString(",")
+        if (joined.isBlank()) return Result.failure(Exception("没有可标记的待阅"))
+        return write("批量已阅没成功") { me ->
+            api.mobileReadBulk(joined, "2", me.accessToken, me.userCode, me.userType, me.userCode, me.userCode)
+        }
+    }
+
+    /**
      * 表单默认值（标题/申请人/班级/学号/手机号/流水号）。
      * H5 是先拿 flowSheet、再打这个接口做只读预填，所以界面里这些字段不让手打。
      * 服务端偶尔给数字（比如流水号），Gson 到 `Map<String, Any?>` 会变成 `Double`，
@@ -316,6 +395,7 @@ class LeaveRepository @Inject constructor(
                     // 结构那一发挂了不代表没填东西，界面据此说"没读到"而不是"没填"
                     fieldsUnavailable = formResult.flag != true,
                     stepsUnavailable = flowResult.flag != true,
+                    rawFormValues = if (data != null) data.optStringOrEmpty("dataJson") else "",
                 )
             )
         } catch (e: Exception) {
@@ -333,6 +413,11 @@ data class LeaveDetail(
     val steps: List<LeaveFlowStep>,
     val fieldsUnavailable: Boolean,
     val stepsUnavailable: Boolean,
+    /**
+     * `getForm.do` 回的那个 dataJson 原文。同意/驳回要把它原样带回去，
+     * 所以我们留着，不自己按界面上的字段重拼一份（重拼就可能把申请人填的东西改掉）。
+     */
+    val rawFormValues: String = "",
 )
 
 data class LeaveField(val label: String, val value: String)
@@ -387,8 +472,7 @@ private fun leaveWalkFormTree(node: JsonObject, out: LinkedHashMap<String, Leave
     val model = node.optStringOrEmpty("model")
     if (model.isNotBlank() && !out.containsKey(model)) {
         val options = LinkedHashMap<String, String>()
-        node.get("properties").asObjectOrNull()
-            ?.get("options").asArrayOrNull()
+        node.get("properties").asObjectOrNull()?.get("options").asArrayOrNull()
             ?.forEach { option ->
                 val obj = option.takeIf { it.isJsonObject }?.asJsonObject ?: return@forEach
                 val value = obj.optStringOrEmpty("value")

@@ -164,6 +164,67 @@ interface LeaveApi {
     ): LeaveCountResponse
 
     /**
+     * 同意。body 五个字段照它 H5 原样：`dataJson`（表单值，我们把 `getForm.do` 拿到的原文回显回去，
+     * 不自己拼 —— 拼错一个键就可能把申请人填的东西改掉）、`executionId`、`ruTaskNodeId`、
+     * `remark`（审批意见，可空）、`_t`（毫秒时间戳）。成功只认外层 `flag`。
+     */
+    @FormUrlEncoded
+    @POST("mobile/process/agree.do")
+    suspend fun agree(
+        @Field("dataJson") dataJson: String,
+        @Field("executionId") executionId: String,
+        @Field("ruTaskNodeId") ruTaskNodeId: String,
+        @Field("remark") remark: String,
+        @Field("_t") t: Long,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveListResponse
+
+    /** 驳回。跟同意同一个 body 形状，打到 disagree.do */
+    @FormUrlEncoded
+    @POST("mobile/process/disagree.do")
+    suspend fun disagree(
+        @Field("dataJson") dataJson: String,
+        @Field("executionId") executionId: String,
+        @Field("ruTaskNodeId") ruTaskNodeId: String,
+        @Field("remark") remark: String,
+        @Field("_t") t: Long,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveListResponse
+
+    /** 删除一条流程。H5 弹的是「一经删除，该流程自动移除，请谨慎操作。」 */
+    @FormUrlEncoded
+    @POST("mobile/flowRuTask/deleteExecution.do")
+    suspend fun deleteExecution(
+        @Field("executionId") executionId: String,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveListResponse
+
+    /** 批量已阅：ids 是 ruTaskNodeId 用逗号拼起来，approvedType 固定 "2"（待阅那一栏） */
+    @FormUrlEncoded
+    @POST("mobile/flowRuTask/mobileReadBulk.do")
+    suspend fun mobileReadBulk(
+        @Field("ids") ids: String,
+        @Field("approvedType") approvedType: String = "2",
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveListResponse
+
+    /**
      * 打开表单后 H5 紧接着调这个拿默认值（标题/申请人/班级/学号/手机号/流水号都是它给的，
      * 界面上这些字段是只读预填，不让人手打）。
      */
