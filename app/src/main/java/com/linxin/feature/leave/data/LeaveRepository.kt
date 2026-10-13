@@ -73,6 +73,66 @@ class LeaveRepository @Inject constructor(
         }
     }
 
+    /** 待阅单独一栏：同一个接口换 tab 号（2=待阅，1=待处理）。 */
+    suspend fun readTasks(page: Int = 1, pageSize: Int = 10): Result<LeavePage> {
+        val me = identity()
+        return runCatching {
+            val resp = api.todoTasks(
+                currentPageNo = page,
+                pageSize = pageSize,
+                approvedType = "2",
+                accessToken = me.accessToken,
+                userCodeUnderscore = me.userCode,
+                userType = me.userType,
+                userCode = me.userCode,
+                xh = me.userCode,
+            )
+            resp.toPage(page, pageSize, LeaveItem.DETAIL_TYPE_TODO)
+        }
+    }
+
+    /** 已办事项 */
+    suspend fun doneTasks(page: Int = 1, pageSize: Int = 10): Result<LeavePage> {
+        val me = identity()
+        return runCatching {
+            val resp = api.doneTasks(
+                currentPageNo = page,
+                pageSize = pageSize,
+                accessToken = me.accessToken,
+                userCodeUnderscore = me.userCode,
+                userType = me.userType,
+                userCode = me.userCode,
+                xh = me.userCode,
+            )
+            resp.toPage(page, pageSize, LeaveItem.DETAIL_TYPE_APPLY)
+        }
+    }
+
+    /** 卡上的角标数；键名没样本，取不到就回空表当"没有数"，不显示假 0 也不算失败 */
+    suspend fun todoCounts(): Result<Map<String, Int>> {
+        return try {
+            val me = identity()
+            val resp = api.todoCounts(
+                me.accessToken,
+                me.userCode,
+                me.userType,
+                me.userCode,
+                me.userCode,
+            )
+            val redDot = resp.data.asObjectOrNull()?.get("redDot").asObjectOrNull()
+                ?: resp.data.asObjectOrNull()
+            Result.success(
+                redDot?.entrySet().orEmpty()
+                    .mapNotNull { (key, value) ->
+                        runCatching { value.asInt }.getOrNull()?.let { key to it }
+                    }
+                    .toMap(),
+            )
+        } catch (e: Exception) {
+            Result.failure(netFail(e, "待办角标没取到"))
+        }
+    }
+
     /** 请假表单定义：flowSheet 是 JSON 字符串，原样交给界面用 org.json 解 */
     suspend fun flowSheet(processId: String): Result<String> {
         return try {

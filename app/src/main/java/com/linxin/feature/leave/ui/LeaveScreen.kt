@@ -46,7 +46,8 @@ import com.linxin.feature.leave.data.LeaveItem
 import com.linxin.feature.leave.data.LeaveRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.async
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,28 +58,38 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-private const val TAB_APPLY = 0
-private const val TAB_TODO = 1
+/**
+ * 四栏，跟学校那个「待办事务」的四个视图一一对应：
+ * 待处理发 `approvedType=1`、待阅发 `approvedType=2`（同一个口换 tab 号），已办和我的请求各有自己的口。
+ * 顺序也照它的卡片排：待办 / 待阅 / 已办事项 / 我的请求。
+ */
+private const val TAB_TODO = 0
+private const val TAB_READ = 1
+private const val TAB_DONE = 2
+private const val TAB_APPLY = 3
 
 data class LeaveUiState(
-    val applies: List<LeaveItem> = emptyList(),
-    val todos: List<LeaveItem> = emptyList(),
-    val tab: Int = TAB_APPLY,
-    val isLoading: Boolean = true,
-    val error: String? = null,
+    /** 每栏一份列表；没拉过的是 null，切过去才拉（省得开页就四发一起打） */
+    val lists: Map<Int, List<LeaveItem>> = emptyMap(),
+    val tab: Int = TAB_TODO,
+    val loadingTabs: Set<Int> = emptySet(),
+    val errors: Map<Int, String> = emptyMap(),
+    /** 卡片上的角标数；学校那套键名没样本，取不到就是空表 */
+    val counts: Map<String, Int> = emptyMap(),
     /** 当前点开在看的那一条；null = 没在看详情 */
     val openedItem: LeaveItem? = null,
     val detail: LeaveDetail? = null,
     val isLoadingDetail: Boolean = false,
     val detailError: String? = null,
 ) {
-    val shown: List<LeaveItem>
-        get() = if (tab == TAB_TODO) todos else applies
+    val shown: List<LeaveItem> get() = lists[tab].orEmpty()
+    val isLoading: Boolean get() = tab in loadingTabs
+    val error: String? get() = errors[tab]
 }
 
 /**
- * 请假只读页。两个列表**一起拉、一起显示**：抓包确认它们是各自独立的接口，
- * 但界面不该一路加载一路蹦，所以等两个都回来才收 loading。
+ * 待办事务只读页。四栏各自独立要不要拉：进来先拉「待办」+ 角标，
+ * 别的栏切到了再拉，来回切不重复打；空列表是正常状态，只有真抛异常才算错。
  */
 @HiltViewModel
 class LeaveViewModel @Inject constructor(
@@ -89,31 +100,52 @@ class LeaveViewModel @Inject constructor(
     val uiState: StateFlow<LeaveUiState> = _uiState.asStateFlow()
 
     init {
-        load()
+        loadCounts()
+        load(TAB_TODO)
     }
 
-    fun load() {
+    /** 角标是锦上添花：取不到就当没有，不弹错也不挡列表 */
+    private fun loadCounts() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            val applies = async { repository.myApplies() }
-            val todos = async { repository.todoTasks() }
-            val applyResult = applies.await()
-            val todoResult = todos.await()
-            val failure = applyResult.exceptionOrNull() ?: todoResult.exceptionOrNull()
-            _uiState.update {
-                it.copy(
-                    applies = applyResult.getOrNull()?.items ?: emptyList(),
-                    todos = todoResult.getOrNull()?.items ?: emptyList(),
-                    isLoading = false,
-                    // 没有异常就是没有异常：空列表是正常状态，不能当成失败
-                    error = failure?.message,
+            val result = repository.todoCounts()
+            _uiState.update { it.copy(counts = result.getOrNull() ?: emptyMap()) }
+        }
+    }
+
+    fun load(tab: Int = _uiState.value.tab) {
+        _uiState.update {
+            it.copy(loadingTabs = it.loadingTabs + tab, errors = it.errors - tab)
+        }
+        viewModelScope.launch {
+            val result = when (tab) {
+                TAB_READ -> repository.readTasks()
+                TAB_DONE -> repository.doneTasks()
+                TAB_APPLY -> repository.myApplies()
+                else -> repository.todoTasks()
+            }
+            _uiState.update { current ->
+                current.copy(
+                    lists = current.lists + (tab to (result.getOrNull()?.items ?: emptyList())),
+                    loadingTabs = current.loadingTabs - tab,
+                    errors = result.exceptionOrNull()?.message
+                        ?.let { message -> current.errors + (tab to message) }
+                        ?: (current.errors - tab),
                 )
             }
         }
     }
 
+    fun refresh() {
+        load(_uiState.value.tab)
+        loadCounts()
+    }
+
     fun selectTab(tab: Int) {
         _uiState.update { it.copy(tab = tab) }
+        val current = _uiState.value
+        if (current.lists[tab] == null && tab !in current.loadingTabs) {
+            load(tab)
+        }
     }
 
     /** 点开一条请假：看它当时填了什么、审批走到哪一步 */
@@ -151,10 +183,14 @@ class LeaveViewModel @Inject constructor(
 
     fun withdraw(executionId: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            val tab = _uiState.value.tab
             repository.withdraw(executionId).fold(
-                onSuccess = { load() },
-                onFailure = { e -> _uiState.update { it.copy(isLoading = false, error = e.message) } },
+                onSuccess = { refresh() },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(errors = it.errors + (tab to (error.message ?: "撤回失败")))
+                    }
+                },
             )
         }
     }
@@ -178,37 +214,50 @@ fun LeaveScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                LxFilterChip(
-                    label = stringResource(R.string.leave_tab_apply),
-                    selected = uiState.tab == TAB_APPLY,
-                    onClick = { viewModel.selectTab(TAB_APPLY) },
+                // 四栏跟学校那张卡的四个入口同名同序，横着放得下，窄屏能滑
+                val tabs = listOf(
+                    TAB_TODO to stringResource(R.string.leave_tab_todo),
+                    TAB_READ to stringResource(R.string.leave_tab_read),
+                    TAB_DONE to stringResource(R.string.leave_tab_done),
+                    TAB_APPLY to stringResource(R.string.leave_tab_apply),
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                LxFilterChip(
-                    label = stringResource(R.string.leave_tab_todo),
-                    selected = uiState.tab == TAB_TODO,
-                    onClick = { viewModel.selectTab(TAB_TODO) },
+                tabs.forEachIndexed { index, (tabId, label) ->
+                    if (index > 0) Spacer(modifier = Modifier.width(8.dp))
+                    LxFilterChip(
+                        label = label,
+                        selected = uiState.tab == tabId,
+                        onClick = { viewModel.selectTab(tabId) },
+                    )
+                }
+            }
+            // 「发起」只属于「我的请求」那一栏，别的栏上它没有意义
+            if (uiState.tab == TAB_APPLY) {
+                LxButton(
+                    text = stringResource(R.string.leave_new),
+                    onClick = onCreate,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 6.dp),
                 )
             }
-            LxButton(
-                text = stringResource(R.string.leave_new),
-                onClick = onCreate,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp),
-            )
             when {
                 uiState.isLoading -> LxLoading(modifier = Modifier.fillMaxSize())
                 uiState.error != null && uiState.shown.isEmpty() -> LxError(
                     message = uiState.error!!,
-                    onRetry = viewModel::load,
+                    onRetry = { viewModel.load() },
                 )
                 uiState.shown.isEmpty() -> LxEmpty(
                     message = stringResource(
-                        if (uiState.tab == TAB_TODO) R.string.leave_empty_todo else R.string.leave_empty_apply,
+                        when (uiState.tab) {
+                            TAB_READ -> R.string.leave_empty_read
+                            TAB_DONE -> R.string.leave_empty_done
+                            TAB_APPLY -> R.string.leave_empty_apply
+                            else -> R.string.leave_empty_todo
+                        },
                     ),
                     modifier = Modifier.fillMaxSize(),
                 )
