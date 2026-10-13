@@ -410,6 +410,9 @@ class AiClassRepository @Inject constructor(
                 dateText = dateText,
                 isUpcoming = isUpcoming,
                 canPlay = playUrl.isNotBlank() || resourceId.isNotBlank(),
+                // 3 是抓包里唯一验证过"点得开"的值（09-22 那两条，官方也在这两条上拿到教师机位）；
+                // 5 有 resourceId 但资源中心回「未获取到录播课信息」，所以不能当可回放显示
+                isReplayReady = item.stringValue("liveStatus").trim() == "3",
                 playUrl = playUrl,
                 resourceId = resourceId,
             )

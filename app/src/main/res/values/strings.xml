@@ -649,6 +649,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ai_no_live_record">这门课这学期没有直录播</string>
     <string name="ai_live_upcoming">未开始</string>
     <string name="ai_live_replay">可回放</string>
+    <string name="ai_live_processing">回放处理中</string>
     <string name="ai_live_none">没有回放</string>
     <string name="ai_live_show_all">展开全部 %1$d 节</string>
     <string name="ai_live_collapse">只看最近几节</string>

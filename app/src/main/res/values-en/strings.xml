@@ -648,6 +648,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ai_no_live_record">No live or recorded class for this term</string>
     <string name="ai_live_upcoming">Not started</string>
     <string name="ai_live_replay">Replay ready</string>
+    <string name="ai_live_processing">Replay processing</string>
     <string name="ai_live_none">No replay</string>
     <string name="ai_live_show_all">Show all %1$d sessions</string>
     <string name="ai_live_collapse">Show recent only</string>
