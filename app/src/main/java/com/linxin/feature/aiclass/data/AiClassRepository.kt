@@ -439,14 +439,22 @@ class AiClassRepository @Inject constructor(
         if (resourceId.isBlank()) {
             return Result.failure(Exception("这一节没有资源标识，换不到播放地址"))
         }
+        // 主站那批口吃的是 "Basic <jwt>"（buildAuthHeader 的格式），资源中心不吃这个前缀：
+        // 2026-10-13 抓官方那一发，它的 authorization 就是裸 JWT。
+        // 带着 "Basic " 打过去服务器回 200 但 data=null，看着像"这节没录像"，其实是鉴权没认出来。
+        val bareAuth = auth.removePrefix("Basic ").trim()
 
         val url = ApiConstants.BASE_FIF_RESC +
             "/resource-center/app/api/videoClassInfo?isApp=1&resourceId=" +
             java.net.URLEncoder.encode(resourceId, "UTF-8")
-        val data = withNetworkTimeout("打开录播", AICLASS_COURSEWARE_REQUEST_TIMEOUT_MS) {
-            api.getVideoClassInfo(url, auth)
-        }.getOrElse { error -> return Result.failure(error) }.data
-            ?: return Result.failure(Exception("资源中心没回这一节的信息"))
+        val response = withNetworkTimeout("打开录播", AICLASS_COURSEWARE_REQUEST_TIMEOUT_MS) {
+            api.getVideoClassInfo(url, bareAuth)
+        }.getOrElse { error -> return Result.failure(error) }
+        // data 为空时把服务器原话带出来：到底是「未登录」还是「查询成功但这节没机位」，
+        // 这两种在界面上必须长得不一样，不然下次排查还是靠猜。
+        val data = response.data ?: return Result.failure(
+            Exception("资源中心回：status=${response.status ?: "-"} code=${response.code ?: "-"} message=${response.message ?: "-"}")
+        )
 
         val videos = data.childArray("videoList").orEmpty().mapNotNull { item ->
             val path = item.stringValue("videoPath", "videoUrl", "url").takeIf { it.isNotBlank() }
@@ -460,7 +468,7 @@ class AiClassRepository @Inject constructor(
         }.sortedByDescending { it.sizeBytes }
 
         if (videos.isEmpty()) {
-            return Result.failure(Exception("这一节没有可播的地址"))
+            return Result.failure(Exception("学校这节还没转好：信息里有，但没有机位"))
         }
         return Result.success(videos)
     }
