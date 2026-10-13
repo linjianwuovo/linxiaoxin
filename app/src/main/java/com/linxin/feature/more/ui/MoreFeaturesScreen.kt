@@ -2,6 +2,9 @@ package com.linxin.feature.more.ui
 
 import androidx.compose.ui.res.stringResource
 import android.app.AlarmManager
+import android.app.NotificationManager
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -31,6 +34,9 @@ import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.EventNote
 import androidx.compose.material.icons.outlined.Grading
 import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.outlined.WorkHistory
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -98,6 +104,13 @@ fun MoreFeaturesScreen(
 
     val exactAlarmGranted = permissionRefreshTick.let { context.canScheduleExactAlarmsCompat() }
     val batteryOptimizationIgnored = permissionRefreshTick.let { context.isIgnoringBatteryOptimizationsCompat() }
+    // Android 16 的实况更新（ColorOS 流体云照的就是这套标准 API）。这条得运行时授权，
+    // 没授权时 canPostPromotedNotifications() 一直回 false，我们就只能走普通通知，
+    // 所以把它做成一行看得见的状态，而不是默默降级。
+    val promotedAllowed = permissionRefreshTick.let { context.canPostPromotedCompat() }
+    val promotedLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { permissionRefreshTick++ }
 
     Scaffold(
         modifier = modifier,
@@ -182,6 +195,35 @@ fun MoreFeaturesScreen(
                             trailing = if (batteryOptimizationIgnored) stringResource(R.string.more_in_whitelist) else stringResource(R.string.more_not_in_whitelist),
                             trailingColor = if (batteryOptimizationIgnored) LxInkGhost else MiuixTheme.colorScheme.error,
                             onClick = { context.openBatteryOptimizationSettings(batteryOptimizationIgnored) },
+                        )
+                        MoreMenuDivider()
+                        MoreMenuRow(
+                            icon = Icons.Outlined.NotificationsActive,
+                            title = stringResource(R.string.more_promoted_permission),
+                            trailing = when {
+                                !context.supportsPromotedCompat() -> stringResource(R.string.more_promoted_unsupported)
+                                promotedAllowed -> stringResource(R.string.more_granted)
+                                else -> stringResource(R.string.more_not_granted)
+                            },
+                            trailingColor = if (promotedAllowed || !context.supportsPromotedCompat()) {
+                                LxInkGhost
+                            } else {
+                                MiuixTheme.colorScheme.error
+                            },
+                            onClick = {
+                                if (context.supportsPromotedCompat() && !promotedAllowed) {
+                                    promotedLauncher.launch(Manifest.permission.POST_PROMOTED_NOTIFICATIONS)
+                                } else {
+                                    context.openAppNotificationSettings()
+                                }
+                            },
+                        )
+                        MoreMenuDivider()
+                        MoreMenuRow(
+                            icon = Icons.Outlined.Settings,
+                            title = stringResource(R.string.more_fluid_cloud_settings),
+                            trailing = stringResource(R.string.more_open_settings),
+                            onClick = { context.openAppNotificationSettings() },
                         )
                     }
                 }
@@ -298,6 +340,31 @@ private fun MoreMenuDivider() {
 
 private const val MORE_PREFS_NAME = "app_prefs"
 private const val KEY_LIVE_NOTIFICATION_ENABLED = "live_notification_enabled"
+
+/** 系统有没有这套实况更新能力（Android 16 / API 36 起） */
+private fun Context.supportsPromotedCompat(): Boolean = Build.VERSION.SDK_INT >= 36
+
+/**
+ * 问系统「这条应用现在能不能发实况更新」—— 它同时反映了运行时授权和用户在系统里
+ * 关掉的总开关（ColorOS 就是设置 → 通知与控制中心 → 流体云）。
+ */
+private fun Context.canPostPromotedCompat(): Boolean {
+    if (!supportsPromotedCompat()) return false
+    return runCatching {
+        getSystemService(NotificationManager::class.java).canPostPromotedNotifications()
+    }.getOrDefault(false)
+}
+
+private fun Context.openAppNotificationSettings() {
+    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { startActivity(intent) }.onFailure {
+        startActivity(
+            Intent(Settings.ACTION_ALL_APPS_NOTIFICATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+}
 
 private fun Context.canScheduleExactAlarmsCompat(): Boolean {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true

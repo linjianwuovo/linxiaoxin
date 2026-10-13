@@ -305,6 +305,11 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="more_not_in_whitelist">未加入</string>
     <string name="more_live">实况通知</string>
     <string name="more_live_hint">为保障实况通知正常发送，请授予精确闹钟权限和电池优化白名单，该功能不会增加耗电量</string>
+    <string name="more_promoted_permission">实况更新权限（流体云）</string>
+    <string name="more_promoted_unsupported">本机不支持</string>
+    <string name="more_fluid_cloud_settings">流体云 / 锁屏显示设置</string>
+    <string name="more_open_settings">去设置</string>
+
     <string name="ai_no_course">课程信息不存在</string>
     <string name="ai_quiz">测验</string>
     <string name="ai_homework">作业</string>

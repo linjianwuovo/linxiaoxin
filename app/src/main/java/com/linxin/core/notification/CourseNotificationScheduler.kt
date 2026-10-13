@@ -22,6 +22,9 @@ class CourseNotificationScheduler @Inject constructor(
 ) {
     companion object {
         private const val KEY = "course_countdown"
+
+        /** 课前进度条按这 15 分钟算满：还有 15 分钟 = 0%，马上上课 = 100% */
+        private const val COUNTDOWN_WINDOW_MINUTES = 15
         private const val TRIGGER_MINUTES = 25L
         private const val DISMISS_AFTER_START_MINUTES = 5L
     }
@@ -116,6 +119,15 @@ class CourseNotificationScheduler @Inject constructor(
             content = statusText,
             capsuleText = capsuleText,
             route = NotificationRoute(destination = Routes.AICLASS_HOME),
+            // 课前这段时间用进度条表达（离上课越近条越满）：实况更新那套模板吃的就是进度样式，
+            // 流体云要提升一条通知，用进度模板比用纯文本更容易被认出来
+            presentation = LiveActivityPresentation.Progress(
+                // minutesUntilStart 是分钟数（Long），换算成 0..15 的整数进度
+                current = ((COUNTDOWN_WINDOW_MINUTES - minutesUntilStart).toInt())
+                    .coerceIn(0, COUNTDOWN_WINDOW_MINUTES),
+                total = COUNTDOWN_WINDOW_MINUTES,
+                label = statusText,
+            ),
             extras = extras,
         )
         notifier.show(request)
