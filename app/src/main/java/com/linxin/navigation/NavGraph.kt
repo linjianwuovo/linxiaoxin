@@ -528,6 +528,10 @@ fun LinXinNavHost(
                 onCreate = {
                     navController.navigate(Routes.LEAVE_CREATE) { launchSingleTop = true }
                 },
+                // 查寝类待办点一下就进我们自己的查寝页，不去学校那个 H5
+                onOpenCheckin = {
+                    navController.navigate(Routes.CHECKIN_LIST) { launchSingleTop = true }
+                },
             )
         }
 

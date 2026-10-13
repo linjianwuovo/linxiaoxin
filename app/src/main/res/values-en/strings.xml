@@ -585,6 +585,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="leave_detail_flow_empty">No approval records yet</string>
     <string name="leave_detail_flow_unavailable">Approval progress did not load, go back and open it again</string>
     <string name="leave_step_no_info">The school gave no info for this step</string>
+    <string name="leave_open_checkin">Open dorm check-in</string>
     <string name="leave_start">Start yyyy-MM-dd HH:mm</string>
     <string name="leave_end">End yyyy-MM-dd HH:mm</string>
     <string name="card_actions">Card actions</string>

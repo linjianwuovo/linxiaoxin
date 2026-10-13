@@ -54,7 +54,17 @@ data class LeaveItem(
     companion object {
         const val DETAIL_TYPE_APPLY = "3"
         const val DETAIL_TYPE_TODO = "1"
+        /**
+         * 学校发来的查寝类待办，标题就是这一句（2026-10-13 读屏实测：「签到时间到达」，
+         * 状态「审批中」，一天一条）。这类件不在流程单表单里办 —— 安小信自己是跳去查寝那一页，
+         * 我们的 `getForm.do` 对它回的是学校后端的越界异常，所以点它直接跳我们的查寝页。
+         */
+        const val CHECKIN_TODO_TITLE_MARK = "签到时间到达"
     }
+
+    /** 这条待办其实是查寝提醒 */
+    val isCheckinTodo: Boolean
+        get() = title.contains(CHECKIN_TODO_TITLE_MARK)
 }
 
 /**
