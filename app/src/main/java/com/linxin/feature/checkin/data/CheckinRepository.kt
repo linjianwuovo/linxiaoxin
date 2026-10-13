@@ -150,7 +150,7 @@ class CheckinRepository @Inject constructor(
                 MonthStatics(
                     signed = d?.signinedNum ?: 0,
                     notSigned = d?.notSigninedNum ?: 0,
-                    inProgress = d?.signiningNum ?: 0,
+                    monthTotal = d?.signiningNum ?: 0,
                     leave = d?.leaveNum ?: 0,
                     offCampus = d?.leaveSchoolNum ?: 0,
                     qrCode = d?.qrCodeNum ?: 0,

@@ -84,7 +84,12 @@ data class TaskDetail(
 data class MonthStatics(
     val signed: Int = 0,
     val notSigned: Int = 0,
-    val inProgress: Int = 0,
+    /**
+     * 本月总计，不是"签到中"。服务端这个字段叫 `signiningNum`，看着像"正在进行"，
+     * 2026-10-13 真机对过账：已签 6 + 未签 1 + 请假 0 + 离校 6 = 13 = 这个字段，
+     * 它就是这四类的合计。以前我们按字面标成「签到中」，屏幕上就成了"明明只有一个却写 13"。
+     */
+    val monthTotal: Int = 0,
     val leave: Int = 0,
     val offCampus: Int = 0,
     val qrCode: Int = 0,

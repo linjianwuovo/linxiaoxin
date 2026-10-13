@@ -391,7 +391,7 @@ private fun MonthOverviewCard(
                 Row(modifier = Modifier.fillMaxWidth()) {
                     StatCell(stringResource(R.string.checkin_stat_signed), data.signed, LxSuccess, Modifier.weight(1f))
                     StatCell(stringResource(R.string.checkin_stat_unsigned), data.notSigned, LxTerra, Modifier.weight(1f))
-                    StatCell(stringResource(R.string.checkin_stat_in_progress), data.inProgress, LxWarning, Modifier.weight(1f))
+                    StatCell(stringResource(R.string.checkin_stat_in_progress), data.monthTotal, LxWarning, Modifier.weight(1f))
                 }
                 Spacer(modifier = Modifier.height(10.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {
