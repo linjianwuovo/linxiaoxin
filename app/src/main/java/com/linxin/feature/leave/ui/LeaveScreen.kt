@@ -37,6 +37,7 @@ import com.linxin.core.designsystem.component.LxOutlinedButton
 import com.linxin.core.designsystem.component.LxEmpty
 import com.linxin.core.designsystem.component.LxError
 import com.linxin.core.designsystem.component.LxLoading
+import com.linxin.core.designsystem.component.LxTextField
 import com.linxin.core.designsystem.component.LxTopBar
 import com.linxin.core.designsystem.theme.LxInk
 import com.linxin.core.designsystem.theme.LxInkMuted
@@ -81,6 +82,9 @@ data class LeaveUiState(
     val detail: LeaveDetail? = null,
     val isLoadingDetail: Boolean = false,
     val detailError: String? = null,
+    /** 有写操作在飞：按钮全灭，防止连点两下变成审两次 */
+    val isSubmitting: Boolean = false,
+    val submitError: String? = null,
 ) {
     val shown: List<LeaveItem> get() = lists[tab].orEmpty()
     val isLoading: Boolean get() = tab in loadingTabs
@@ -194,6 +198,50 @@ class LeaveViewModel @Inject constructor(
             )
         }
     }
+
+    /**
+     * 四个写操作都走这里：转圈时不重复发，失败只把原因摆出来**绝不自动重试**
+     * （这类请求重发一次可能就是多审一次）。成功就关掉详情、重新拉这一栏和角标。
+     */
+    private fun submit(label: String, block: suspend () -> Result<Unit>) {
+        if (_uiState.value.isSubmitting) return
+        val tab = _uiState.value.tab
+        _uiState.update { it.copy(isSubmitting = true, submitError = null) }
+        viewModelScope.launch {
+            val result = block()
+            _uiState.update { current ->
+                current.copy(
+                    isSubmitting = false,
+                    submitError = result.exceptionOrNull()?.message?.let { "$label：$it" },
+                    errors = result.exceptionOrNull()?.message
+                        ?.let { message -> current.errors + (tab to message) }
+                        ?: (current.errors - tab),
+                )
+            }
+            if (result.isSuccess) {
+                closeDetail()
+                load(tab)
+                loadCounts()
+            }
+        }
+    }
+
+    fun approve(item: LeaveItem, dataJson: String, remark: String) {
+        submit("同意") { repository.approve(item.id, item.ruTaskNodeId, dataJson, remark) }
+    }
+
+    fun reject(item: LeaveItem, dataJson: String, remark: String) {
+        submit("驳回") { repository.reject(item.id, item.ruTaskNodeId, dataJson, remark) }
+    }
+
+    fun delete(item: LeaveItem) {
+        submit("删除") { repository.deleteExecution(item.id) }
+    }
+
+    fun markAllRead() {
+        val ids = _uiState.value.shown.map { it.ruTaskNodeId }
+        submit("批量已阅") { repository.markRead(ids) }
+    }
 }
 
 @Composable
@@ -206,6 +254,7 @@ fun LeaveScreen(
     viewModel: LeaveViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var confirmMarkAllRead by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -235,6 +284,17 @@ fun LeaveScreen(
                         onClick = { viewModel.selectTab(tabId) },
                     )
                 }
+            }
+            // 待阅那一栏的批量动作：一次把列出来的都标成已阅，弹层里报数让他看清要动几条
+            if (uiState.tab == TAB_READ && uiState.shown.isNotEmpty()) {
+                LxOutlinedButton(
+                    text = stringResource(R.string.leave_mark_all_read, uiState.shown.size),
+                    enabled = !uiState.isSubmitting,
+                    onClick = { confirmMarkAllRead = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 6.dp),
+                )
             }
             // 「发起」只属于「我的请求」那一栏，别的栏上它没有意义
             if (uiState.tab == TAB_APPLY) {
@@ -283,15 +343,36 @@ fun LeaveScreen(
         }
     }
 
+    if (confirmMarkAllRead) {
+        LxDialog(
+            title = stringResource(R.string.leave_mark_all_read, uiState.shown.size),
+            message = stringResource(R.string.leave_mark_all_read_confirm),
+            confirmText = stringResource(R.string.action_confirm),
+            onConfirm = {
+                confirmMarkAllRead = false
+                viewModel.markAllRead()
+            },
+            onDismiss = { confirmMarkAllRead = false },
+            onDismissRequest = { confirmMarkAllRead = false },
+        )
+    }
+
     // 点开一条请假就在这一页上层看详情，不推新页面
     if (uiState.openedItem != null) {
+        val opened = uiState.openedItem!!
         LeaveDetailDialog(
-            item = uiState.openedItem!!,
+            item = opened,
             detail = uiState.detail,
             isLoading = uiState.isLoadingDetail,
             error = uiState.detailError,
+            canApprove = uiState.tab == TAB_TODO,
+            canDelete = uiState.tab == TAB_APPLY,
+            isSubmitting = uiState.isSubmitting,
             onRetry = viewModel::retryDetail,
-            onWithdraw = { viewModel.withdraw(uiState.openedItem!!.id) },
+            onWithdraw = { viewModel.withdraw(opened.id) },
+            onApprove = { remark -> viewModel.approve(opened, uiState.detail?.rawFormValues.orEmpty(), remark) },
+            onReject = { remark -> viewModel.reject(opened, uiState.detail?.rawFormValues.orEmpty(), remark) },
+            onDelete = { viewModel.delete(opened) },
             onDismiss = viewModel::closeDetail,
         )
     }
@@ -314,11 +395,21 @@ private fun LeaveDetailDialog(
     detail: LeaveDetail?,
     isLoading: Boolean,
     error: String?,
+    canApprove: Boolean,
+    canDelete: Boolean,
+    isSubmitting: Boolean,
     onRetry: () -> Unit,
     onWithdraw: () -> Unit,
+    onApprove: (String) -> Unit,
+    onReject: (String) -> Unit,
+    onDelete: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     var confirmWithdraw by remember { mutableStateOf(false) }
+    var confirmApprove by remember { mutableStateOf(false) }
+    var confirmReject by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    var rejectRemark by remember { mutableStateOf("") }
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
@@ -475,12 +566,56 @@ private fun LeaveDetailDialog(
                     }
                 }
 
+                // 只有「待办」那一栏才有资格同意/驳回；dataJson 用详情拿到的原文回显
+                if (canApprove && detail != null) {
+                    item(key = "detail_approve") {
+                        LxButton(
+                            text = stringResource(R.string.leave_approve),
+                            enabled = !isSubmitting,
+                            onClick = { confirmApprove = true },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    item(key = "detail_reject") {
+                        LxOutlinedButton(
+                            text = stringResource(R.string.leave_reject),
+                            enabled = !isSubmitting,
+                            onClick = { confirmReject = true },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+
                 if (item.withdrawable) {
                     item(key = "detail_withdraw") {
                         LxOutlinedButton(
                             text = stringResource(R.string.leave_withdraw),
+                            enabled = !isSubmitting,
                             onClick = { confirmWithdraw = true },
                             modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+
+                // 删除只在自己发起的那些里面
+                if (canDelete) {
+                    item(key = "detail_delete") {
+                        LxOutlinedButton(
+                            text = stringResource(R.string.leave_delete),
+                            enabled = !isSubmitting,
+                            onClick = { confirmDelete = true },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+
+                if (isSubmitting) {
+                    item(key = "detail_submitting") {
+                        Text(
+                            text = stringResource(R.string.leave_submitting),
+                            style = MiuixTheme.textStyles.footnote1,
+                            color = LxInkMuted,
+                            modifier = Modifier.padding(vertical = 8.dp),
                         )
                     }
                 }
@@ -499,6 +634,63 @@ private fun LeaveDetailDialog(
                 onWithdraw()
             },
             onDismissRequest = { confirmWithdraw = false },
+        )
+    }
+
+    if (confirmApprove) {
+        LxDialog(
+            title = stringResource(R.string.leave_approve),
+            message = stringResource(R.string.leave_approve_confirm),
+            confirmText = stringResource(R.string.leave_approve),
+            onConfirm = {
+                confirmApprove = false
+                onApprove("")
+            },
+            onDismiss = { confirmApprove = false },
+            onDismissRequest = { confirmApprove = false },
+        )
+    }
+
+    if (confirmReject) {
+        LxDialog(
+            title = stringResource(R.string.leave_reject),
+            confirmText = stringResource(R.string.leave_reject),
+            confirmTone = LxDialogConfirmTone.Destructive,
+            onConfirm = {
+                confirmReject = false
+                onReject(rejectRemark)
+            },
+            onDismiss = { confirmReject = false },
+            onDismissRequest = { confirmReject = false },
+            content = {
+                Text(
+                    text = stringResource(R.string.leave_reject_confirm),
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = LxInkMuted,
+                    modifier = Modifier.padding(bottom = 10.dp),
+                )
+                LxTextField(
+                    value = rejectRemark,
+                    onValueChange = { rejectRemark = it },
+                    label = stringResource(R.string.leave_remark_label),
+                    singleLine = false,
+                )
+            },
+        )
+    }
+
+    if (confirmDelete) {
+        LxDialog(
+            title = stringResource(R.string.leave_delete),
+            message = stringResource(R.string.leave_delete_confirm),
+            confirmText = stringResource(R.string.leave_delete),
+            confirmTone = LxDialogConfirmTone.Destructive,
+            onConfirm = {
+                confirmDelete = false
+                onDelete()
+            },
+            onDismiss = { confirmDelete = false },
+            onDismissRequest = { confirmDelete = false },
         )
     }
 }

@@ -586,6 +586,16 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="leave_detail_flow_unavailable">审批进度没取到，返回去再点一次试试</string>
     <string name="leave_step_no_info">这一步学校没给信息</string>
     <string name="leave_open_checkin">去查寝签到</string>
+    <string name="leave_approve">同意</string>
+    <string name="leave_approve_confirm">同意后这条就流到下一步，学校那边立刻记上你批的。确定？</string>
+    <string name="leave_reject">驳回</string>
+    <string name="leave_reject_confirm">驳回会直接打回申请人，可以写一句原因。</string>
+    <string name="leave_remark_label">审批意见（可不填）</string>
+    <string name="leave_delete">删除</string>
+    <string name="leave_delete_confirm">一经删除，该流程自动移除，请谨慎操作。</string>
+    <string name="leave_mark_all_read">全部标为已阅（%1$d 条）</string>
+    <string name="leave_mark_all_read_confirm">把这 %1$d 条待阅一次标成已阅，学校那边就记成你读过了。</string>
+    <string name="leave_submitting">正在提交…</string>
     <string name="leave_start">开始时间 yyyy-MM-dd HH:mm</string>
     <string name="leave_end">结束时间 yyyy-MM-dd HH:mm</string>
     <string name="card_actions">卡操作</string>

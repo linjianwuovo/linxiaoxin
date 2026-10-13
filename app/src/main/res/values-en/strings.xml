@@ -586,6 +586,16 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="leave_detail_flow_unavailable">Approval progress did not load, go back and open it again</string>
     <string name="leave_step_no_info">The school gave no info for this step</string>
     <string name="leave_open_checkin">Open dorm check-in</string>
+    <string name="leave_approve">Approve</string>
+    <string name="leave_approve_confirm">Approving moves this to the next step and the school records it now. Sure?</string>
+    <string name="leave_reject">Reject</string>
+    <string name="leave_reject_confirm">Rejecting sends it back to the applicant. You can add a reason.</string>
+    <string name="leave_remark_label">Comment (optional)</string>
+    <string name="leave_delete">Delete</string>
+    <string name="leave_delete_confirm">Once deleted the flow is removed. Be careful.</string>
+    <string name="leave_mark_all_read">Mark all as read (%1$d)</string>
+    <string name="leave_mark_all_read_confirm">Marks these %1$d items as read on the school side.</string>
+    <string name="leave_submitting">Submitting…</string>
     <string name="leave_start">Start yyyy-MM-dd HH:mm</string>
     <string name="leave_end">End yyyy-MM-dd HH:mm</string>
     <string name="card_actions">Card actions</string>
