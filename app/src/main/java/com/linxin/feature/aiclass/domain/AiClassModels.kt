@@ -94,6 +94,8 @@ data class AiLiveRecord(
     val dateText: String,
     val isUpcoming: Boolean,
     val canPlay: Boolean,
+    /** 学校自己标的「回放已经生成」：抓包实测 liveStatus=3 的行才换得到机位，5 是有资源号但还没挂上来 */
+    val isReplayReady: Boolean,
     val playUrl: String,
     val resourceId: String,
 )

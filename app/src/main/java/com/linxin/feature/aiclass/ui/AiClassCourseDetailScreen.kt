@@ -748,8 +748,9 @@ private fun quizItemKey(quiz: AiQuiz): String {
 }
 
 /**
- * 直录播的一节。能看的（服务端留了 resourceId）整行可点，点进去在我们自己这放；
- * 没留资源标识的就只是一行课表信息，点了也不会有反应，所以不给它按下的反馈。
+ * 直录播的一行。只有学校标了「回放已生成」(liveStatus=3) 的才给点，
+ * 有资源号但还没挂上来的标成「处理中」并且不给按 —— 之前用「有没有 resourceId」判，
+ * 把处理中的也标成可回放，点下去只拿到一句「未获取到录播课信息」，等于自己骗自己。
  */
 @Composable
 private fun LiveRecordCard(
@@ -757,7 +758,7 @@ private fun LiveRecordCard(
     onClick: () -> Unit,
 ) {
     val meta = listOf(record.whenText, record.roomText).filter { it.isNotBlank() }.joinToString(" · ")
-    LxCard(onClick = if (record.canPlay) onClick else null) {
+    LxCard(onClick = if (record.isReplayReady) onClick else null) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -798,13 +799,14 @@ private fun LiveRecordCard(
 private fun LiveStatusBadge(record: com.linxin.feature.aiclass.domain.AiLiveRecord) {
     val text = when {
         record.isUpcoming -> stringResource(R.string.ai_live_upcoming)
-        record.canPlay -> stringResource(R.string.ai_live_replay)
+        record.isReplayReady -> stringResource(R.string.ai_live_replay)
+        record.canPlay -> stringResource(R.string.ai_live_processing)
         else -> stringResource(R.string.ai_live_none)
     }
     val color = when {
-        record.isUpcoming -> MiuixTheme.colorScheme.onSurfaceVariantSummary
-        record.canPlay -> MiuixTheme.colorScheme.secondary
-        else -> MiuixTheme.colorScheme.onSurfaceVariantSummary
+        record.isReplayReady -> LxSuccess
+        record.isUpcoming || !record.canPlay -> MiuixTheme.colorScheme.onSurfaceVariantSummary
+        else -> MiuixTheme.colorScheme.secondary
     }
 
     Box(
