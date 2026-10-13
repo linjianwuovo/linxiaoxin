@@ -431,6 +431,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="notif_upcoming">Starting soon | in %1$s min</string>
     <string name="notif_started">Class started</string>
     <string name="notif_content">%1$s\nRoom: %2$s</string>
+    <string name="notif_capsule_minutes">%1$dm</string>
     <string name="trk_wait_location">Waiting for location</string>
     <string name="trk_getting_gps">Getting GPS…</string>
     <string name="trk_ok">GPS good</string>

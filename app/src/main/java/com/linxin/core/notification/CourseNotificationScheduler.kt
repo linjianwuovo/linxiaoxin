@@ -101,7 +101,13 @@ class CourseNotificationScheduler @Inject constructor(
             AppText.str(R.string.notif_started)
         }
 
-        val capsuleText = shortenRoom(room)
+        // 胶囊上那 7 个字放"还剩几分钟"最有用（流体云/灵动岛那一小块地方就是这个用途）；
+        // 已经到点了再放教室，因为那时候要看的是"去哪个教室"。
+        val capsuleText = if (minutesUntilStart > 0) {
+            AppText.str(R.string.notif_capsule_minutes, minutesUntilStart)
+        } else {
+            shortenRoom(room)
+        }
         val content = AppText.str(R.string.notif_content, statusText, room)
         val bigText = AppText.str(R.string.notif_content, statusText, room)
 
