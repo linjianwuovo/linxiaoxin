@@ -267,10 +267,13 @@ class AiClassRepository @Inject constructor(
             val userName = fifSession.getUserName().orEmpty()
             val resp = api.submitSignCode(signId, userName, signCode, auth)
 
-            if (resp.status == "success") {
-                Result.success(resp.message ?: "签到成功")
-            } else {
+            // 判成功的口径照官方 H5 抄：它只认 status=="error" 是失败，别的都当过了。
+            // 我们之前判 status=="success"，服务器一换说法（回 "1"、回 true）
+            // 就把真签到成功的人报成失败，比不报还难受。
+            if (resp.status.equals("error", ignoreCase = true)) {
                 Result.failure(Exception(resp.message ?: "签到失败"))
+            } else {
+                Result.success(resp.message?.takeIf { it.isNotBlank() } ?: "签到成功")
             }
         } catch (e: Exception) {
             Result.failure(Exception(mapError("签到", e), e))

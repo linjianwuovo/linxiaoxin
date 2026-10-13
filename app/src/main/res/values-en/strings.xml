@@ -344,7 +344,11 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ui_011">In class</string>
     <string name="ui_012">Code check-in</string>
     <string name="ui_013">Enter the 6-digit code</string>
-    <string name="ui_014">No class in progress</string>
+    <string name="ui_014">You can submit the code even with no class detected; the server matches it by the 6 digits</string>
+    <string name="sign_in_progress">Checking in...</string>
+    <string name="sign_submit">Check in</string>
+    <string name="sign_code_too_short">The check-in code needs 6 digits</string>
+    <string name="sign_ok">Checked in</string>
     <string name="ui_015">View course</string>
     <string name="ui_016">Align the QR code inside the frame</string>
     <string name="ui_017">QR code is detected automatically</string>

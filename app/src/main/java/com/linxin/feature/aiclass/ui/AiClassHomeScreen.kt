@@ -357,9 +357,12 @@ private fun SignInCard(
             Spacer(modifier = Modifier.height(12.dp))
 
             LxButton(
-                text = if (isSigningIn) "签到中..." else "签到",
+                text = if (isSigningIn) stringResource(R.string.sign_in_progress) else stringResource(R.string.sign_submit),
                 onClick = { onSubmit(signCode) },
-                enabled = signCode.length == 6 && !isSigningIn && hasWorkingClass,
+                // 不按「检测到正在上课」卡这个按钮：官方那个输入框 signId 允许为空，
+                // 服务器就认那 6 位码。之前绑在 workingRecord 上，检测不到就是灰的，
+                // 他签了码屏幕上一点反应都没有。
+                enabled = signCode.length == 6 && !isSigningIn,
             )
 
             if (!hasWorkingClass) {
