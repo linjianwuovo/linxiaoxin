@@ -20,8 +20,35 @@ private val LOGIN_STALE_MARKS = listOf(
     "会话失效",
 )
 
+/**
+ * 学校那边偶尔把自己后端的 Java 异常原文当「原因」回过来 ——
+ * 2026-10-13 真机上待办事务点开一条查寝类待办，详情接口回的 `result` 就是 `Index: 0, Size: 0`
+ * （它后端数组越界了），我们原样甩到界面上，用户只看到一串 Java 味儿的英文。
+ * 换成一句人话，把原文留在括号里 —— 原文还有用，判断是哪条接口挂了要靠它。
+ */
+private val SERVER_STACK_MARKS = listOf(
+    "Index:",
+    "Size:",
+    "Exception",
+    "NullPointer",
+    "at java.",
+    "at com.",
+    "at org.",
+)
+
+private const val SERVER_STACK_NOTICE = "这条详情学校那边没给数据（他们后端自己报的错）"
+
 fun failureReason(vararg candidates: String?, fallback: String): String =
-    loginStaleNotice(candidates.firstOrNull { !it.isNullOrBlank() }?.trim() ?: fallback)
+    loginStaleNotice(
+        humanizeServerReason(candidates.firstOrNull { !it.isNullOrBlank() }?.trim() ?: fallback),
+    )
+
+private fun humanizeServerReason(reason: String): String =
+    if (SERVER_STACK_MARKS.any { reason.contains(it, ignoreCase = true) }) {
+        "$SERVER_STACK_NOTICE（原文：$reason）"
+    } else {
+        reason
+    }
 
 /**
  * 单独拆出来是因为公告那套有自己的映射（`NewsRepository.mapError`），不经过 `failureReason` ——

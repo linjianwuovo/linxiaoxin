@@ -576,7 +576,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="leave_submitted">申请已提交</string>
     <string name="leave_withdraw">撤回</string>
     <string name="leave_withdraw_confirm">确定要撤回这条申请吗？</string>
-    <string name="leave_detail_title">请假详情</string>
+    <string name="leave_detail_title">流程详情</string>
     <string name="leave_detail_failed">这条请假的详情没取到</string>
     <string name="leave_detail_fields">申请内容</string>
     <string name="leave_detail_fields_empty">这条申请没有可读的填写内容</string>
