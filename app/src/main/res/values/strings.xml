@@ -125,7 +125,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="checkin_overview">本月签到概览</string>
     <string name="checkin_stat_signed">已签</string>
     <string name="checkin_stat_unsigned">未签</string>
-    <string name="checkin_stat_in_progress">签到中</string>
+    <string name="checkin_stat_in_progress">本月总计</string>
     <string name="checkin_stat_leave">请假</string>
     <string name="checkin_stat_off_campus">离校</string>
     <string name="checkin_stat_qr">扫码</string>

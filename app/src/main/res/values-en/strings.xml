@@ -125,7 +125,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="checkin_overview">This month</string>
     <string name="checkin_stat_signed">Signed</string>
     <string name="checkin_stat_unsigned">Missed</string>
-    <string name="checkin_stat_in_progress">Open</string>
+    <string name="checkin_stat_in_progress">Month total</string>
     <string name="checkin_stat_leave">Leave</string>
     <string name="checkin_stat_off_campus">Out</string>
     <string name="checkin_stat_qr">QR</string>
