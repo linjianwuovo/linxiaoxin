@@ -645,8 +645,18 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ai_group_expand">View discussions</string>
     <string name="ai_group_collapse">Hide discussions</string>
     <string name="ai_group_no_micro_id">This group has no discussion id, cannot open discussions</string>
+    <string name="ai_group_open_thread">Open chat</string>
+    <string name="ai_group_thread_title">Group discussion</string>
+    <string name="ai_group_thread_failed">This discussion did not open</string>
+    <string name="ai_group_no_topic_text">(The server returned no topic text)</string>
+    <string name="ai_group_no_reply">No replies yet</string>
+    <string name="ai_group_no_author">Group member</string>
+    <string name="ai_group_no_content">(This reply has no text)</string>
+    <string name="ai_group_no_discuss_id">The list gave no id for this discussion, cannot open the chat</string>
+    <string name="ai_group_reply_failed">Replies did not load, go back and open it again</string>
     <string name="aivm_act_group">groups</string>
     <string name="aivm_act_group_discuss">group discussions</string>
+    <string name="aivm_act_group_thread">group discussion thread</string>
 
     <string name="ai_live_title">Live and recorded</string>
     <string name="ai_no_live_record">No live or recorded class for this term</string>

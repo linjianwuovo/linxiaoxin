@@ -16,6 +16,7 @@ import com.linxin.feature.aiclass.domain.AiLiveRecord
 import com.linxin.feature.aiclass.domain.AiRecordedVideo
 import com.linxin.feature.aiclass.domain.AiQuiz
 import com.linxin.feature.aiclass.domain.AiGroupDiscuss
+import com.linxin.feature.aiclass.domain.AiGroupDiscussThread
 import com.linxin.feature.aiclass.domain.AiStudentGroup
 import com.linxin.feature.aiclass.domain.AiClassQrPayload
 import com.linxin.feature.aiclass.domain.AiWorkingRecord
@@ -71,6 +72,12 @@ data class AiClassUiState(
     val groupDiscusses: List<AiGroupDiscuss> = emptyList(),
     val isGroupDiscussLoading: Boolean = false,
     val groupDiscussError: String? = null,
+    /** 当前点开在看的那条组内讨论；null = 没在看聊天 */
+    val openedDiscuss: AiGroupDiscussThread? = null,
+    /** 正在打开或打开失败的那条讨论，标题和「再试一次」都靠它 */
+    val openingDiscuss: AiGroupDiscuss? = null,
+    val isOpeningDiscuss: Boolean = false,
+    val openDiscussError: String? = null,
     /** 「直录播」这一屏：一节一节，直播中的和能回放的混在一起 */
     val liveRecords: List<AiLiveRecord> = emptyList(),
     val isLiveLoading: Boolean = false,
@@ -294,6 +301,10 @@ class AiClassViewModel @Inject constructor(
                 groupDiscusses = emptyList(),
                 isGroupDiscussLoading = false,
                 groupDiscussError = null,
+                openedDiscuss = null,
+                openingDiscuss = null,
+                isOpeningDiscuss = false,
+                openDiscussError = null,
                 liveRecords = emptyList(),
                 isLiveLoading = true,
                 liveError = null,
@@ -541,6 +552,83 @@ class AiClassViewModel @Inject constructor(
                 groupDiscusses = emptyList(),
                 isGroupDiscussLoading = false,
                 groupDiscussError = null,
+                // 收起小组顺带把展开到一半的聊天页也关掉，不然它会挂在屏幕上没有上下文
+                openedDiscuss = null,
+                openingDiscuss = null,
+                isOpeningDiscuss = false,
+                openDiscussError = null,
+            )
+        }
+    }
+
+    /**
+     * 点开一条组内讨论，看话题正文和底下那串回复（安小信自己的「看讨论」页）。
+     * 只读：往里发言是写操作，学校那边没给我们留任何「先确认再发」的余地，所以这版不发。
+     */
+    fun openGroupDiscuss(discuss: AiGroupDiscuss) {
+        if (discuss.id.startsWith("discuss_")) {
+            // 列表那一发没给编号时我们填的是占位 id，拿它去请求只会换来一句失败，不如当场直说
+            _uiState.update {
+                it.copy(
+                    openingDiscuss = discuss,
+                    isOpeningDiscuss = false,
+                    openDiscussError = AppText.str(R.string.ai_group_no_discuss_id),
+                )
+            }
+            return
+        }
+
+        val group = _uiState.value.studentGroups.firstOrNull { it.id == _uiState.value.selectedGroupId }
+        if (group == null || group.microGroupId.isBlank()) {
+            // 讨论这两发都只认 microGroupId，没拿到就直说，不拿别的键去凑
+            _uiState.update {
+                it.copy(
+                    openingDiscuss = discuss,
+                    isOpeningDiscuss = false,
+                    openDiscussError = AppText.str(R.string.ai_group_no_micro_id),
+                )
+            }
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                openingDiscuss = discuss,
+                isOpeningDiscuss = true,
+                openDiscussError = null,
+            )
+        }
+
+        viewModelScope.launch {
+            val result = withResultTimeout(
+                AppText.str(R.string.aivm_act_group_thread),
+                AICLASS_DETAIL_LOAD_TIMEOUT_MS,
+            ) {
+                repository.getGroupDiscussThread(group.microGroupId, group.id, discuss.id, discuss)
+            }
+            _uiState.update { current ->
+                // 用户可能已经点到别的讨论上了，回来的这一发对不上号就丢弃
+                if (current.openingDiscuss?.id != discuss.id) return@update current
+                current.copy(
+                    openedDiscuss = result.getOrNull(),
+                    isOpeningDiscuss = false,
+                    openDiscussError = result.exceptionOrNull()?.message,
+                )
+            }
+        }
+    }
+
+    fun retryOpenGroupDiscuss() {
+        _uiState.value.openingDiscuss?.let(::openGroupDiscuss)
+    }
+
+    fun closeGroupDiscuss() {
+        _uiState.update {
+            it.copy(
+                openedDiscuss = null,
+                openingDiscuss = null,
+                isOpeningDiscuss = false,
+                openDiscussError = null,
             )
         }
     }

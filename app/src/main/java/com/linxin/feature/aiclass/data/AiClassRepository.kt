@@ -15,6 +15,8 @@ import com.linxin.feature.aiclass.domain.AiCoursewareDetail
 import com.linxin.feature.aiclass.domain.AiLiveRecord
 import com.linxin.feature.aiclass.domain.AiRecordedVideo
 import com.linxin.feature.aiclass.domain.AiGroupDiscuss
+import com.linxin.feature.aiclass.domain.AiGroupDiscussThread
+import com.linxin.feature.aiclass.domain.AiGroupMessage
 import com.linxin.feature.aiclass.domain.AiStudentGroup
 import com.linxin.feature.aiclass.domain.AiQuiz
 import com.linxin.feature.aiclass.domain.AiClassQrPayload
@@ -612,6 +614,92 @@ class AiClassRepository @Inject constructor(
             throw e
         } catch (e: Exception) {
             Result.failure(Exception(mapError("获取小组讨论", e), e))
+        }
+    }
+
+    /**
+     * 展开一条组内讨论 = 安小信那个「看讨论」页。话题本体和回复串是两条口，一起发、互不牵连：
+     * 话题挂了回复照样显示，回复挂了话题照样显示，两条都没回才当失败报给界面。
+     * 这两条的 data 我们一次非空样本都没抓到（那次 studentDis 是空数组），字段名全是从 H5 源码里
+     * 读出来的用法 + 候选键，取不到就留空，绝不拿 id 冒充标题、也不猜状态含义。
+     */
+    suspend fun getGroupDiscussThread(
+        microGroupId: String,
+        groupId: String,
+        discussId: String,
+        fallback: AiGroupDiscuss,
+    ): Result<AiGroupDiscussThread> {
+        val auth = try {
+            ensureSession()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return Result.failure(Exception(mapError("打开小组讨论", e), e))
+        }
+        val studentId = fifSession.getMemberUserId().orEmpty()
+        if (microGroupId.isBlank() || discussId.isBlank() || studentId.isBlank()) {
+            return Result.failure(Exception("小组讨论标识不完整，打不开"))
+        }
+
+        val (detailResult, replyResult) = coroutineScope {
+            val detail = async {
+                withNetworkTimeout("小组讨论话题", AICLASS_PRIMARY_REQUEST_TIMEOUT_MS) {
+                    api.getGroupDiscussDetail(discussId, groupId, microGroupId, auth)
+                }
+            }
+            val replies = async {
+                withNetworkTimeout("小组讨论回复", AICLASS_PRIMARY_REQUEST_TIMEOUT_MS) {
+                    api.getGroupDiscussReplies(microGroupId, discussId, studentId, auth)
+                }
+            }
+            detail.await() to replies.await()
+        }
+
+        if (detailResult.isFailure && replyResult.isFailure) {
+            // 两条都挂：报话题那条的原因，它是这一屏的主体
+            val cause = detailResult.exceptionOrNull()
+            return Result.failure(
+                Exception(mapError("打开小组讨论", cause as? Exception ?: Exception(cause?.toString())), cause),
+            )
+        }
+
+        val topic = detailResult.getOrNull()?.data.asObjectOrNull()
+        val replyItems = replyResult.getOrNull()?.data
+            .findJsonArray("studentDis", "replyList", "discussList", "dataList", "list")
+
+        val messages = replyItems.mapIndexed { index, item ->
+            AiGroupMessage(
+                id = item.stringValue("id", "answerId", "replyId", "discussAnswerId").ifBlank { "reply_$index" },
+                author = item.stringValue("stuName", "studentName", "userName", "realName", "name"),
+                content = item.stringValue("discussContent", "answerContent", "content", "discussText", "replyContent"),
+                timeText = item.stringValue("createTime", "discussTime", "replyTime", "submitTime", "updateTime"),
+                isMine = studentId.isNotBlank() &&
+                    item.stringValue("studentId", "userId", "stuId") == studentId,
+                attachment = groupAttachmentLabel(item),
+            )
+        }
+
+        return Result.success(
+            AiGroupDiscussThread(
+                title = (topic?.stringValue("title", "discussTitle", "topic") ?: "").ifBlank { fallback.title },
+                topicText = topic?.stringValue("discussContent", "content", "answerContent", "discussText") ?: "",
+                topicAuthor = topic?.stringValue("stuName", "teacherName", "userName", "creatorName") ?: "",
+                topicTime = topic?.stringValue("createTime", "publishTime", "startTime", "discussTime") ?: "",
+                messages = messages,
+                repliesFailed = replyResult.isFailure,
+            )
+        )
+    }
+
+    /** 一条回复带的附件：接口给的是 fileName / fullUrl / fileType 这种组合，拼一个能看的标签就收 */
+    private fun groupAttachmentLabel(item: JsonObject): String {
+        val name = item.stringValue("fileName", "fileUrl", "fullUrl", "url", "filePath")
+        val type = item.stringValue("fileType", "suffix").uppercase()
+        return when {
+            name.isBlank() && type.isBlank() -> ""
+            name.isNotBlank() && type.isNotBlank() -> "$type · ${name.substringAfterLast('/', name)}"
+            name.isNotBlank() -> name.substringAfterLast('/')
+            else -> type
         }
     }
 

@@ -147,3 +147,28 @@ data class AiGroupDiscuss(
     val title: String,
     val meta: String,
 )
+
+/**
+ * 一条组内讨论展开后的样子：话题本体 + 底下那串回复。
+ * 学校这两条口的 data 一次非空样本都没抓到过，所以标题/正文取不到就是空串，
+ * 由界面显式写占位，不拿 id 冒充标题，也不猜状态含义。
+ */
+data class AiGroupDiscussThread(
+    val title: String,
+    val topicText: String,
+    val topicAuthor: String,
+    val topicTime: String,
+    val messages: List<AiGroupMessage>,
+    // 把「回复真的没有」和「回复那一发没成」分开，这两句在界面上是两回事
+    val repliesFailed: Boolean,
+)
+
+/** 组内讨论的一条回复，也就是聊天里的一行 */
+data class AiGroupMessage(
+    val id: String,
+    val author: String,
+    val content: String,
+    val timeText: String,
+    val isMine: Boolean,
+    val attachment: String,
+)

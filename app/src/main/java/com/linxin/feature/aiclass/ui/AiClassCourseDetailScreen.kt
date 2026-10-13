@@ -106,6 +106,7 @@ fun AiClassCourseDetailScreen(
                 isGroupDiscussLoading = uiState.isGroupDiscussLoading,
                 groupDiscussError = uiState.groupDiscussError,
                 onGroupClick = viewModel::toggleGroupDiscusses,
+                onDiscussClick = viewModel::openGroupDiscuss,
                 liveRecords = uiState.liveRecords,
                 isLiveLoading = uiState.isLiveLoading,
                 liveError = uiState.liveError,
@@ -118,6 +119,18 @@ fun AiClassCourseDetailScreen(
                 modifier = Modifier.padding(padding),
             )
         }
+    }
+
+    // 点开一条组内讨论就在这一页上层看聊天，不推新页面也不跳到安小信
+    if (uiState.isOpeningDiscuss || uiState.openedDiscuss != null || uiState.openDiscussError != null) {
+        GroupDiscussThreadDialog(
+            title = uiState.openingDiscuss?.title.orEmpty(),
+            isLoading = uiState.isOpeningDiscuss,
+            thread = uiState.openedDiscuss,
+            error = uiState.openDiscussError,
+            onRetry = viewModel::retryOpenGroupDiscuss,
+            onDismiss = viewModel::closeGroupDiscuss,
+        )
     }
 
     // 点开课件就在这一页上层看，不推新页面也不离开应用
@@ -173,6 +186,8 @@ private fun AiClassCourseDetailContent(
     isGroupDiscussLoading: Boolean = false,
     groupDiscussError: String? = null,
     onGroupClick: (com.linxin.feature.aiclass.domain.AiStudentGroup) -> Unit = {},
+    // 讨论那一行也不给默认值：给了默认就是「画得出来、点下去没反应」，跟录播踩过的是同一个坑
+    onDiscussClick: (com.linxin.feature.aiclass.domain.AiGroupDiscuss) -> Unit,
     liveRecords: List<com.linxin.feature.aiclass.domain.AiLiveRecord> = emptyList(),
     isLiveLoading: Boolean = false,
     liveError: String? = null,
@@ -529,7 +544,10 @@ private fun AiClassCourseDetailContent(
 
                 else -> {
                     items(groupDiscusses, key = { "gdiscuss_" + it.id }) { discuss ->
-                        GroupDiscussCard(discuss = discuss)
+                        GroupDiscussCard(
+                            discuss = discuss,
+                            onClick = { onDiscussClick(discuss) },
+                        )
                     }
                 }
             }
@@ -722,8 +740,11 @@ private fun buildGroupMeta(group: com.linxin.feature.aiclass.domain.AiStudentGro
 }
 
 @Composable
-private fun GroupDiscussCard(discuss: com.linxin.feature.aiclass.domain.AiGroupDiscuss) {
-    LxCard {
+private fun GroupDiscussCard(
+    discuss: com.linxin.feature.aiclass.domain.AiGroupDiscuss,
+    onClick: () -> Unit,
+) {
+    LxCard(onClick = onClick) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
                 text = discuss.title.ifBlank { stringResource(R.string.ai_unnamed_group_discuss) },
@@ -738,6 +759,154 @@ private fun GroupDiscussCard(discuss: com.linxin.feature.aiclass.domain.AiGroupD
                     style = MiuixTheme.textStyles.footnote1,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.ai_group_open_thread),
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.primary,
+            )
+        }
+    }
+}
+
+/**
+ * 一条组内讨论展开后的那一屏：顶上话题正文，底下一串回复，顺序照接口回来的排（安小信自己也没排）。
+ * 只读 —— 往组里发言是写操作，学校那边一条样本都没给过，做之前要先问过他。
+ */
+@Composable
+private fun GroupDiscussThreadDialog(
+    title: String,
+    isLoading: Boolean,
+    thread: com.linxin.feature.aiclass.domain.AiGroupDiscussThread?,
+    error: String?,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnClickOutside = false,
+        ),
+    ) {
+        Scaffold(
+            containerColor = MiuixTheme.colorScheme.background,
+            topBar = {
+                LxTopBar(
+                    title = title.ifBlank { stringResource(R.string.ai_group_thread_title) },
+                    onBack = onDismiss,
+                )
+            },
+        ) { padding ->
+            when {
+                isLoading -> LxLoading(modifier = Modifier.padding(padding))
+
+                thread == null -> LxError(
+                    message = error ?: stringResource(R.string.ai_group_thread_failed),
+                    onRetry = onRetry,
+                    modifier = Modifier.padding(padding),
+                )
+
+                else -> LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    item {
+                        LxCard {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Text(
+                                    text = thread.title.ifBlank {
+                                        stringResource(R.string.ai_unnamed_group_discuss)
+                                    },
+                                    style = MiuixTheme.textStyles.title3,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                val byline = listOf(thread.topicAuthor, thread.topicTime)
+                                    .filter { it.isNotBlank() }
+                                    .joinToString(" · ")
+                                if (byline.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = byline,
+                                        style = MiuixTheme.textStyles.footnote1,
+                                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = thread.topicText.ifBlank {
+                                        stringResource(R.string.ai_group_no_topic_text)
+                                    },
+                                    style = MiuixTheme.textStyles.body2,
+                                )
+                            }
+                        }
+                    }
+
+                    if (thread.messages.isEmpty()) {
+                        item {
+                            Text(
+                                // 回复那一发挂了就不能说成「还没有人回复」，那是两回事
+                                text = stringResource(
+                                    if (thread.repliesFailed) R.string.ai_group_reply_failed else R.string.ai_group_no_reply,
+                                ),
+                                style = MiuixTheme.textStyles.body2,
+                                color = if (thread.repliesFailed) {
+                                    MiuixTheme.colorScheme.error
+                                } else {
+                                    MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                },
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                            )
+                        }
+                    } else {
+                        items(thread.messages, key = { "gmsg_" + it.id }) { message ->
+                            GroupMessageBubble(message)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 聊天里的一行：自己的靠右、别人的靠左，取不到作者就只发正文 */
+@Composable
+private fun GroupMessageBubble(message: com.linxin.feature.aiclass.domain.AiGroupMessage) {
+    val meta = listOf(
+        message.author.ifBlank { stringResource(R.string.ai_group_no_author) },
+        message.timeText,
+    ).filter { it.isNotBlank() }.joinToString(" · ")
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (message.isMine) Arrangement.End else Arrangement.Start,
+    ) {
+        LxCard(
+            modifier = Modifier.fillMaxWidth(if (message.isMine) 0.82f else 0.86f),
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Text(
+                    text = meta,
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = message.content.ifBlank { stringResource(R.string.ai_group_no_content) },
+                    style = MiuixTheme.textStyles.body2,
+                )
+                if (message.attachment.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = message.attachment,
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.primary,
+                    )
+                }
             }
         }
     }
