@@ -3,6 +3,7 @@ package com.linxin.feature.aiclass.data
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
+import retrofit2.http.Headers
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.Query
@@ -248,12 +249,23 @@ interface AiClassApi {
      * （videoCode=1 教师机位 / 2 HDMI），每条的 videoPath 是**当场签名**的 minio mp4 直链
      * （authKey/timestamp/memberId/X-Amz-Signature 每次调用都变），videoSize 是字节数。
      * audioPath 和 phaseUrl 实测是空串，别指望它们。
+     *
+     * 请求头照 2026-10-13 抓到的官方那一发抄：它**不带** Visit-Type: mobile，
+     * 而是带播放页自己的 Referer/Origin（mresc.fifedu.com）。我们一开始按主站习惯加了 Visit-Type，
+     * 服务器直接回 data=null，看着像"这一节没录像"，其实是头不对。
      */
+    @Headers(
+        "Accept: application/json, text/plain, */*",
+        "Content-Type: application/json",
+        "Referer: https://mresc.fifedu.com/",
+        "Origin: https://mresc.fifedu.com",
+        "X-Requested-With: com.linxin",
+        "User-Agent: Mozilla/5.0 (Linux; Android 17; PMA110 Build/CP2A.260605.016; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/156.0.8078.4 Mobile Safari/537.36",
+    )
     @GET
     suspend fun getVideoClassInfo(
         @Url url: String,
         @Header("authorization") auth: String,
-        @Header("Visit-Type") visitType: String = "mobile",
     ): AiClassVideoClassInfoResponse
 
 

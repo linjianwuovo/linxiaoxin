@@ -110,6 +110,7 @@ fun AiClassCourseDetailScreen(
                 isLiveLoading = uiState.isLiveLoading,
                 liveError = uiState.liveError,
                 onRetryLive = viewModel::retryLiveRecords,
+                onLiveClick = viewModel::openLiveRecord,
                 onCoursewareClick = viewModel::openCourseware,
                 isHomeworkLoading = uiState.isHomeworkLoading,
                 homeworkError = uiState.homeworkError,
@@ -176,8 +177,10 @@ private fun AiClassCourseDetailContent(
     isLiveLoading: Boolean = false,
     liveError: String? = null,
     onRetryLive: () -> Unit = {},
-    onLiveClick: (com.linxin.feature.aiclass.domain.AiLiveRecord) -> Unit = {},
-    onCoursewareClick: (com.linxin.feature.aiclass.domain.AiCourseware) -> Unit = {},
+    // 这两个不给默认值：上一轮 onLiveClick 忘了传，卡片照样画得出来、点下去没反应也不报错，
+    // 屏幕上就成了「录播点不进去」。让编译器替我把这条线盯住。
+    onLiveClick: (com.linxin.feature.aiclass.domain.AiLiveRecord) -> Unit,
+    onCoursewareClick: (com.linxin.feature.aiclass.domain.AiCourseware) -> Unit,
     isHomeworkLoading: Boolean = false,
     homeworkError: String? = null,
     onHomeworkClick: (String) -> Unit = {},
