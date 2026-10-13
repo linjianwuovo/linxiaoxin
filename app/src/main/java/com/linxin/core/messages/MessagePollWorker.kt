@@ -14,6 +14,8 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
+import com.linxin.core.notification.CourseNotificationScheduler
 import com.linxin.core.notification.NextClassWindowStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.TimeUnit
@@ -33,16 +35,21 @@ class MessagePollWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val poller: MessagePoller,
     private val nextClass: NextClassWindowStore,
+    private val scheduler: CourseNotificationScheduler,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        // 任何一路异常都不该让调度器被当成失败而无限退避
-        runCatching { poller.runOnce() }
-        val inWindow = runCatching {
+        val isFastChain = inputData.getString(KEY_CHAIN) == CHAIN_FAST
+        val inPollWindow = runCatching {
             nextClass.minutesUntilStart(MessageScheduler.FAST_WINDOW_MINUTES) != null
         }.getOrDefault(false)
-        // 窗口里就自己续一条 60 秒后的；窗口过了就明确停掉，不留一条每分钟空转的
-        if (inWindow) MessageScheduler.armFast(applicationContext)
+        // 任何一路异常都不该让调度器被当成失败而无限退避。
+        // 一分钟那条链跑在课前 25 分钟里（要刷倒计时数字），但消息检查本身只在他说的
+        // 15 分钟内才提速，别为了刷数字每分钟去敲学校三次接口。
+        if (!isFastChain || inPollWindow) runCatching { poller.runOnce() }
+
+        val countdownAlive = runCatching { scheduler.refreshCountdown() }.getOrDefault(false)
+        if (countdownAlive || inPollWindow) MessageScheduler.armFast(applicationContext)
         else MessageScheduler.syncFast(applicationContext, on = false)
         return Result.success()
     }
@@ -51,6 +58,8 @@ class MessagePollWorker @AssistedInject constructor(
         const val PERIODIC = "linxin_message_poll"
         const val ONCE = "linxin_message_check_once"
         const val FAST = "linxin_message_poll_class_window"
+        const val KEY_CHAIN = "chain"
+        const val CHAIN_FAST = "fast"
     }
 }
 
@@ -107,6 +116,7 @@ object MessageScheduler {
             ExistingWorkPolicy.REPLACE,
             OneTimeWorkRequestBuilder<MessagePollWorker>()
                 .setInitialDelay(60, TimeUnit.SECONDS)
+                .setInputData(workDataOf(MessagePollWorker.KEY_CHAIN to MessagePollWorker.CHAIN_FAST))
                 .setConstraints(networkConstraints)
                 .build(),
         )

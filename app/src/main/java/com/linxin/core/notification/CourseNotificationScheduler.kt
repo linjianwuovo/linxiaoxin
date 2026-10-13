@@ -61,31 +61,58 @@ class CourseNotificationScheduler @Inject constructor(
         val startTime = SectionSchedule.startOf(target.startSection) ?: return
         val minutesUntilStart = ChronoUnit.MINUTES.between(now, startTime)
 
-        // 把「下一节几点开始」交给后台那条链：快开课的这 15 分钟里，消息检查从 15 分钟一次
-        // 提到一分钟一次（WorkManager 的周期任务最短就是 15 分钟，只能靠一次性任务自己续）
-        nextClass.publish(target.startSection, target.name)
+        // 把「下一节几点开始、在哪个教室」交给后台那条链：前台进程一旦被系统收掉，
+        // 只有 worker 还能每分钟把这条通知的数字往下刷。2026-10-13 他锁屏看到的
+        // 「还有 23 分钟」挂了 22 分钟没动，就是因为刷的那个人已经死了。
+        nextClass.publish(target.startSection, target.name, target.room)
+        postCountdown(target.name, target.room, minutesUntilStart)
+    }
 
-        val (title, statusText) = if (minutesUntilStart > 0) {
-            target.name to AppText.str(R.string.notif_upcoming, minutesUntilStart.toString())
+    /**
+     * 后台 worker 每分钟调这个：读窗口里存的课名/教室/开始时间，重算还剩几分钟。
+     * 回 true = 这条还在显示窗口里，链继续；回 false = 不在窗口（或已经收掉）。
+     * 只认窗口里那一个时间戳，不重新拉课表 —— 后台不一定有登录态。
+     */
+    fun refreshCountdown(): Boolean {
+        val minutes = nextClass.signedMinutesUntilStart() ?: return false
+        val name = nextClass.courseName()
+        if (name.isBlank()) return false
+        return when {
+            minutes > TRIGGER_MINUTES -> false
+            minutes < -DISMISS_AFTER_START_MINUTES -> {
+                notifier.cancel(KEY)
+                nextClass.clear()
+                false
+            }
+            else -> {
+                postCountdown(name, nextClass.room(), minutes)
+                true
+            }
+        }
+    }
+
+    private fun postCountdown(name: String, room: String, minutesUntilStart: Long) {
+        val statusText = if (minutesUntilStart > 0) {
+            AppText.str(R.string.notif_upcoming, minutesUntilStart.toString())
         } else {
-            target.name to AppText.str(R.string.notif_started)
+            AppText.str(R.string.notif_started)
         }
 
-        val capsuleText = shortenRoom(target.room)
-        val content = AppText.str(R.string.notif_content, statusText, target.room)
-        val bigText = AppText.str(R.string.notif_content, statusText, target.room)
+        val capsuleText = shortenRoom(room)
+        val content = AppText.str(R.string.notif_content, statusText, room)
+        val bigText = AppText.str(R.string.notif_content, statusText, room)
 
         val extras = Bundle().apply {
-            putString("courseName", target.name)
+            putString("courseName", name)
             putString("statusText", statusText)
-            putString("room", target.room)
+            putString("room", room)
             putString("bigText", bigText)
         }
 
         val request = LiveActivityRequest(
             key = KEY,
             channelId = KEY,
-            title = title,
+            title = name,
             content = statusText,
             capsuleText = capsuleText,
             route = NotificationRoute(destination = Routes.AICLASS_HOME),
