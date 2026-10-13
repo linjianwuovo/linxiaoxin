@@ -48,7 +48,10 @@ import javax.inject.Singleton
 
 private const val REPOSITORY_LOG_TAG = "AiClassRepo"
 private const val WEBVIEW_REQUESTED_WITH = "com.linxin"
-private const val AICLASS_PRIMARY_REQUEST_TIMEOUT_MS = 12_000L
+// 12 秒是学校服务器正常时的余量，但它一慢就先撞这里：屏幕上「获取测验列表超时」
+// 「获取作业列表超时」都是这一句抛的，外面 ViewModel 给到 25 秒也轮不到用。
+// 提到 20 秒，仍然小于 ViewModel 的 25 秒，保证失败时说的是人话而不是 OkHttp 的栈。
+private const val AICLASS_PRIMARY_REQUEST_TIMEOUT_MS = 20_000L
 private const val AICLASS_SUPPLEMENT_REQUEST_TIMEOUT_MS = 6_000L
 private const val AICLASS_TIMETABLE_REQUEST_TIMEOUT_MS = 5_000L
 // 课件逐页图和直录播列表一发就是十几到几十 KB，学校那边慢的时候 12 秒不够，单独放宽
@@ -72,6 +75,10 @@ class AiClassRepository @Inject constructor(
     private var cachedWorking: AiWorkingRecord? = null
 
     private val warmUpInFlight = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** 学期 id 一学期才变一次，缓存住，省掉每次进课程页多发的一发 8KB termList */
+    @Volatile
+    private var cachedTermId: String? = null
 
     fun peekCourses(): List<AiCourse>? = cachedCourses
 
@@ -371,13 +378,15 @@ class AiClassRepository @Inject constructor(
             return Result.failure(Exception("AI课堂身份不完整"))
         }
 
-        val termId = withNetworkTimeout("获取学期", AICLASS_SUPPLEMENT_REQUEST_TIMEOUT_MS) {
-            api.getTermList(auth)
-        }.getOrNull()?.data?.dataList.orEmpty().let { terms ->
-            terms.firstOrNull { it.year == course.termYear && it.num == course.term }
-                ?: terms.firstOrNull { it.selected == "1" }
-                ?: terms.firstOrNull()
-        }.let { it?.id.orEmpty() }
+        val termId = cachedTermId ?: run {
+            withNetworkTimeout("获取学期", AICLASS_SUPPLEMENT_REQUEST_TIMEOUT_MS) {
+                api.getTermList(auth)
+            }.getOrNull()?.data?.dataList.orEmpty().let { terms ->
+                terms.firstOrNull { it.year == course.termYear && it.num == course.term }
+                    ?: terms.firstOrNull { it.selected == "1" }
+                    ?: terms.firstOrNull()
+            }.let { it?.id.orEmpty() }.also { cachedTermId = it }
+        }
 
         val response = withNetworkTimeout("获取直录播", AICLASS_COURSEWARE_REQUEST_TIMEOUT_MS) {
             api.getLiveAndRecordList(
@@ -530,7 +539,9 @@ class AiClassRepository @Inject constructor(
         if (activities.isEmpty()) return Result.success(emptyList())
 
         val details = coroutineScope {
-            activities.take(GROUP_DETAIL_FETCH_LIMIT).map { activity ->
+            // 每个活动两发（成员 + 待办数），三个活动就是六发，全挤在课程页那一屏里。
+            // 待办数只有第一个组用得上（其余组要点开才看），所以只给第一组发。
+            activities.take(GROUP_DETAIL_FETCH_LIMIT).mapIndexed { index, activity ->
                 async {
                     loadStudentGroupDetail(
                         auth = auth,
@@ -540,6 +551,7 @@ class AiClassRepository @Inject constructor(
                         schoolId = schoolId,
                         studentId = studentId,
                         userName = fifSession.getUserName().orEmpty(),
+                        withTodo = index == 0,
                     )
                 }
             }.awaitAll()
@@ -620,6 +632,7 @@ class AiClassRepository @Inject constructor(
         schoolId: String,
         studentId: String,
         userName: String,
+        withTodo: Boolean,
     ): StudentGroupDetail? {
         val groupId = activity.stringValue("id", "groupId")
         if (groupId.isBlank()) return null
@@ -641,17 +654,21 @@ class AiClassRepository @Inject constructor(
         val microGroupId = micro?.stringValue("gId", "groupId", "id").orEmpty()
 
         // 待办数这发纯粹是锦上添花，缺了不显示，也不影响这一行
-        val todo = withNetworkTimeout("获取小组待办", AICLASS_TIMETABLE_REQUEST_TIMEOUT_MS) {
-            api.getGroupTodoCount(
-                microGroupId = microGroupId,
-                schoolId = schoolId,
-                teachClassId = teachClassId,
-                studentId = studentId,
-                courseId = courseId,
-                groupId = groupId,
-                auth = auth,
-            )
-        }.getOrNull()?.data.asObjectOrNull()
+        val todo = if (!withTodo) {
+            null
+        } else {
+            withNetworkTimeout("获取小组待办", AICLASS_TIMETABLE_REQUEST_TIMEOUT_MS) {
+                api.getGroupTodoCount(
+                    microGroupId = microGroupId,
+                    schoolId = schoolId,
+                    teachClassId = teachClassId,
+                    studentId = studentId,
+                    courseId = courseId,
+                    groupId = groupId,
+                    auth = auth,
+                )
+            }.getOrNull()?.data.asObjectOrNull()
+        }
 
         // 我是成员表里的哪一条：成员对象上抓到的键只有 id / stuNum 有可能对上我的身份，
         // 拿手上的 32 位成员 id 和登录名去比；比不中就承认角色未知，不猜。

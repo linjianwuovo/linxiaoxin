@@ -22,6 +22,7 @@ import com.linxin.feature.aiclass.domain.AiWorkingRecord
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -32,7 +33,9 @@ import javax.inject.Inject
 private const val VIEWMODEL_LOG_TAG = "AiClassVM"
 private const val AICLASS_INITIAL_LOAD_TIMEOUT_MS = 18_000L
 private const val AICLASS_OPTIONAL_LOAD_TIMEOUT_MS = 8_000L
-private const val AICLASS_DETAIL_LOAD_TIMEOUT_MS = 12_000L
+// 测验走的是学校自己的库、作业走的是爱作业（第三方），12 秒这两条经常不够用，
+// 用户看到的就是「测验/作业超时」——和其他几发对齐到 25 秒。
+private const val AICLASS_DETAIL_LOAD_TIMEOUT_MS = 25_000L
 /** 课件这一发实测比测验慢得多，先给它到 25 秒，再拿屏幕上的出现时间判断是慢还是回不来 */
 private const val COURSEWARE_LOAD_TIMEOUT_MS = 25_000L
 
@@ -305,91 +308,109 @@ class AiClassViewModel @Inject constructor(
             )
         }
 
+        // 同一个域名 OkHttp 默认只放 5 条并发，六发一起挤的时候排在后面的那几发光排队就好几秒，
+        // 这就是「整体很慢、测验作业还容易超时」的主因。所以分两波：
+        // 先屏幕上最先要看的三样（测验、作业、课件），跑完再放其余三样。
         viewModelScope.launch {
-            val quizResult = withResultTimeout(AppText.str(R.string.aivm_act_quizzes), AICLASS_DETAIL_LOAD_TIMEOUT_MS) {
-                repository.getQuizList(course.courseId)
-            }
-            _uiState.update { current ->
-                if (current.selectedCourse?.stableId != classId) return@update current
-                current.copy(
-                    quizList = quizResult.getOrDefault(emptyList()),
-                    isQuizLoading = false,
-                    quizError = quizResult.exceptionOrNull()?.message,
-                )
-            }
+            val firstWave = listOf(
+                launch { loadQuizList(classId, course) },
+                launch { loadHomework(classId, course) },
+                launch { loadCourseware(classId, course) },
+            )
+            firstWave.joinAll()
+            val secondWave = listOf(
+                launch { loadMicroLessons(classId, course) },
+                launch { loadStudentGroups(classId, course) },
+                launch { loadLiveRecords(classId, course) },
+            )
+            secondWave.joinAll()
         }
+    }
 
-        viewModelScope.launch {
-            val wkResult = withResultTimeout(AppText.str(R.string.aivm_act_weike), COURSEWARE_LOAD_TIMEOUT_MS) {
-                repository.getMicroLessons(course.courseId)
-            }
-            _uiState.update { current ->
-                if (current.selectedCourse?.stableId != classId) return@update current
-                current.copy(
-                    microLessons = wkResult.getOrDefault(emptyList()),
-                    microError = wkResult.exceptionOrNull()?.message,
-                )
-            }
+    private suspend fun loadQuizList(classId: String, course: AiCourse) {
+        val quizResult = withResultTimeout(AppText.str(R.string.aivm_act_quizzes), AICLASS_DETAIL_LOAD_TIMEOUT_MS) {
+            repository.getQuizList(course.courseId)
         }
-
-        viewModelScope.launch {
-            val cwResult = withResultTimeout(AppText.str(R.string.aivm_act_courseware), COURSEWARE_LOAD_TIMEOUT_MS) {
-                repository.getCoursewareList(course.courseId, course.teachClassId)
-            }
-            _uiState.update { current ->
-                if (current.selectedCourse?.stableId != classId) return@update current
-                current.copy(
-                    coursewareList = cwResult.getOrDefault(emptyList()),
-                    isCoursewareLoading = false,
-                    coursewareError = cwResult.exceptionOrNull()?.message,
-                )
-            }
+        _uiState.update { current ->
+            if (current.selectedCourse?.stableId != classId) return@update current
+            current.copy(
+                quizList = quizResult.getOrDefault(emptyList()),
+                isQuizLoading = false,
+                quizError = quizResult.exceptionOrNull()?.message,
+            )
         }
+    }
 
-        viewModelScope.launch {
-            val groupResult = withResultTimeout(AppText.str(R.string.aivm_act_group), COURSEWARE_LOAD_TIMEOUT_MS) {
-                repository.getStudentGroups(course.courseId, course.teachClassId)
-            }
-            _uiState.update { current ->
-                if (current.selectedCourse?.stableId != classId) return@update current
-                current.copy(
-                    studentGroups = groupResult.getOrDefault(emptyList()),
-                    isGroupLoading = false,
-                    // 小组这条要区分「这门课没有小组」和「请求没成」，所以失败时把原因留着给界面
-                    groupError = groupResult.exceptionOrNull()?.message,
-                )
-            }
+    private suspend fun loadHomework(classId: String, course: AiCourse) {
+        val hwResult = withResultTimeout(AppText.str(R.string.aivm_act_hw), AICLASS_DETAIL_LOAD_TIMEOUT_MS) {
+            repository.getHomeworkList(course.courseId, course.teachClassId)
         }
-
-        viewModelScope.launch {
-            val liveResult = withResultTimeout(
-                AppText.str(R.string.aivm_act_live),
-                COURSEWARE_LOAD_TIMEOUT_MS,
-            ) {
-                repository.getLiveRecords(course)
-            }
-            _uiState.update { current ->
-                if (current.selectedCourse?.stableId != classId) return@update current
-                current.copy(
-                    liveRecords = liveResult.getOrDefault(emptyList()),
-                    isLiveLoading = false,
-                    liveError = liveResult.exceptionOrNull()?.message,
-                )
-            }
+        _uiState.update { current ->
+            if (current.selectedCourse?.stableId != classId) return@update current
+            current.copy(
+                homeworkList = hwResult.getOrDefault(emptyList()),
+                isHomeworkLoading = false,
+                homeworkError = hwResult.exceptionOrNull()?.message,
+            )
         }
+    }
 
-        viewModelScope.launch {
-            val hwResult = withResultTimeout(AppText.str(R.string.aivm_act_hw), AICLASS_DETAIL_LOAD_TIMEOUT_MS) {
-                repository.getHomeworkList(course.courseId, course.teachClassId)
-            }
-            _uiState.update { current ->
-                if (current.selectedCourse?.stableId != classId) return@update current
-                current.copy(
-                    homeworkList = hwResult.getOrDefault(emptyList()),
-                    isHomeworkLoading = false,
-                    homeworkError = hwResult.exceptionOrNull()?.message,
-                )
-            }
+    private suspend fun loadCourseware(classId: String, course: AiCourse) {
+        val cwResult = withResultTimeout(AppText.str(R.string.aivm_act_courseware), COURSEWARE_LOAD_TIMEOUT_MS) {
+            repository.getCoursewareList(course.courseId, course.teachClassId)
+        }
+        _uiState.update { current ->
+            if (current.selectedCourse?.stableId != classId) return@update current
+            current.copy(
+                coursewareList = cwResult.getOrDefault(emptyList()),
+                isCoursewareLoading = false,
+                coursewareError = cwResult.exceptionOrNull()?.message,
+            )
+        }
+    }
+
+    private suspend fun loadMicroLessons(classId: String, course: AiCourse) {
+        val wkResult = withResultTimeout(AppText.str(R.string.aivm_act_weike), COURSEWARE_LOAD_TIMEOUT_MS) {
+            repository.getMicroLessons(course.courseId)
+        }
+        _uiState.update { current ->
+            if (current.selectedCourse?.stableId != classId) return@update current
+            current.copy(
+                microLessons = wkResult.getOrDefault(emptyList()),
+                microError = wkResult.exceptionOrNull()?.message,
+            )
+        }
+    }
+
+    private suspend fun loadStudentGroups(classId: String, course: AiCourse) {
+        val groupResult = withResultTimeout(AppText.str(R.string.aivm_act_group), COURSEWARE_LOAD_TIMEOUT_MS) {
+            repository.getStudentGroups(course.courseId, course.teachClassId)
+        }
+        _uiState.update { current ->
+            if (current.selectedCourse?.stableId != classId) return@update current
+            current.copy(
+                studentGroups = groupResult.getOrDefault(emptyList()),
+                isGroupLoading = false,
+                // 小组这条要区分「这门课没有小组」和「请求没成」，所以失败时把原因留着给界面
+                groupError = groupResult.exceptionOrNull()?.message,
+            )
+        }
+    }
+
+    private suspend fun loadLiveRecords(classId: String, course: AiCourse) {
+        val liveResult = withResultTimeout(
+            AppText.str(R.string.aivm_act_live),
+            COURSEWARE_LOAD_TIMEOUT_MS,
+        ) {
+            repository.getLiveRecords(course)
+        }
+        _uiState.update { current ->
+            if (current.selectedCourse?.stableId != classId) return@update current
+            current.copy(
+                liveRecords = liveResult.getOrDefault(emptyList()),
+                isLiveLoading = false,
+                liveError = liveResult.exceptionOrNull()?.message,
+            )
         }
     }
 
