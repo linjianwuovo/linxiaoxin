@@ -519,11 +519,15 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="repair_evaluation">服务评价</string>
 
     <!-- 请假（只读） -->
-    <string name="title_leave">请假</string>
-    <string name="leave_tab_apply">我的申请</string>
-    <string name="leave_tab_todo">待我处理</string>
+    <string name="title_leave">待办事务</string>
+    <string name="leave_tab_apply">我的请求</string>
+    <string name="leave_tab_todo">待办</string>
+    <string name="leave_tab_read">待阅</string>
+    <string name="leave_tab_done">已办事项</string>
     <string name="leave_empty_apply">还没有提交过申请</string>
     <string name="leave_empty_todo">没有待处理的流程</string>
+    <string name="leave_empty_read">没有待阅的流程</string>
+    <string name="leave_empty_done">还没有办过的流程</string>
     <string name="leave_untitled">流程单</string>
 
     <!-- 校园卡（只读） -->

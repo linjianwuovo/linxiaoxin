@@ -519,11 +519,15 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="repair_evaluation">Rating</string>
 
     <!-- Leave (read-only) -->
-    <string name="title_leave">Leave</string>
+    <string name="title_leave">To-dos</string>
     <string name="leave_tab_apply">My requests</string>
-    <string name="leave_tab_todo">Awaiting me</string>
+    <string name="leave_tab_todo">To handle</string>
+    <string name="leave_tab_read">To read</string>
+    <string name="leave_tab_done">Handled</string>
     <string name="leave_empty_apply">No requests submitted</string>
     <string name="leave_empty_todo">Nothing waiting for you</string>
+    <string name="leave_empty_read">Nothing to read</string>
+    <string name="leave_empty_done">Nothing handled yet</string>
     <string name="leave_untitled">Request</string>
 
     <!-- Campus card (read-only) -->

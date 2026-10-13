@@ -132,6 +132,38 @@ interface LeaveApi {
     ): LeaveFlowResponse
 
     /**
+     * 已办事项。参数跟「我的请求」同一个形状，多带 `timeType:1, status:3`，
+     * 另外页面还有个「筛选」面板会并进来关键词和时间区间（我们这版先不带筛选）。
+     */
+    @FormUrlEncoded
+    @POST("mobile/flowRuTask/getHiTaskByUserCode.do")
+    suspend fun doneTasks(
+        @Field("currentPageNo") currentPageNo: Int,
+        @Field("pageSize") pageSize: Int,
+        @Field("timeType") timeType: String = "1",
+        @Field("status") status: String = "3",
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveListResponse
+
+    /**
+     * 服务页那张「待办事务」卡上的角标数。**一个业务参数都不带**，
+     * 回的是 `data.redDot`（各栏的未读数），页面上有数就显示、没有就不显示。
+     */
+    @FormUrlEncoded
+    @POST("mobile/flowRuTask/getYwdtCount.do")
+    suspend fun todoCounts(
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveCountResponse
+
+    /**
      * 打开表单后 H5 紧接着调这个拿默认值（标题/申请人/班级/学号/手机号/流水号都是它给的，
      * 界面上这些字段是只读预填，不让人手打）。
      */

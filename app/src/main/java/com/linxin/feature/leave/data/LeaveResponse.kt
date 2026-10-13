@@ -75,6 +75,17 @@ data class LeaveFlowResponse(
     val rows: List<com.google.gson.JsonObject>?,
 )
 
+/**
+ * `flowRuTask/getYwdtCount.do` 的外层。H5 读的是 `data.redDot`，里面每个键是某一栏的未读数，
+ * 键名一个样本都没读到过（那台机上四个数全是 0），所以收 JsonElement 再按候选键取，
+ * 取不到就不显示数字 —— 不猜一个键名当它一定在。
+ */
+data class LeaveCountResponse(
+    val flag: Boolean?,
+    val result: String?,
+    val data: com.google.gson.JsonElement?,
+)
+
 /** getFlowSheet.do 的外层。flowSheet 是一段 JSON 字符串，用 org.json 现场解，不建死 DTO */
 data class LeaveFlowSheetResponse(
     val flag: Boolean?,
