@@ -432,6 +432,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="notif_upcoming">即将上课 | 还有 %1$s 分钟</string>
     <string name="notif_started">已上课</string>
     <string name="notif_content">%1$s\n地点：%2$s</string>
+    <string name="notif_capsule_minutes">%1$d分</string>
     <string name="trk_wait_location">等待定位</string>
     <string name="trk_getting_gps">正在获取 GPS</string>
     <string name="trk_ok">定位正常</string>
