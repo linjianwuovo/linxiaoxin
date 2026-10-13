@@ -6,6 +6,8 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import okhttp3.Cookie
 import okhttp3.CookieJar
+import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -51,6 +53,19 @@ object NetworkModule {
             .addInterceptor(authInterceptor)
             .addInterceptor(tokenRefreshInterceptor)
             .addInterceptor(logging)
+            // OkHttp 默认每个主机只放 5 条并发，AI 课堂一屏就是六发同一个域名，
+            // 排在后面的那几发光排队就要好几秒 —— 课程页「整体很慢、还容易超时」有这个成分在。
+            // 放宽到 8 条，让六发真的一起走，也就不用为了排队把加载拆成两波。
+            .dispatcher(
+                Dispatcher().apply {
+                    maxRequests = 16
+                    maxRequestsPerHost = 8
+                },
+            )
+            // 空闲连接 30 秒就丢，别拿一条服务器那边早断了的老连接去发请求：
+            // 2026-10-13 真机日志里同一屏总有一发发出去完全没回音（课件那一发挂到 25 秒超时），
+            // 这种"挂死"最像就是复用到了一条半开的旧连接。
+            .connectionPool(ConnectionPool(8, 30, TimeUnit.SECONDS))
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
@@ -147,6 +162,19 @@ object NetworkModule {
             .cookieJar(cookieJar)
             .addInterceptor(netTraceInterceptor)
             .addInterceptor(logging)
+            // OkHttp 默认每个主机只放 5 条并发，AI 课堂一屏就是六发同一个域名，
+            // 排在后面的那几发光排队就要好几秒 —— 课程页「整体很慢、还容易超时」有这个成分在。
+            // 放宽到 8 条，让六发真的一起走，也就不用为了排队把加载拆成两波。
+            .dispatcher(
+                Dispatcher().apply {
+                    maxRequests = 16
+                    maxRequestsPerHost = 8
+                },
+            )
+            // 空闲连接 30 秒就丢，别拿一条服务器那边早断了的老连接去发请求：
+            // 2026-10-13 真机日志里同一屏总有一发发出去完全没回音（课件那一发挂到 25 秒超时），
+            // 这种"挂死"最像就是复用到了一条半开的旧连接。
+            .connectionPool(ConnectionPool(8, 30, TimeUnit.SECONDS))
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .callTimeout(45, TimeUnit.SECONDS)

@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 private const val VIEWMODEL_LOG_TAG = "AiClassVM"
@@ -37,6 +38,8 @@ private const val AICLASS_OPTIONAL_LOAD_TIMEOUT_MS = 8_000L
 // 测验走的是学校自己的库、作业走的是爱作业（第三方），12 秒这两条经常不够用，
 // 用户看到的就是「测验/作业超时」——和其他几发对齐到 25 秒。
 private const val AICLASS_DETAIL_LOAD_TIMEOUT_MS = 25_000L
+// 课程页六发一起跑，整屏最多等这么久；到点没回的那几发继续跑，回来照样填进状态
+private const val AICLASS_PAGE_REVEAL_BUDGET_MS = 14_000L
 /** 课件这一发实测比测验慢得多，先给它到 25 秒，再拿屏幕上的出现时间判断是慢还是回不来 */
 private const val COURSEWARE_LOAD_TIMEOUT_MS = 25_000L
 
@@ -318,22 +321,21 @@ class AiClassViewModel @Inject constructor(
             )
         }
 
-        // 同一个域名 OkHttp 默认只放 5 条并发，六发一起挤的时候排在后面的那几发光排队就好几秒，
-        // 这就是「整体很慢、测验作业还容易超时」的主因。所以分两波：
-        // 先屏幕上最先要看的三样（测验、作业、课件），跑完再放其余三样。
+        // 六发一起发，谁先回来谁先落状态。之前拆两波是因为 OkHttp 每主机只放 5 条并发要排队，
+        // 那条已经在 NetworkModule 里放宽到 8 条了；继续拆两波的代价在 2026-10-13 的真机日志里：
+        // 测验那一发 20 秒不回头，第二波（微课/小组/直录播）就被它按在原地整整 20 秒。
+        // 一次挂死的请求不该拖全页，所以整屏最多等 AICLASS_PAGE_REVEAL_BUDGET_MS；
+        // 到点还没回来的那几发继续跑，回来照样填进状态（宁可晚到，不要一挂就永远空）。
         viewModelScope.launch {
-            val firstWave = listOf(
+            val loads = listOf(
                 launch { loadQuizList(classId, course) },
                 launch { loadHomework(classId, course) },
                 launch { loadCourseware(classId, course) },
-            )
-            firstWave.joinAll()
-            val secondWave = listOf(
                 launch { loadMicroLessons(classId, course) },
                 launch { loadStudentGroups(classId, course) },
                 launch { loadLiveRecords(classId, course) },
             )
-            secondWave.joinAll()
+            withTimeoutOrNull(AICLASS_PAGE_REVEAL_BUDGET_MS) { loads.joinAll() }
         }
     }
 
