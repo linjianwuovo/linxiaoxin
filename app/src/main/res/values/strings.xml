@@ -585,6 +585,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="leave_detail_flow_empty">还没有审批记录</string>
     <string name="leave_detail_flow_unavailable">审批进度没取到，返回去再点一次试试</string>
     <string name="leave_step_no_info">这一步学校没给信息</string>
+    <string name="leave_open_checkin">去查寝签到</string>
     <string name="leave_start">开始时间 yyyy-MM-dd HH:mm</string>
     <string name="leave_end">结束时间 yyyy-MM-dd HH:mm</string>
     <string name="card_actions">卡操作</string>

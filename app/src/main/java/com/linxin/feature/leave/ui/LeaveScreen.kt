@@ -200,6 +200,8 @@ class LeaveViewModel @Inject constructor(
 fun LeaveScreen(
     onBack: () -> Unit,
     onCreate: () -> Unit,
+    // 不给默认值：默认空实现会让「点了没反应」这种问题在屏幕上看不出来，上一轮踩过
+    onOpenCheckin: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LeaveViewModel = hiltViewModel(),
 ) {
@@ -267,10 +269,13 @@ fun LeaveScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(uiState.shown, key = { it.id }) { item ->
+                        // 查寝类待办不进流程单详情（学校那边也是跳查寝页），直接送过去
                         LeaveCard(
                             item = item,
                             onWithdraw = { viewModel.withdraw(item.id) },
-                            onClick = { viewModel.openDetail(item) },
+                            onClick = {
+                                if (item.isCheckinTodo) onOpenCheckin() else viewModel.openDetail(item)
+                            },
                         )
                     }
                 }
@@ -530,6 +535,15 @@ private fun LeaveCard(
                     text = item.time,
                     style = MiuixTheme.textStyles.footnote2,
                     color = LxInkMuted,
+                )
+            }
+            if (item.isCheckinTodo) {
+                // 让他看得出来这条点了不是看表单，是去查寝那一页
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.leave_open_checkin),
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.primary,
                 )
             }
             if (item.withdrawable) {
