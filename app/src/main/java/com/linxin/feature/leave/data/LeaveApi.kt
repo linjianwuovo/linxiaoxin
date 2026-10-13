@@ -95,6 +95,38 @@ interface LeaveApi {
         @Field("xh") xh: String,
     ): LeaveListResponse
     /**
+     * 打开一条已经提交过的请假。参数照它 H5 的原样：executionId + type + ruTaskNodeId，
+     * 从「我的申请」进 type=3、从「待办」进 type=1（2026-10-13 读 ywlz 那套 chunk 的
+     * `query:{type:3,executionId:...,ruTaskNodeId:...}` 对上了）。
+     * 回来的 data.formJson 是表单结构、data.dataJson 是当时填的值，两个都是"字符串套 JSON"。
+     */
+    @FormUrlEncoded
+    @POST("mobile/process/getForm.do")
+    suspend fun getForm(
+        @Field("executionId") executionId: String,
+        @Field("type") type: String,
+        @Field("ruTaskNodeId") ruTaskNodeId: String,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveFormResponse
+
+    /** 审批进度：一条一步。H5 那发还带了个 `_t` 时间戳防缓存，照抄 */
+    @FormUrlEncoded
+    @POST("mobile/flowRuTask/getApprovedInfoByExeId.do")
+    suspend fun approvedInfo(
+        @Field("executionId") executionId: String,
+        @Field("_t") t: Long,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveFlowResponse
+
+    /**
      * 打开表单后 H5 紧接着调这个拿默认值（标题/申请人/班级/学号/手机号/流水号都是它给的，
      * 界面上这些字段是只读预填，不让人手打）。
      */

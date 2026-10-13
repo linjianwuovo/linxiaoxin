@@ -22,8 +22,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -40,6 +41,7 @@ import com.linxin.core.designsystem.component.LxTopBar
 import com.linxin.core.designsystem.theme.LxInk
 import com.linxin.core.designsystem.theme.LxInkMuted
 import com.linxin.core.designsystem.theme.LxSandDeep
+import com.linxin.feature.leave.data.LeaveDetail
 import com.linxin.feature.leave.data.LeaveItem
 import com.linxin.feature.leave.data.LeaveRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -64,6 +66,11 @@ data class LeaveUiState(
     val tab: Int = TAB_APPLY,
     val isLoading: Boolean = true,
     val error: String? = null,
+    /** 当前点开在看的那一条；null = 没在看详情 */
+    val openedItem: LeaveItem? = null,
+    val detail: LeaveDetail? = null,
+    val isLoadingDetail: Boolean = false,
+    val detailError: String? = null,
 ) {
     val shown: List<LeaveItem>
         get() = if (tab == TAB_TODO) todos else applies
@@ -107,6 +114,39 @@ class LeaveViewModel @Inject constructor(
 
     fun selectTab(tab: Int) {
         _uiState.update { it.copy(tab = tab) }
+    }
+
+    /** 点开一条请假：看它当时填了什么、审批走到哪一步 */
+    fun openDetail(item: LeaveItem) {
+        _uiState.update {
+            it.copy(
+                openedItem = item,
+                detail = null,
+                isLoadingDetail = true,
+                detailError = null,
+            )
+        }
+        viewModelScope.launch {
+            val result = repository.formDetail(item.id, item.formType, item.ruTaskNodeId)
+            _uiState.update { current ->
+                if (current.openedItem?.id != item.id) return@update current
+                current.copy(
+                    detail = result.getOrNull(),
+                    isLoadingDetail = false,
+                    detailError = result.exceptionOrNull()?.message,
+                )
+            }
+        }
+    }
+
+    fun retryDetail() {
+        _uiState.value.openedItem?.let(::openDetail)
+    }
+
+    fun closeDetail() {
+        _uiState.update {
+            it.copy(openedItem = null, detail = null, isLoadingDetail = false, detailError = null)
+        }
     }
 
     fun withdraw(executionId: String) {
@@ -178,18 +218,245 @@ fun LeaveScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(uiState.shown, key = { it.id }) { item ->
-                        LeaveCard(item = item, onWithdraw = { viewModel.withdraw(item.id) })
+                        LeaveCard(
+                            item = item,
+                            onWithdraw = { viewModel.withdraw(item.id) },
+                            onClick = { viewModel.openDetail(item) },
+                        )
                     }
                 }
             }
         }
     }
+
+    // 点开一条请假就在这一页上层看详情，不推新页面
+    if (uiState.openedItem != null) {
+        LeaveDetailDialog(
+            item = uiState.openedItem!!,
+            detail = uiState.detail,
+            isLoading = uiState.isLoadingDetail,
+            error = uiState.detailError,
+            onRetry = viewModel::retryDetail,
+            onWithdraw = { viewModel.withdraw(uiState.openedItem!!.id) },
+            onDismiss = viewModel::closeDetail,
+        )
+    }
+}
+
+/** 详情页里的一节标题 */
+@Composable
+private fun LeaveDetailSectionTitle(text: String) {
+    Text(
+        text = text,
+        style = MiuixTheme.textStyles.footnote1,
+        color = LxInkMuted,
+        modifier = Modifier.padding(bottom = 6.dp),
+    )
 }
 
 @Composable
-private fun LeaveCard(item: LeaveItem, onWithdraw: () -> Unit) {
+private fun LeaveDetailDialog(
+    item: LeaveItem,
+    detail: LeaveDetail?,
+    isLoading: Boolean,
+    error: String?,
+    onRetry: () -> Unit,
+    onWithdraw: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     var confirmWithdraw by remember { mutableStateOf(false) }
-    LxCard {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnClickOutside = false,
+        ),
+    ) {
+        Scaffold(
+            containerColor = MiuixTheme.colorScheme.background,
+            topBar = {
+                LxTopBar(title = stringResource(R.string.leave_detail_title), onBack = onDismiss)
+            },
+        ) { padding ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                item(key = "detail_head") {
+                    LxCard {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            // 标题不再截断：学校把类型、日期、时长全拼在这一串里，截了就等于没说
+                            Text(
+                                text = item.title.ifBlank { stringResource(R.string.leave_untitled) },
+                                style = MiuixTheme.textStyles.title4,
+                                fontWeight = FontWeight.SemiBold,
+                                color = LxInk,
+                            )
+                            val meta = listOf(item.status, item.time).filter { it.isNotBlank() }
+                                .joinToString(" · ")
+                            if (meta.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = meta,
+                                    style = MiuixTheme.textStyles.footnote2,
+                                    color = LxSandDeep,
+                                )
+                            }
+                        }
+                    }
+                }
+
+                when {
+                    isLoading -> item(key = "detail_loading") {
+                        LxLoading(modifier = Modifier.fillMaxWidth().height(160.dp))
+                    }
+
+                    detail == null -> item(key = "detail_error") {
+                        LxError(message = error ?: stringResource(R.string.leave_detail_failed), onRetry = onRetry)
+                    }
+
+                    else -> {
+                        item(key = "detail_fields_title") {
+                            LeaveDetailSectionTitle(stringResource(R.string.leave_detail_fields))
+                        }
+                        if (detail.fields.isEmpty()) {
+                            item(key = "detail_fields_empty") {
+                                LxCard {
+                                    Text(
+                                        text = stringResource(
+                                            if (detail.fieldsUnavailable) {
+                                                R.string.leave_detail_fields_unavailable
+                                            } else {
+                                                R.string.leave_detail_fields_empty
+                                            },
+                                        ),
+                                        style = MiuixTheme.textStyles.body2,
+                                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                        modifier = Modifier.padding(16.dp),
+                                    )
+                                }
+                            }
+                        } else {
+                            items(detail.fields, key = { "f_" + it.label }) { field ->
+                                LxCard {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                    ) {
+                                        Text(
+                                            text = field.label,
+                                            style = MiuixTheme.textStyles.footnote1,
+                                            color = LxInkMuted,
+                                            modifier = Modifier.width(110.dp),
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text = field.value,
+                                            style = MiuixTheme.textStyles.body2,
+                                            color = LxInk,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        item(key = "detail_flow_title") {
+                            LeaveDetailSectionTitle(stringResource(R.string.leave_detail_flow))
+                        }
+                        if (detail.steps.isEmpty()) {
+                            item(key = "detail_flow_empty") {
+                                LxCard {
+                                    Text(
+                                        text = stringResource(
+                                            if (detail.stepsUnavailable) {
+                                                R.string.leave_detail_flow_unavailable
+                                            } else {
+                                                R.string.leave_detail_flow_empty
+                                            },
+                                        ),
+                                        style = MiuixTheme.textStyles.body2,
+                                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                        modifier = Modifier.padding(16.dp),
+                                    )
+                                }
+                            }
+                        } else {
+                            items(detail.steps, key = { "s_" + it.hashCode() }) { step ->
+                                LxCard {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        val head = listOf(step.who, step.action, step.status)
+                                            .filter { it.isNotBlank() }
+                                            .joinToString(" · ")
+                                        Text(
+                                            text = head.ifBlank { stringResource(R.string.leave_step_no_info) },
+                                            style = MiuixTheme.textStyles.body2,
+                                            fontWeight = FontWeight.Medium,
+                                            color = LxInk,
+                                        )
+                                        if (step.time.isNotBlank()) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = step.time,
+                                                style = MiuixTheme.textStyles.footnote2,
+                                                color = LxInkMuted,
+                                            )
+                                        }
+                                        if (step.remark.isNotBlank()) {
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = step.remark,
+                                                style = MiuixTheme.textStyles.footnote1,
+                                                color = LxInk,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (item.withdrawable) {
+                    item(key = "detail_withdraw") {
+                        LxOutlinedButton(
+                            text = stringResource(R.string.leave_withdraw),
+                            onClick = { confirmWithdraw = true },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+        }
+    }
+    if (confirmWithdraw) {
+        LxDialog(
+            title = stringResource(R.string.leave_withdraw),
+            message = stringResource(R.string.leave_withdraw_confirm),
+            confirmText = stringResource(R.string.action_confirm),
+            confirmTone = LxDialogConfirmTone.Destructive,
+            onConfirm = {
+                confirmWithdraw = false
+                onDismiss()
+                onWithdraw()
+            },
+            onDismissRequest = { confirmWithdraw = false },
+        )
+    }
+}
+
+@Composable
+private fun LeaveCard(
+    item: LeaveItem,
+    onWithdraw: () -> Unit,
+    onClick: () -> Unit,
+) {
+    var confirmWithdraw by remember { mutableStateOf(false) }
+    LxCard(onClick = onClick) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -197,8 +464,6 @@ private fun LeaveCard(item: LeaveItem, onWithdraw: () -> Unit) {
                     style = MiuixTheme.textStyles.title4,
                     fontWeight = FontWeight.SemiBold,
                     color = LxInk,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
