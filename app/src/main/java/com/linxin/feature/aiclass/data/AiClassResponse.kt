@@ -208,7 +208,7 @@ data class AiClassStudentGroupInfoResponse(
     val status: String?,
     val code: String?,
     val message: String?,
-    val data: com.google.gson.JsonObject?,
+    val data: com.google.gson.JsonElement?,
 )
 
 /** 小组待办数：抓到的 data 是三个数字，discuss 那个键服务端拼成了 discsuss，按原样取 */
@@ -216,7 +216,7 @@ data class AiClassGroupTodoResponse(
     val status: String?,
     val code: String?,
     val message: String?,
-    val data: com.google.gson.JsonObject?,
+    val data: com.google.gson.JsonElement?,
 )
 
 /** 我的小组讨论：抓到的那次 data.studentDis 是空数组，条目字段名未知，先整个收着 */
@@ -243,7 +243,7 @@ data class AiClassWeekListResponse(
     val status: String?,
     val code: String?,
     val message: String?,
-    val data: com.google.gson.JsonObject?,
+    val data: com.google.gson.JsonElement?,
 )
 
 /** 课件详情 + 逐页渲染图：data 是对象，pages 是数组，类型没逐个记，整个收着按候选键取 */
@@ -251,7 +251,7 @@ data class AiClassCoursewareDetailResponse(
     val status: String?,
     val code: String?,
     val message: String?,
-    val data: com.google.gson.JsonObject?,
+    val data: com.google.gson.JsonElement?,
 )
 
 /** 换 Office 在线预览地址：这一发 data 直接是一条字符串地址 */
@@ -268,5 +268,5 @@ data class AiClassVideoClassInfoResponse(
     val code: String?,
     val message: String?,
     val success: Boolean?,
-    val data: com.google.gson.JsonObject?,
+    val data: com.google.gson.JsonElement?,
 )

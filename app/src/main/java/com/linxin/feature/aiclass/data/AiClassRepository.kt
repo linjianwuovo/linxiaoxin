@@ -327,7 +327,7 @@ class AiClassRepository @Inject constructor(
                 teachClassId = teachClassId,
                 auth = auth,
             )
-        }.getOrElse { error -> return Result.failure(error) }.data
+        }.getOrElse { error -> return Result.failure(error) }.data.asObjectOrNull()
             ?: return Result.failure(Exception("学校没把这个课件渲染出来"))
 
         // 逐页图：抓到的键是 imgUrl，但类型没逐个记，照旧候选键试
@@ -452,7 +452,7 @@ class AiClassRepository @Inject constructor(
         }.getOrElse { error -> return Result.failure(error) }
         // data 为空时把服务器原话带出来：到底是「未登录」还是「查询成功但这节没机位」，
         // 这两种在界面上必须长得不一样，不然下次排查还是靠猜。
-        val data = response.data ?: return Result.failure(
+        val data = response.data.asObjectOrNull() ?: return Result.failure(
             Exception("资源中心回：status=${response.status ?: "-"} code=${response.code ?: "-"} message=${response.message ?: "-"}")
         )
 
@@ -631,7 +631,7 @@ class AiClassRepository @Inject constructor(
         }.getOrElse { error ->
             Log.w(REPOSITORY_LOG_TAG, "loadStudentGroupDetail: getStudentGroupInfo failed")
             return null
-        }.data
+        }.data.asObjectOrNull()
 
         val micro = data.childObject("microGroupInfo")
         val members = data.childArray("groupList")
@@ -648,7 +648,7 @@ class AiClassRepository @Inject constructor(
                 groupId = groupId,
                 auth = auth,
             )
-        }.getOrNull()?.data
+        }.getOrNull()?.data.asObjectOrNull()
 
         // 我是成员表里的哪一条：成员对象上抓到的键只有 id / stuNum 有可能对上我的身份，
         // 拿手上的 32 位成员 id 和登录名去比；比不中就承认角色未知，不猜。
@@ -1113,9 +1113,17 @@ class AiClassRepository @Inject constructor(
     }
 }
 
+/**
+ * 服务端经常把 data 直接回成 null（不是缺字段，是显式 null）。
+ * Gson 的 JsonObject 适配器撞上 JsonNull 会抛一句 "Expected a JsonObject but was JsonNull"，
+ * 这句话还会把真正的 status/message 顶掉，界面上看到的就是一堆英文 —— 所以这些口一律收 JsonElement，
+ * 要对象就用这个函数取，取不到就当没数据，另想办法把信封上的话报出来。
+ */
+private fun com.google.gson.JsonElement?.asObjectOrNull(): JsonObject? =
+    this?.takeIf { it.isJsonObject }?.asJsonObject
+
 /** 取子对象，键不存在或不是对象都回 null，不抛 */
-private fun JsonObject?.childObject(key: String): JsonObject? {
-    val child = this?.get(key) ?: return null
+private fun JsonObject?.childObject(key: String): JsonObject? {    val child = this?.get(key) ?: return null
     return if (child.isJsonObject) child.asJsonObject else null
 }
 
