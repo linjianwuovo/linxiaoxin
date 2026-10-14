@@ -307,7 +307,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="more_live_hint">为保障实况通知正常发送，请授予精确闹钟权限和电池优化白名单，该功能不会增加耗电量</string>
     <string name="more_promoted_permission">实况更新权限（流体云）</string>
     <string name="more_promoted_unsupported">本机不支持</string>
-    <string name="more_fluid_cloud_settings">流体云 / 锁屏显示设置</string>
+    <string name="more_fluid_cloud_settings">系统那一栏（小米叫实时动态、OPPO 叫流体云）</string>
     <string name="more_open_settings">去设置</string>
     <string name="msg_back">返回</string>
     <string name="msg_src_msg_center">消息中心（日程提醒 / 审批结果）</string>

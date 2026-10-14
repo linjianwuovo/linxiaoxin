@@ -307,7 +307,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="more_live_hint">To keep live notifications working, grant the exact-alarm permission and exempt this app from battery optimisation. This does not increase battery use.</string>
     <string name="more_promoted_permission">Live update permission (Fluid Cloud)</string>
     <string name="more_promoted_unsupported">Not supported here</string>
-    <string name="more_fluid_cloud_settings">Fluid Cloud / lock screen settings</string>
+    <string name="more_fluid_cloud_settings">System live notifications (Live alerts / Fluid Cloud)</string>
     <string name="more_open_settings">Open</string>
     <string name="msg_back">Back</string>
     <string name="msg_src_msg_center">Message centre (schedule and approval notices)</string>
