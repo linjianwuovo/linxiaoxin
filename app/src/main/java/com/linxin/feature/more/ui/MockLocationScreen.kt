@@ -1,8 +1,5 @@
 package com.linxin.feature.more.ui
 
-import android.content.Context
-import android.content.Intent
-import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
@@ -23,7 +19,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -34,17 +29,16 @@ import com.linxin.R
 import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxFilterChip
-import com.linxin.core.designsystem.component.LxOutlinedButton
 import com.linxin.core.designsystem.component.LxTopBar
 import com.linxin.core.designsystem.theme.LxInk
 import com.linxin.core.designsystem.theme.LxInkMuted
 import com.linxin.core.designsystem.theme.LxSandDeep
+import com.linxin.core.location.InternalGpsFeed
 import com.linxin.core.location.LocationProvider
-import com.linxin.core.location.MockLocationFeeder
+import com.linxin.feature.running.data.RouteTemplateStore
 import com.linxin.feature.running.domain.RouteTemplate
 import com.linxin.feature.running.domain.RunningCampus
 import com.linxin.feature.running.domain.TrackPoint
-import com.linxin.feature.running.data.RouteTemplateStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -54,22 +48,29 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 /** 这一页能干的三种事：定在当前位置、定在学校中心、沿录好的路线走 */
 enum class MockMode { CURRENT, CAMPUS, ROUTE }
 
+/**
+ * 应用内部喂假 GPS 那一页。
+ *
+ * 刻意不碰系统那套 test provider：它要他在开发者选项里把安大信选成模拟位置应用，
+ * 而且注出去的点会同时给别的 App。这里只接我们自己的 `LocationProvider` ——
+ * 开着的时候安大信读到的是这份轨迹，关掉立刻回真 GPS，别的 App 全程不知道发生过什么。
+ */
 @HiltViewModel
 class MockLocationViewModel @Inject constructor(
-    private val feeder: MockLocationFeeder,
+    private val feed: InternalGpsFeed,
     private val locationProvider: LocationProvider,
     routeTemplateStore: RouteTemplateStore,
 ) : ViewModel() {
 
-    val status = feeder.status
-    val fedPoint = feeder.fedPoint
-    val fedCount = feeder.fedCount
+    val isOn = feed.isOn
+    val point = feed.point
+    val fedCount = feed.fedCount
     val templates = routeTemplateStore.templates
 
     var mode by mutableStateOf(MockMode.CURRENT)
         private set
 
-    /** 点了开始之后才报出来的话：没当前位置、没路线这类"这模式在这台机上不成立" */
+    /** 点了开始之后才报得出来的话：这台机没读到当前位置、还没录好的路线 */
     var notice by mutableStateOf<String?>(null)
         private set
 
@@ -78,22 +79,20 @@ class MockLocationViewModel @Inject constructor(
         notice = null
     }
 
-    /** 进来先探一次能不能注，别等点了开始才发现开发者选项没设 */
-    fun probe(): MockLocationFeeder.Status = feeder.probe()
-
     fun start(template: RouteTemplate?) {
         notice = null
         when (mode) {
             MockMode.CURRENT -> {
+                // 必须在开喂之前取：开喂之后 getLastKnownLocation() 回的就是喂进去的那份了
                 val current = locationProvider.getLastKnownLocation()
                 if (current == null) {
                     notice = "没读到当前位置，先用学校中心或者选一条路线"
                     return
                 }
-                feeder.startHold(TrackPoint(current.latitude, current.longitude))
+                feed.startHold(TrackPoint(current.latitude, current.longitude))
             }
 
-            MockMode.CAMPUS -> feeder.startHold(
+            MockMode.CAMPUS -> feed.startHold(
                 TrackPoint(RunningCampus.CENTER_LATITUDE, RunningCampus.CENTER_LONGITUDE),
             )
 
@@ -102,12 +101,12 @@ class MockLocationViewModel @Inject constructor(
                     notice = "还没有录好的路线，先去跑步那里录一条"
                     return
                 }
-                feeder.startRoute(template.points, template.durationSeconds)
+                feed.startRoute(template.points, template.durationSeconds)
             }
         }
     }
 
-    fun stop() = feeder.stop()
+    fun stop() = feed.stop()
 }
 
 @Composable
@@ -116,16 +115,14 @@ fun MockLocationScreen(
     modifier: Modifier = Modifier,
     viewModel: MockLocationViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
-    val status by viewModel.status.collectAsStateWithLifecycle()
-    val fedPoint by viewModel.fedPoint.collectAsStateWithLifecycle()
+    val isOn by viewModel.isOn.collectAsStateWithLifecycle()
+    val point by viewModel.point.collectAsStateWithLifecycle()
     val fedCount by viewModel.fedCount.collectAsStateWithLifecycle()
     val templates by viewModel.templates.collectAsStateWithLifecycle()
     var selectedRoute by remember { mutableStateOf<RouteTemplate?>(null) }
 
-    // 这一页一走人就停：假 GPS 是整机级的，留着它别的 App 会一直收到假坐标
+    // 走了就停：喂点不该在没人看着的时候一直开着
     DisposableEffect(Unit) {
-        viewModel.probe()
         onDispose { viewModel.stop() }
     }
 
@@ -145,53 +142,31 @@ fun MockLocationScreen(
                 LxCard {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = statusLabel(status, fedCount),
+                            text = if (isOn) {
+                                stringResource(R.string.mock_loc_state_feeding, fedCount)
+                            } else {
+                                stringResource(R.string.mock_loc_state_idle)
+                            },
                             style = MiuixTheme.textStyles.title4,
                             fontWeight = FontWeight.SemiBold,
-                            color = if (status == MockLocationFeeder.Status.FEEDING) {
-                                LxSandDeep
-                            } else {
-                                LxInk
-                            },
+                            color = if (isOn) LxSandDeep else LxInk,
                         )
-                        fedPoint?.let { point ->
+                        point?.let {
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "%.5f, %.5f".format(point.latitude, point.longitude),
+                                text = "%.5f, %.5f".format(it.latitude, it.longitude),
                                 style = MiuixTheme.textStyles.footnote1,
                                 color = LxInkMuted,
                             )
                         }
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = stringResource(R.string.mock_loc_hint_dev),
+                            text = stringResource(R.string.mock_loc_scope),
                             style = MiuixTheme.textStyles.footnote1,
                             color = LxInkMuted,
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row {
-                            LxOutlinedButton(
-                                text = stringResource(R.string.mock_loc_open_dev),
-                                onClick = { context.openDevelopmentSettings() },
-                                modifier = Modifier.weight(1f),
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            LxOutlinedButton(
-                                text = stringResource(R.string.mock_loc_reprobe),
-                                onClick = { viewModel.probe() },
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
                     }
                 }
-            }
-
-            item(key = "mock_desc") {
-                Text(
-                    text = stringResource(R.string.mock_loc_desc),
-                    style = MiuixTheme.textStyles.footnote1,
-                    color = LxInkMuted,
-                )
             }
 
             item(key = "mock_modes") {
@@ -268,20 +243,22 @@ fun MockLocationScreen(
             }
 
             item(key = "mock_action") {
-                if (status == MockLocationFeeder.Status.FEEDING) {
-                    LxButton(
-                        text = stringResource(R.string.mock_loc_stop),
-                        onClick = { viewModel.stop() },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                } else {
-                    LxButton(
-                        text = stringResource(R.string.mock_loc_start),
-                        onClick = { viewModel.start(selectedRoute) },
-                        enabled = viewModel.mode != MockMode.ROUTE || selectedRoute != null,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+                LxButton(
+                    text = stringResource(
+                        if (isOn) R.string.mock_loc_stop else R.string.mock_loc_start,
+                    ),
+                    onClick = { if (isOn) viewModel.stop() else viewModel.start(selectedRoute) },
+                    enabled = !isOn || viewModel.mode != MockMode.ROUTE || selectedRoute != null,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            item(key = "mock_no_write") {
+                Text(
+                    text = stringResource(R.string.mock_loc_no_write),
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = LxInkMuted,
+                )
             }
         }
     }
@@ -290,18 +267,4 @@ fun MockLocationScreen(
 @Composable
 private fun ModeChip(label: String, selected: Boolean, onClick: () -> Unit) {
     LxFilterChip(label = label, selected = selected, onClick = onClick)
-}
-
-@Composable
-private fun statusLabel(status: MockLocationFeeder.Status, fedCount: Int): String = when (status) {
-    MockLocationFeeder.Status.FEEDING -> stringResource(R.string.mock_loc_state_feeding, fedCount)
-    MockLocationFeeder.Status.NOT_SELECTED -> stringResource(R.string.mock_loc_state_not_selected)
-    MockLocationFeeder.Status.NO_SERVICE -> stringResource(R.string.mock_loc_state_no_service)
-    MockLocationFeeder.Status.IDLE -> stringResource(R.string.mock_loc_state_idle)
-}
-
-private fun Context.openDevelopmentSettings() {
-    val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    runCatching { startActivity(intent) }
 }
