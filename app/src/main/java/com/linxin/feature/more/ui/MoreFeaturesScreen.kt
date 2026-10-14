@@ -110,7 +110,12 @@ fun MoreFeaturesScreen(
     val promotedAllowed = permissionRefreshTick.let { context.canPostPromotedCompat() }
     val promotedLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { permissionRefreshTick++ }
+    ) {
+        permissionRefreshTick++
+        // 系统要是没弹这一发（权限本来就已经给了、或者这个 ROM 没那套弹层），就地把他送到
+        // 应用的通知设置页 —— 那一页上能自己拨实况/流体云那些开关。点了没反应比点了报错更难查。
+        if (!context.canPostPromotedCompat()) context.openAppNotificationSettings()
+    }
 
     Scaffold(
         modifier = modifier,
@@ -345,13 +350,22 @@ private const val KEY_LIVE_NOTIFICATION_ENABLED = "live_notification_enabled"
 private fun Context.supportsPromotedCompat(): Boolean = Build.VERSION.SDK_INT >= 36
 
 /**
- * 问系统「这条应用现在能不能发实况更新」—— 它同时反映了运行时授权和用户在系统里
- * 关掉的总开关（ColorOS 就是设置 → 通知与控制中心 → 流体云）。
+ * 问系统「这条应用现在能不能发实况更新」。
+ *
+ * 光信 `canPostPromotedNotifications()` 会出错事：2026-10-14 米11 上 `dumpsys package` 现查
+ * `POST_PROMOTED_NOTIFICATIONS: granted=true`，而这个方法照样回 false。于是那一行永远显示"没授权"，
+ * 点它就是给一个**已经给了的**权限发申请，系统连弹层都不弹、秒回 —— 他一句「打不开」撞的就是这一下。
+ * 所以两个都问：任一为真就算已授权（系统那边自己的总开关仍然可能在关，那是下面「去设置」那一行的事）。
  */
 private fun Context.canPostPromotedCompat(): Boolean {
     if (!supportsPromotedCompat()) return false
-    return runCatching {
+    val byManager = runCatching {
         getSystemService(NotificationManager::class.java).canPostPromotedNotifications()
+    }.getOrDefault(false)
+    if (byManager) return true
+    return runCatching {
+        checkSelfPermission(Manifest.permission.POST_PROMOTED_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
     }.getOrDefault(false)
 }
 
