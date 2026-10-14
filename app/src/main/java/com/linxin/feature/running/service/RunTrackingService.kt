@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.os.IBinder
 import androidx.core.content.ContextCompat
 import com.linxin.core.location.LocationProvider
+import com.linxin.core.notification.LiveActivityPresentation
 import com.linxin.core.notification.LiveActivityNotifier
 import com.linxin.core.notification.LiveActivityRequest
 import com.linxin.core.notification.NotificationRoute
@@ -59,6 +60,8 @@ class RunTrackingService : Service() {
             return
         }
 
+        val startInfo = tracker.state.value.startInfo
+        val targetKm = startInfo?.mixOnceMileKm ?: 0.0
         val initialRequest = LiveActivityRequest(
             key = NOTIFICATION_KEY,
             channelId = NOTIFICATION_KEY,
@@ -66,6 +69,16 @@ class RunTrackingService : Service() {
             content = AppText.str(R.string.svc_waiting_gps),
             capsuleText = "0.00km",
             route = NotificationRoute(destination = Routes.RUNNING_ACTIVE),
+            // 实况更新（小米「实时动态」/OPPO 流体云）吃的是进度模板：没有 ProgressStyle
+            // 系统就当一条普通常驻通知，卡片上没有那根进度条。单次要求公里数就是分母。
+            presentation = run {
+                val label = if (targetKm > 0.0) AppText.str(R.string.svc_run_target, formatKm(targetKm)) else null
+                if (targetKm > 0.0) {
+                    LiveActivityPresentation.Progress(0, (targetKm * 1000).toInt(), label)
+                } else {
+                    LiveActivityPresentation.Text(subtitle = label)
+                }
+            },
             extras = Bundle().apply {
                 putString("bigText", AppText.str(R.string.svc_waiting_gps))
                 putString("distance", "0.00 km")
@@ -131,10 +144,25 @@ class RunTrackingService : Service() {
             content = content,
             capsuleText = capsuleText,
             route = NotificationRoute(destination = Routes.RUNNING_ACTIVE),
+            presentation = run {
+                val targetMeters = (state.startInfo?.mixOnceMileKm ?: 0.0) * 1000.0
+                if (targetMeters > 1.0) {
+                    LiveActivityPresentation.Progress(
+                        current = state.totalDistanceMeters.toInt(),
+                        total = targetMeters.toInt(),
+                        label = AppText.str(R.string.svc_run_target, formatKm(state.startInfo?.mixOnceMileKm ?: 0.0)),
+                    )
+                } else {
+                    LiveActivityPresentation.Text()
+                }
+            },
             extras = extras,
         )
         notifier.show(request)
     }
+
+    /** 公里数一律一位小数，通知里 "1.0" 比 "1.0" 的 Double 尾巴好看 */
+    private fun formatKm(km: Double): String = String.format("%.1f", km)
 
     private fun formatDuration(seconds: Long): String {
         val h = TimeUnit.SECONDS.toHours(seconds)
