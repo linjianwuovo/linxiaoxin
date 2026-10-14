@@ -37,6 +37,13 @@ object Routes {
     fun runningRouteDetail(templateId: String) = "running/route/detail/$templateId"
     /** 地图上点选规划路线那一页 */
     const val RUNNING_ROUTE_PLANNER = "running/route/planner"
+    /** 运动记录（官方 /motionRecord） */
+    const val SPORT_RECORDS = "sport/records"
+    /** 运动明细（官方 /runDetail），带记录 id */
+    const val SPORT_RECORD_DETAIL = "sport/record/{checkId}"
+    fun sportRecordDetail(checkId: String) = "sport/record/${Uri.encode(checkId)}"
+    /** 考勤维护记录（官方 /attendRecord） */
+    const val SPORT_MAINTAIN = "sport/maintain"
 
     // Running - 大二俱乐部 / 锻炼考勤
     const val RUNNING_CLUB_DETAIL = "running/club"

@@ -51,6 +51,10 @@ class InternalGpsFeed @Inject constructor() {
     private val _trail = MutableStateFlow<List<TrackPoint>>(emptyList())
     val trail: StateFlow<List<TrackPoint>> = _trail.asStateFlow()
 
+    /** 跑步页按暂停时置位：暂停期间一个点都不发，位置也不往前挪 */
+    @Volatile
+    var paused: Boolean = false
+
     /** 开喂之后 `getLastKnownLocation()` 走这个；没开返回 null，让调用方回到真定位 */
     fun snapshot(): Location? = if (_isOn.value) last else null
 
@@ -71,6 +75,7 @@ class InternalGpsFeed @Inject constructor() {
         val speedLow = (target * 0.85).coerceAtLeast(SPEED_MIN_MS)
         val speedHigh = (target * 1.15).coerceAtMost(SPEED_MAX_MS)
         isOnNow = true
+        paused = false
         _isOn.value = true
         _fedCount.value = 0
         _trail.value = emptyList()
@@ -80,6 +85,11 @@ class InternalGpsFeed @Inject constructor() {
             var speed = target
             var forward = true
             while (isActive) {
+                // 官方暂停 = clearWatch，这段时间一个点都不发；我们照做，位置也不往前挪
+                if (paused) {
+                    delay(TICK_MS)
+                    continue
+                }
                 val base = sampler.at(traveled)
                 val off = wander.next()
                 emit(

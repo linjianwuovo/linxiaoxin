@@ -51,6 +51,8 @@ class RunningTracker @Inject constructor() {
     fun onLocationUpdate(location: Location) {
         val current = _state.value
         if (!current.isSessionActive) return
+        // 官方暂停那颗按钮是 clearWatch —— 暂停期间一个点都不收，时长也不走。我们照这个来。
+        if (current.isPaused) return
 
         val point = TrackPoint(
             latitude = location.latitude,
@@ -95,6 +97,39 @@ class RunningTracker @Inject constructor() {
         )
     }
 
+    /** 暂停：不收点、时长不走，跟官方 clearWatch + clearInterval 一个效果 */
+    fun pause() {
+        val current = _state.value
+        if (!current.isSessionActive || current.isPaused) return
+        _state.value = current.copy(
+            isPaused = true,
+            pausedAtMillis = System.currentTimeMillis(),
+            locationLabel = "已暂停",
+        )
+    }
+
+    /** 继续：把暂停那一段累进 pausedTotalMillis，起点不动 */
+    fun resume() {
+        val current = _state.value
+        if (!current.isPaused) return
+        val now = System.currentTimeMillis()
+        _state.value = current.copy(
+            isPaused = false,
+            pausedAtMillis = null,
+            pausedTotalMillis = current.pausedTotalMillis +
+                (now - (current.pausedAtMillis ?: now)).coerceAtLeast(0L),
+        )
+    }
+
+    /** 这一场真正在跑多少秒（扣掉暂停） */
+    fun elapsedSeconds(nowMillis: Long = System.currentTimeMillis()): Long {
+        val current = _state.value
+        if (current.startTimeMillis <= 0L) return 0L
+        val pausedExtra = if (current.isPaused) (current.pausedAtMillis?.let { nowMillis - it } ?: 0L) else 0L
+        return ((nowMillis - current.startTimeMillis - current.pausedTotalMillis - pausedExtra) / 1000L)
+            .coerceAtLeast(0L)
+    }
+
     fun stopCollecting() {
         _state.value = _state.value.copy(
             isCollecting = false,
@@ -105,7 +140,7 @@ class RunningTracker @Inject constructor() {
     fun snapshotForUpload(): RunningSnapshot? {
         val current = _state.value
         val startInfo = current.startInfo ?: return null
-        val durationSeconds = ((System.currentTimeMillis() - current.startTimeMillis) / 1000L).coerceAtLeast(1L)
+        val durationSeconds = elapsedSeconds()
         return RunningSnapshot(
             startInfo = startInfo,
             startTimeMillis = current.startTimeMillis,

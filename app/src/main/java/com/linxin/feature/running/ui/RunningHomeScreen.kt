@@ -1,6 +1,5 @@
 package com.linxin.feature.running.ui
 
-import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -8,7 +7,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,17 +14,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.SsidChart
-import androidx.compose.foundation.layout.size
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.Text
+import androidx.compose.material.icons.filled.Route
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -36,57 +28,65 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import com.linxin.R
-import com.linxin.core.designsystem.theme.LxInk
-import com.linxin.core.designsystem.theme.LxInkMuted
-import com.linxin.core.designsystem.theme.LxSandDeep
-import com.linxin.core.designsystem.theme.LxTabularNums
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.linxin.R
 import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxDialog
-import com.linxin.core.designsystem.component.LxDetailRow
-import com.linxin.core.designsystem.component.LxFilterChip
 import com.linxin.core.designsystem.component.LxError
+import com.linxin.core.designsystem.component.LxFilterChip
 import com.linxin.core.designsystem.component.LxLoading
-import com.linxin.core.designsystem.component.LxOutlinedButton
+import com.linxin.core.designsystem.component.LxSecondaryButton
 import com.linxin.core.designsystem.component.LxTopBar
-import com.linxin.feature.running.domain.ClubSummary
+import com.linxin.core.designsystem.theme.LxInk
+import com.linxin.core.designsystem.theme.LxInkMuted
+import com.linxin.core.designsystem.theme.LxSage
+import com.linxin.core.designsystem.theme.LxTerra
 import com.linxin.feature.running.domain.RouteTemplate
 import com.linxin.feature.running.domain.RunningDashboard
 import com.linxin.feature.running.service.RunTrackingService
 import kotlinx.coroutines.launch
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import java.util.Locale
 
+/**
+ * 开始运动那一屏 —— 布局照官方 `/startSports`：
+ * 学期标题 → 进度（已完成/计划 + 百分数）→ 任务起止 → 最长里程记录 → 今日里程 →
+ * 跑步有效性 → 健康小贴士 → 「开始运动」。
+ *
+ * 官方那颗「开始运动」是 `window.android.goRunning(...)` 把界面交给原生壳；我们没有壳，
+ * 直接开自己那一屏运动中。多出来的「模拟路线」是我们自己那条：挑一条画好的线，
+ * 开始跑步时按官方那个频率（三秒一个点）往自己进程里喂点。
+ */
 @Composable
 fun RunningHomeScreen(
+    viewModel: RunningViewModel,
     onOpenActive: () -> Unit,
-    onOpenSim: () -> Unit,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
-    onOpenClub: () -> Unit = {},
     onOpenPlanner: () -> Unit = {},
-    viewModel: RunningViewModel = hiltViewModel(),
+    onOpenRecords: () -> Unit = {},
+    onOpenSim: () -> Unit = {},
+    onOpenClub: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var showRoutePicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var permissionError by remember { mutableStateOf<String?>(null) }
-    val dashboardError = uiState.dashboardError
-
-    // 权限回调的 lambda 不是组合上下文，文案要先在外面取好
+    var showRoutePicker by remember { mutableStateOf(false) }
     val permErrorText = stringResource(R.string.run_perm_error)
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
-        val granted = result.values.all { it }
-        if (!granted) {
+        if (!result.values.all { it }) {
             permissionError = permErrorText
             return@rememberLauncherForActivityResult
         }
@@ -104,7 +104,6 @@ fun RunningHomeScreen(
             onOpenActive()
             return
         }
-
         val permissions = buildList {
             add(Manifest.permission.ACCESS_FINE_LOCATION)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -116,457 +115,309 @@ fun RunningHomeScreen(
 
     Scaffold(
         modifier = modifier,
-        containerColor = MiuixTheme.colorScheme.background,
         topBar = {
-            if (onBack != null) {
-                LxTopBar(title = stringResource(R.string.title_running_home), onBack = onBack)
-            }
+            LxTopBar(
+                title = stringResource(R.string.ss_title_start),
+                onBack = onBack,
+                actions = {
+                    Text(
+                        text = stringResource(R.string.ss_records_entry),
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                        modifier = Modifier
+                            .clickable(onClick = onOpenRecords)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                    )
+                },
+            )
         },
     ) { padding ->
         when {
-            uiState.isDashboardLoading -> LxLoading(modifier = Modifier.padding(padding))
-            dashboardError != null -> LxError(
-                message = dashboardError,
+            uiState.isDashboardLoading -> LxLoading(modifier = Modifier.fillMaxSize().padding(padding))
+            uiState.dashboardError != null -> LxError(
+                message = uiState.dashboardError ?: "",
                 onRetry = viewModel::refreshDashboard,
                 modifier = Modifier.padding(padding),
             )
-            else -> RunningHomeContent(
-                dashboard = uiState.dashboard,
-                isStarting = uiState.isStarting,
-                isActive = uiState.trackerState.isSessionActive,
-                trackerLabel = uiState.trackerState.locationLabel,
-                startError = permissionError ?: uiState.startError,
-                advancedEnabled = uiState.advancedEnabled,
-                onOpenClub = onOpenClub,
-                onPrimaryAction = {
-                    if (uiState.trackerState.isSessionActive) {
-                        onOpenActive()
-                    } else {
-                        requestAndStart()
-                    }
-                },
-                onSimAction = onOpenSim,
-                armedRoute = uiState.armedRoute,
-                armedPaceKmh = uiState.armedPaceKmh,
-                routeChoices = uiState.routeChoices,
-                onPickRoute = viewModel::armRoute,
-                onPace = viewModel::setArmedPace,
-                onOpenPlanner = onOpenPlanner,
-                modifier = Modifier.padding(padding),
-            )
-        }
-    }
-}
+            else -> Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                uiState.dashboard?.let { dashboard ->
+                    ProgressCard(dashboard, onClick = onOpenClub)
+                    RecordCard(dashboard)
+                    RuleCard(dashboard)
+                }
+                TipsCard()
 
-@Composable
-private fun RunningHomeContent(
-    dashboard: RunningDashboard?,
-    isStarting: Boolean,
-    isActive: Boolean,
-    trackerLabel: String,
-    startError: String?,
-    advancedEnabled: Boolean,
-    onPrimaryAction: () -> Unit,
-    onSimAction: () -> Unit,
-    modifier: Modifier = Modifier,
-    onOpenClub: () -> Unit = {},
-    armedRoute: RouteTemplate? = null,
-    armedPaceKmh: Double = 7.0,
-    routeChoices: List<RouteTemplate> = emptyList(),
-    onPickRoute: (RouteTemplate) -> Unit = {},
-    onPace: (Double) -> Unit = {},
-    onOpenPlanner: () -> Unit = {},
-) {
-    var showRoutePicker by remember { mutableStateOf(false) }
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        item {
-            Text(
-                text = if (isActive) stringResource(R.string.run_title_active) else stringResource(R.string.run_title_home),
-                style = MiuixTheme.textStyles.headline2,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = if (isActive) {
-                    stringResource(R.string.run_subtitle_active, trackerLabel)
+                permissionError?.let {
+                    Text(
+                        text = it,
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
+                }
+                if (uiState.trackerState.isSessionActive) {
+                    LxButton(
+                        text = stringResource(R.string.ra_title_running),
+                        onClick = onOpenActive,
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
                 } else {
-                    stringResource(R.string.run_subtitle_home)
-                },
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            )
-        }
-
-        dashboard?.clubSummary?.let { club ->
-            item {
-                ClubSummaryCard(club = club, onClick = onOpenClub)
-            }
-        }
-
-        item {
-            SummaryCard(dashboard = dashboard, trackerLabel = trackerLabel, isActive = isActive)
-        }
-
-        item {
-            InsightCard(dashboard = dashboard)
-        }
-
-        if (!startError.isNullOrBlank()) {
-            item {
-                Text(
-                    text = startError,
-                    style = MiuixTheme.textStyles.footnote1,
-                    color = MiuixTheme.colorScheme.error,
-                )
-            }
-        }
-
-        item {
-            val primaryText = when {
-                isStarting -> stringResource(R.string.run_starting)
-                isActive -> stringResource(R.string.run_resume)
-                else -> stringResource(R.string.run_start)
-            }
-            LxButton(
-                text = primaryText,
-                onClick = onPrimaryAction,
-                enabled = !isStarting,
-            )
-            // 模拟路线：挑一条自己画的线，之后点「开始跑步」就沿这条线喂点。
-            // 喂的是我们自己进程内的假坐标，不碰系统定位、没 root 也能用；提交还是走真那条路。
-            Spacer(modifier = Modifier.height(10.dp))
-            LxOutlinedButton(
-                text = if (armedRoute == null) {
-                    stringResource(R.string.run_arm_route)
-                } else {
-                    stringResource(R.string.run_armed, armedRoute.name, "%.0f".format(armedPaceKmh))
-                },
-                onClick = { showRoutePicker = true },
-                enabled = !isStarting,
-            )
-            if (advancedEnabled) {
-                Spacer(modifier = Modifier.height(10.dp))
-                LxOutlinedButton(
-                    text = stringResource(R.string.title_mock_submit),
-                    onClick = onSimAction,
-                    enabled = !isStarting,
+                    LxButton(
+                        text = stringResource(R.string.ss_btn_start),
+                        onClick = { requestAndStart() },
+                        enabled = !uiState.isStarting,
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
+                }
+                LxSecondaryButton(
+                    text = uiState.armedRoute?.let {
+                        stringResource(R.string.ss_sim_armed, it.name, "%.0f".format(uiState.armedPaceKmh))
+                    } ?: stringResource(R.string.ss_btn_sim_route),
+                    onClick = { showRoutePicker = true },
+                    modifier = Modifier.padding(horizontal = 20.dp),
                 )
             }
         }
     }
 
     if (showRoutePicker) {
-        LxDialog(
-            title = stringResource(R.string.run_arm_route),
-            message = stringResource(R.string.run_arm_route_note),
-            confirmText = stringResource(R.string.action_confirm),
-            onConfirm = { showRoutePicker = false },
-            onDismiss = { showRoutePicker = false },
-            onDismissRequest = { showRoutePicker = false },
-            content = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (routeChoices.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.run_arm_route_empty),
-                            style = MiuixTheme.textStyles.footnote1,
-                            color = LxInkMuted,
-                        )
-                    } else {
-                        routeChoices.forEach { route ->
-                            val picked = armedRoute?.id == route.id
-                            LxCard(onClick = { onPickRoute(route) }) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text(
-                                        text = route.name,
-                                        style = MiuixTheme.textStyles.body2,
-                                        color = if (picked) LxSandDeep else LxInk,
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                    Text(
-                                        text = if (picked) {
-                                            stringResource(R.string.run_arm_route_on)
-                                        } else {
-                                            "%.2f km".format(route.totalDistanceMeters / 1000.0)
-                                        },
-                                        style = MiuixTheme.textStyles.footnote1,
-                                        color = if (picked) LxSandDeep else LxInkMuted,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(6.0, 7.0, 9.0).forEach { kmh ->
-                            LxFilterChip(
-                                label = "%.0f km/h".format(kmh),
-                                selected = armedPaceKmh == kmh,
-                                onClick = { onPace(kmh) },
-                            )
-                        }
-                    }
-                    LxOutlinedButton(
-                        text = stringResource(R.string.planner_entry),
-                        onClick = {
-                            showRoutePicker = false
-                            onOpenPlanner()
-                        },
-                    )
-                }
+        RoutePickerDialog(
+            choices = uiState.routeChoices,
+            armedId = uiState.armedRoute?.id,
+            paceKmh = uiState.armedPaceKmh,
+            onPick = viewModel::armRoute,
+            onPace = viewModel::setArmedPace,
+            onOpenPlanner = {
+                showRoutePicker = false
+                onOpenPlanner()
             },
+            onDismiss = { showRoutePicker = false },
+        )
+    }
+}
+
+/** 学期标题 + 进度 + 起止：官方那屏顶上就是这三行 */
+@Composable
+private fun ProgressCard(dashboard: RunningDashboard, onClick: () -> Unit) {
+    LxCard(onClick = onClick, modifier = Modifier.padding(horizontal = 16.dp)) {
+        Text(
+            text = if (dashboard.termTitle.isBlank()) {
+                dashboard.studentTypeLabel
+            } else {
+                stringResource(R.string.ss_term_title, dashboard.termTitle)
+            },
+            style = MiuixTheme.textStyles.title2,
+            fontWeight = FontWeight.SemiBold,
+            color = LxInk,
+        )
+        Spacer(Modifier.height(12.dp))
+        val target = dashboard.taskTargetKm
+        LinearProgressIndicator(
+            progress = {
+                if (target <= 0.0) 0f else (dashboard.completedKm / target).toFloat().coerceIn(0f, 1f)
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = "%.2fkm /%.1fkm".format(dashboard.completedKm, dashboard.taskTargetKm),
+                style = MiuixTheme.textStyles.body2,
+                color = LxInk,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = "%d%%".format(dashboard.ratioPercent),
+                style = MiuixTheme.textStyles.body2,
+                color = LxTerra,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        if (dashboard.termStart.isNotBlank() && dashboard.termEnd.isNotBlank()) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.ss_range_to, dashboard.termStart, dashboard.termEnd),
+                style = MiuixTheme.textStyles.footnote1,
+                color = LxInkMuted,
+            )
+        }
+    }
+}
+
+/** 最长里程记录 + 今日里程 */
+@Composable
+private fun RecordCard(dashboard: RunningDashboard) {
+    LxCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+        TwoLine(
+            label = stringResource(R.string.ss_max_record),
+            value = "%.2fkm".format(dashboard.maxKm),
+            caption = dashboard.maxKmDate,
+        )
+        Spacer(Modifier.height(10.dp))
+        TwoLine(
+            label = stringResource(R.string.ss_today_mile),
+            value = "%.2fkm".format(dashboard.todayKm),
+            caption = dashboard.todayDate,
         )
     }
 }
 
 @Composable
-private fun ClubSummaryCard(
-    club: ClubSummary,
-    onClick: () -> Unit,
-) {
-    LxCard(modifier = Modifier.clickable(onClick = onClick)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = club.courseName.ifBlank { stringResource(R.string.run_pe_course) },
-                    style = MiuixTheme.textStyles.title4,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = listOf(club.term, club.teacherName.let { if (it.isBlank()) "" else stringResource(R.string.run_coach, it) })
-                        .filter { it.isNotBlank() }
-                        .joinToString(" · "),
-                    style = MiuixTheme.textStyles.footnote1,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                )
-                if (club.memberLevel.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = club.memberLevel,
-                        style = MiuixTheme.textStyles.footnote2,
-                        color = MiuixTheme.colorScheme.secondary,
-                    )
-                }
-            }
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = stringResource(R.string.title_club_detail),
-                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            )
-        }
-    }
-}
-
-@Composable
-private fun SummaryCard(
-    dashboard: RunningDashboard?,
-    trackerLabel: String,
-    isActive: Boolean,
-) {
-    val todayKm = dashboard?.todayKm ?: 0.0
-    val completedKm = dashboard?.completedKm ?: 0.0
-    val targetKm = dashboard?.taskTargetKm ?: 0.0
-    val progress = if (targetKm > 0) completedKm / targetKm else 0.0
-
-    LxCard {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column {
-                    Text(
-                        text = stringResource(R.string.run_today_km),
-                        style = MiuixTheme.textStyles.footnote1,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    )
-                    Text(
-                        text = formatKm(todayKm, 2),
-                        modifier = Modifier.padding(top = 8.dp),
-                        style = MiuixTheme.textStyles.headline1,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-                Icon(
-                    imageVector = Icons.Default.DirectionsRun,
-                    contentDescription = null,
-                    tint = MiuixTheme.colorScheme.primary,
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MetricBlock(
-                    icon = Icons.Default.Flag,
-                    title = stringResource(R.string.run_task_progress),
-                    value = if (targetKm > 0.0) {
-                        "${formatKmValue(completedKm)} / ${formatKmValue(targetKm)} km"
-                    } else {
-                        formatKm(completedKm, 2)
-                    },
-                    iconOnStart = true,
-                    startPadding = 4.dp,
-                    modifier = Modifier.weight(1f),
-                )
-                MetricBlock(
-                    icon = Icons.Default.SsidChart,
-                    title = if (isActive) stringResource(R.string.run_session_state) else stringResource(R.string.run_ratio),
-                    value = if (isActive) trackerLabel else String.format(Locale.CHINA, "%.0f%%", progress * 100),
-                    iconOnStart = true,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun InsightCard(dashboard: RunningDashboard?) {
-    val singleRunTargetKm = dashboard?.singleRunTargetKm ?: 0.0
-    val leftKm = dashboard?.leftKm ?: 0.0
-    val maxKm = dashboard?.maxKm ?: 0.0
-    val maxKmDate = dashboard?.maxKmDate.orEmpty()
-
-    LxCard {
-        Column(modifier = Modifier.padding(20.dp)) {
+private fun TwoLine(label: String, value: String, caption: String) {
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(
+            text = label,
+            style = MiuixTheme.textStyles.body2,
+            color = LxInkMuted,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = value,
+            style = MiuixTheme.textStyles.title3,
+            fontWeight = FontWeight.SemiBold,
+            color = LxInk,
+        )
+        if (caption.isNotBlank()) {
+            Spacer(Modifier.width(8.dp))
             Text(
-                text = stringResource(R.string.run_overview),
-                style = MiuixTheme.textStyles.title4,
-                fontWeight = FontWeight.Bold,
+                text = caption,
+                style = MiuixTheme.textStyles.footnote2,
+                color = LxInkMuted,
+                modifier = Modifier.padding(bottom = 3.dp),
             )
-            Spacer(modifier = Modifier.height(14.dp))
+        }
+    }
+}
 
-            LxDetailRow(
-                label = stringResource(R.string.run_student_type),
-                value = dashboard?.studentTypeLabel?.ifBlank { stringResource(R.string.run_unknown) } ?: stringResource(R.string.run_unknown),
-                labelWidth = 76.dp,
-                showDivider = false,
+/** 服务端下发的那三条约束，一个字都不写死 */
+@Composable
+private fun RuleCard(dashboard: RunningDashboard) {
+    LxCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+        Text(
+            text = stringResource(R.string.ss_valid_rule_title),
+            style = MiuixTheme.textStyles.body2,
+            fontWeight = FontWeight.SemiBold,
+            color = LxInk,
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = stringResource(R.string.ss_valid_rule_once, fmt(dashboard.singleRunTargetKm)) +
+                stringResource(R.string.ss_valid_rule_day, fmt(dashboard.maxDayKm)) +
+                stringResource(R.string.ss_valid_rule_speed, fmt(dashboard.minSpeedKmh), fmt(dashboard.maxSpeedKmh)),
+            style = MiuixTheme.textStyles.footnote1,
+            color = LxInkMuted,
+        )
+    }
+}
+
+@Composable
+private fun TipsCard() {
+    LxCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+        Text(
+            text = stringResource(R.string.ss_tips_title),
+            style = MiuixTheme.textStyles.body2,
+            fontWeight = FontWeight.SemiBold,
+            color = LxInk,
+        )
+        Spacer(Modifier.height(6.dp))
+        listOf(R.string.ss_tip_1, R.string.ss_tip_2, R.string.ss_tip_3, R.string.ss_tip_4).forEach {
+            Text(
+                text = stringResource(it),
+                style = MiuixTheme.textStyles.footnote1,
+                color = LxInkMuted,
+                modifier = Modifier.padding(vertical = 2.dp),
             )
-            LxDetailRow(
-                label = stringResource(R.string.run_single_target),
-                value = if (singleRunTargetKm > 0.0) formatKm(singleRunTargetKm, 0) else stringResource(R.string.run_pending),
-                labelWidth = 76.dp,
-                showDivider = false,
-            )
-            LxDetailRow(
-                label = stringResource(R.string.run_remaining),
-                value = formatKm(leftKm, 2),
-                labelWidth = 76.dp,
-                showDivider = false,
-            )
-            LxDetailRow(
-                label = stringResource(R.string.run_best),
-                value = if (maxKm > 0.0) {
-                    buildString {
-                        append(formatKm(maxKm, 2))
-                        if (maxKmDate.isNotBlank()) {
-                            append(" · ")
-                            append(maxKmDate)
+        }
+    }
+}
+
+/** 挑线 + 挑配速那层弹层 */
+@Composable
+private fun RoutePickerDialog(
+    choices: List<RouteTemplate>,
+    armedId: String?,
+    paceKmh: Double,
+    onPick: (RouteTemplate) -> Unit,
+    onPace: (Double) -> Unit,
+    onOpenPlanner: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    LxDialog(
+        title = stringResource(R.string.ss_btn_sim_route),
+        confirmText = stringResource(R.string.run_start),
+        onConfirm = onDismiss,
+        onDismissRequest = onDismiss,
+        dismissText = stringResource(R.string.ss_sim_open_planner),
+        onDismiss = onOpenPlanner,
+        content = {
+            if (choices.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.ss_sim_empty),
+                    style = MiuixTheme.textStyles.body2,
+                    color = LxInkMuted,
+                )
+            } else {
+                choices.forEach { route ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPick(route) }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Route,
+                            contentDescription = null,
+                            tint = if (route.id == armedId) LxSage else LxInkMuted,
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = route.name,
+                                style = MiuixTheme.textStyles.body1,
+                                color = LxInk,
+                            )
+                            Text(
+                                text = "%.2f km · %d 个拐点".format(
+                                    route.totalDistanceMeters / 1000.0,
+                                    route.pointCount,
+                                ),
+                                style = MiuixTheme.textStyles.footnote2,
+                                color = LxInkMuted,
+                            )
                         }
                     }
-                } else {
-                    stringResource(R.string.run_no_records)
-                },
-                labelWidth = 76.dp,
-                showDivider = false,
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = stringResource(R.string.ss_sim_pace),
+                style = MiuixTheme.textStyles.footnote1,
+                color = LxInkMuted,
             )
-            LxDetailRow(
-                label = stringResource(R.string.run_task_state),
-                value = if (dashboard?.dsFlag == true) stringResource(R.string.run_required_now) else stringResource(R.string.run_no_mandatory),
-                labelWidth = 76.dp,
-                showDivider = false,
-            )
-        }
-    }
-}
-
-@Composable
-private fun MetricBlock(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    value: String,
-    iconOnStart: Boolean = false,
-    startPadding: Dp = 14.dp,
-    modifier: Modifier = Modifier,
-) {
-    LxCard(modifier = modifier) {
-        Column(
-            modifier = Modifier.padding(
-                start = startPadding,
-                top = 14.dp,
-                end = 14.dp,
-                bottom = 14.dp,
-            ),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (iconOnStart) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = MiuixTheme.colorScheme.secondary,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = title,
-                        style = MiuixTheme.textStyles.footnote2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.weight(1f),
-                    )
-                } else {
-                    Text(
-                        text = title,
-                        style = MiuixTheme.textStyles.footnote2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = MiuixTheme.colorScheme.secondary,
-                        modifier = Modifier.size(16.dp),
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(6.0, 7.0, 9.0).forEach { kmh ->
+                    LxFilterChip(
+                        label = "%.0f km/h".format(kmh),
+                        selected = paceKmh == kmh,
+                        onClick = { onPace(kmh) },
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(6.dp))
-            // value 单行 + 末尾省略：保证左右两块高度恒等，不会因 "48 / 120 km" 之类长文本折行失衡
-            Text(
-                text = value,
-                style = MiuixTheme.textStyles.title4.merge(LxTabularNums),
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-    }
+        },
+    )
 }
 
-private fun formatKm(value: Double, digits: Int): String =
-    String.format(Locale.CHINA, "%.${digits}f km", value)
-
-private fun formatKmValue(value: Double): String =
-    if (value % 1.0 == 0.0) {
-        String.format(Locale.CHINA, "%.0f", value)
-    } else {
-        String.format(Locale.CHINA, "%.1f", value)
-    }
+private fun fmt(value: Double): String = when {
+    value <= 0.0 -> "—"
+    value % 1.0 == 0.0 -> value.toInt().toString()
+    else -> String.format(Locale.CHINA, "%.1f", value)
+}

@@ -64,6 +64,18 @@ object CoordinateConverter {
         return LatLng(wLat, wLng)
     }
 
+    /**
+     * BD-09 → GCJ-02：gcj02ToBd09 的反向。
+     * 学校库里存的轨迹是百度坐标，我们那套高德瓦片是 GCJ-02，画出来之前得先换回来。
+     */
+    fun bd09ToGcj02(lat: Double, lng: Double): LatLng {
+        val x = lng - 0.0065
+        val y = lat - 0.006
+        val z = sqrt(x * x + y * y) - 0.00002 * sin(y * X_PI)
+        val theta = Math.atan2(y, x) - 0.000003 * cos(x * X_PI)
+        return LatLng(z * sin(theta), z * cos(theta))
+    }
+
     private fun transformLat(x: Double, y: Double): Double {
         var ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * sqrt(abs(x))
         ret += (20.0 * sin(6.0 * x * PI) + 20.0 * sin(2.0 * x * PI)) * 2.0 / 3.0
