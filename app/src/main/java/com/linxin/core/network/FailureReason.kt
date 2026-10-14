@@ -71,9 +71,15 @@ fun loginStaleNotice(reason: String): String =
  * 连不上说「检查网络、可以关掉 VPN」，401 说「去重新登录」。
  * 我们自己抛的那些中文异常（带原因的）原样透出，不覆盖。
  */
-fun netFail(t: Throwable, fallback: String): Exception = Exception(netFailMessage(t, fallback), t)
+fun netFail(t: Throwable, fallback: String, campusOnlyHost: String? = null): Exception =
+    Exception(netFailMessage(t, fallback, campusOnlyHost), t)
 
-fun netFailMessage(t: Throwable, fallback: String): String {
+fun netFailMessage(t: Throwable, fallback: String, campusOnlyHost: String? = null): String {
+    // 体育那台是校内地址：人不在校园网里连不上是**正常**的，说"检查网络/关 VPN"是误导
+    if (t is java.io.IOException && campusOnlyHost != null) {
+        val detail = t.message?.takeIf { it.isNotBlank() }?.let { "（$it）" } ?: ""
+        return "连不上体育服务器$detail —— $campusOnlyHost 是校内地址，不在校园网（或能进内网的 VPN）里就是打不开，回学校再试"
+    }
     (t as? retrofit2.HttpException)?.let { e ->
         return when {
             e.code() == 401 -> "登录已失效（401），去「我的」里重新登录一次"

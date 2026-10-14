@@ -122,7 +122,7 @@ class RunningRepository @Inject constructor(
                 )
             }
         } catch (e: Exception) {
-            Result.failure(netFail(e, "获取跑步首页失败"))
+            Result.failure(netFail(e, "获取跑步首页失败", campusOnlyHost = SPORTS_HOST))
         }
     }
 
@@ -134,7 +134,7 @@ class RunningRepository @Inject constructor(
             clubJson.requireSportsSuccess("获取俱乐部详情失败")
             Result.success(ClubDetailMapper.parseTasks(clubJson))
         } catch (e: Exception) {
-            Result.failure(netFail(e, "获取俱乐部详情失败"))
+            Result.failure(netFail(e, "获取俱乐部详情失败", campusOnlyHost = SPORTS_HOST))
         }
     }
 
@@ -153,7 +153,7 @@ class RunningRepository @Inject constructor(
                 ?.get("hasResult")?.takeUnless { it.isJsonNull }?.asString.orEmpty()
             Result.success(hasResult.equals("YES", ignoreCase = true))
         } catch (e: Exception) {
-            Result.failure(netFail(e, "查询打卡结果失败"))
+            Result.failure(netFail(e, "查询打卡结果失败", campusOnlyHost = SPORTS_HOST))
         }
     }
 
@@ -195,7 +195,7 @@ class RunningRepository @Inject constructor(
                 )
             )
         } catch (e: Exception) {
-            Result.failure(netFail(e, "开始跑步失败"))
+            Result.failure(netFail(e, "开始跑步失败", campusOnlyHost = SPORTS_HOST))
         }
     }
 
@@ -244,7 +244,7 @@ class RunningRepository @Inject constructor(
             )
             uploadSnapshot(snapshot)
         } catch (e: Exception) {
-            Result.failure(netFail(e, "模拟提交失败"))
+            Result.failure(netFail(e, "模拟提交失败", campusOnlyHost = SPORTS_HOST))
         }
     }
 
@@ -313,7 +313,7 @@ class RunningRepository @Inject constructor(
                 )
             )
         } catch (e: Exception) {
-            Result.failure(netFail(e, "上传跑步记录失败"))
+            Result.failure(netFail(e, "上传跑步记录失败", campusOnlyHost = SPORTS_HOST))
         }
     }
 
@@ -447,3 +447,6 @@ class RunningRepository @Inject constructor(
         private val FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.CHINA)
     }
 }
+
+/** 体育那台机只有校内网能到，报错时要把它点名 */
+private const val SPORTS_HOST = "sports.aiit.edu.cn:8082"

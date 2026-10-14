@@ -210,14 +210,24 @@ class HomeViewModel @Inject constructor(
                 holidayError?.let { put("holiday", it) }
             }
 
-            val merged = HomeDashboardData(
-                todayCourses = courses,
-                tomorrowFirstSection = tomorrowFirst,
-                currentWeek = currentWeek,
-                nextCheckin = checkinTask,
-                holidayTask = holiday,
-                runningProgress = running,
-                laborHours = labor,
+            /**
+             * 挂掉的那一路**保留上一次的数据**，不许把已经显示出来的数字刷成"暂无数据"：
+             * 2026-10-14 体育那个校内口 `sports.aiit.edu.cn:8082` 在校外网（平板热点）上直接超时，
+             * 首页运动卡就从「今日 3.33 km」变成「暂无运动数据」，看着像跑步被改坏了。
+             * 正常返回空是另一回事（今天确实没课/没待办），那种照实显示空。
+             */
+            val merged = _uiState.value.dashboardData.copy(
+                todayCourses = if ("schedule" in errors) _uiState.value.dashboardData.todayCourses else courses,
+                tomorrowFirstSection = if ("schedule" in errors) {
+                    _uiState.value.dashboardData.tomorrowFirstSection
+                } else {
+                    tomorrowFirst
+                },
+                currentWeek = if ("schedule" in errors) _uiState.value.dashboardData.currentWeek else currentWeek,
+                nextCheckin = if ("checkin" in errors) _uiState.value.dashboardData.nextCheckin else checkinTask,
+                holidayTask = if ("holiday" in errors) _uiState.value.dashboardData.holidayTask else holiday,
+                runningProgress = if ("running" in errors) _uiState.value.dashboardData.runningProgress else running,
+                laborHours = if ("labor" in errors) _uiState.value.dashboardData.laborHours else labor,
             )
             _uiState.update {
                 it.copy(
