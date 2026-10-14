@@ -55,8 +55,9 @@ class InternalGpsFeed @Inject constructor() {
     fun snapshot(): Location? = if (_isOn.value) last else null
 
     /**
-     * 沿一条线跑，**每秒发一个点**，一秒走多远由配速决定 —— 这样"采集频率"和"速度"两件事分开，
-     * 不会因为发得勤就显得跑得飞快。点与点之间按弧长在原始线上取（不是按下标跳），
+     * 沿一条线跑，**三秒发一个点**（跟官方 `setScanSpan(3000)` 一个频率），
+     * 一次走多远由配速决定 —— 这样"采集频率"和"速度"两件事分开，不会因为发得勤就显得跑得飞快。
+     * 点与点之间按弧长在原始线上取（不是按下标跳），
      * 走到线尾就**倒着走回来**（像真人跑一段折返），绝不从终点瞬移回起点 ——
      * 那种一秒跳几百米的断点，服务器一眼就当轨迹异常。
      */
@@ -88,7 +89,7 @@ class InternalGpsFeed @Inject constructor() {
                     accuracy = (3.0 + kotlin.math.abs(off.first) / 2.0).toFloat(),
                 )
                 speed = (speed + (kotlin.random.Random.nextDouble() - 0.5) * 0.3).coerceIn(speedLow, speedHigh)
-                traveled += if (forward) speed else -speed
+                traveled += (speed * SECONDS_PER_TICK).let { if (forward) it else -it }
                 // 到端点反射回来，不瞬移
                 if (traveled >= sampler.totalMeters) {
                     traveled = 2.0 * sampler.totalMeters - traveled
@@ -177,8 +178,15 @@ class InternalGpsFeed @Inject constructor() {
 
         private const val TRAIL_MAX_POINTS = 1500
 
-        /** 一秒一个点，跟真 GPS 的采集频率一个量级 */
-        private const val TICK_MS = 1000L
+        /**
+         * 三秒一个点 —— 照官方那条 `LocationClientOption.setScanSpan(3000)` 来。
+         * 2026-10-14 dexdump 扒出来的：官方原生跑步页（SportMapActivity）就是 3 秒问一次位置，
+         * 回调里每来一个就 add 进 points，不做距离筛选。
+         */
+        private const val TICK_MS = 3000L
+
+        /** 一个 tick 多少秒，走多远要按它乘 */
+        private const val SECONDS_PER_TICK = TICK_MS / 1000.0
 
         /** 学校那条窗口：2–15 km/h，换算成米每秒 */
         private const val SPEED_MIN_MS = 0.6
