@@ -605,6 +605,16 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="leave_mark_all_read">全部标为已阅（%1$d 条）</string>
     <string name="leave_mark_all_read_confirm">把这 %1$d 条待阅一次标成已阅，学校那边就记成你读过了。</string>
     <string name="leave_submitting">正在提交…</string>
+    <string name="leave_xj">销假</string>
+    <string name="leave_xj_note">若未超假，则销假自动通过，若已超假，则由辅导员审批</string>
+    <string name="leave_xj_over">是否超假</string>
+    <string name="leave_xj_range">超假起止时间</string>
+    <string name="leave_xj_duration">超假时长</string>
+    <string name="leave_xj_loading">正在问学校超没超假…</string>
+    <string name="leave_xj_failed">学校那边没给销假信息</string>
+    <string name="leave_xj_reask">再问一次</string>
+    <string name="leave_xj_confirm">确认就把销假发出去了，学校当场记一条，这边撤不回来。</string>
+    <string name="leave_xj_no_file">附件这版没接：要传材料得去学校那个页面。这里发的是不带附件的销假。</string>
     <string name="leave_start">开始时间 yyyy-MM-dd HH:mm</string>
     <string name="leave_end">结束时间 yyyy-MM-dd HH:mm</string>
     <string name="card_actions">卡操作</string>

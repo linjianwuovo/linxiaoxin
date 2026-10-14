@@ -604,6 +604,16 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="leave_mark_all_read">Mark all as read (%1$d)</string>
     <string name="leave_mark_all_read_confirm">Marks these %1$d items as read on the school side.</string>
     <string name="leave_submitting">Submitting…</string>
+    <string name="leave_xj">Report back</string>
+    <string name="leave_xj_note">If you are not overdue this passes automatically; if you are, your counselor approves it</string>
+    <string name="leave_xj_over">Overdue</string>
+    <string name="leave_xj_range">Overdue period</string>
+    <string name="leave_xj_duration">Overdue length</string>
+    <string name="leave_xj_loading">Asking the school if you are overdue…</string>
+    <string name="leave_xj_failed">The school did not return the report-back info</string>
+    <string name="leave_xj_reask">Ask again</string>
+    <string name="leave_xj_confirm">Confirming sends the report now. The school records it and we cannot undo it.</string>
+    <string name="leave_xj_no_file">Attachments are not wired up yet: this sends a report without any file. Use the school page if you have evidence to upload.</string>
     <string name="leave_start">Start yyyy-MM-dd HH:mm</string>
     <string name="leave_end">End yyyy-MM-dd HH:mm</string>
     <string name="card_actions">Card actions</string>
