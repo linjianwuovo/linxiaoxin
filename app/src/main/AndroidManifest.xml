@@ -9,6 +9,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+    <!-- 内置模拟定位用：声明了它，开发者选项的「选择模拟位置应用」列表里才会出现安大信。
+         系统不会自动给，必须他自己去选上；lint 的 ProtectedPermissions 是给系统应用的，这里忽略。 -->
+    <uses-permission
+        android:name="android.permission.ACCESS_MOCK_LOCATION"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="flyme.permission.READ_NOTIFICATION_LIVE_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
