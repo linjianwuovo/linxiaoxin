@@ -215,27 +215,35 @@ internal object SportsParse {
     private fun pick(source: JsonObject?, vararg keys: String): String =
         source?.walkKeys(keys).orEmpty()
 
+    /**
+     * 取值：先根上的同名键，再往下钻嵌套对象（官方把东西塞在 data.totalInfo /
+     * data.extraInfo 这种二层三层里都有过），最后试 rows[0]。钻的深度限 4 层，够且不瞎找。
+     */
     private fun JsonObject.walkKeys(keys: Array<out String>): String {
         keys.forEach { key ->
             get(key)?.takeUnless { it.isJsonNull }?.let { return plain(it) }
         }
-        child("data")?.let { nested ->
-            keys.forEach { key ->
-                nested.get(key)?.takeUnless { it.isJsonNull }?.let { return plain(it) }
-            }
-            if (nested.get("rows")?.isJsonArray == true) {
-                nested.rows().forEach { row ->
-                    keys.forEach { key ->
-                        row.get(key)?.takeUnless { it.isJsonNull }?.let { return plain(it) }
+        return deepSearch(this, keys, 0)
+    }
+
+    private fun deepSearch(node: JsonObject, keys: Array<out String>, depth: Int): String {
+        if (depth > 4) return ""
+        node.entrySet().forEach { (name, value) ->
+            if (name in keys && !value.isJsonNull) return plain(value)
+        }
+        node.entrySet().forEach { (_, value) ->
+            when {
+                value.isJsonObject -> {
+                    val hit = deepSearch(value.asJsonObject, keys, depth + 1)
+                    if (hit.isNotBlank()) return hit
+                }
+                value.isJsonArray -> value.asJsonArray.forEach { item ->
+                    if (item.isJsonObject) {
+                        val hit = deepSearch(item.asJsonObject, keys, depth + 1)
+                        if (hit.isNotBlank()) return hit
                     }
                 }
-            }
-        }
-        if (get("rows")?.isJsonArray == true) {
-            rows().forEach { row ->
-                keys.forEach { key ->
-                    row.get(key)?.takeUnless { it.isJsonNull }?.let { return plain(it) }
-                }
+                else -> Unit
             }
         }
         return ""
