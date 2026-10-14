@@ -426,6 +426,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ui_002">启用调试功能</string>
     <string name="svc_loc_perm_missing">缺少定位权限</string>
     <string name="svc_run_active">跑步进行中</string>
+    <string name="svc_run_target">单次要求 %1$s km</string>
     <string name="svc_run_paused">跑步已暂停</string>
     <string name="svc_waiting_gps">正在等待 GPS</string>
     <string name="svc_waiting_loc">等待定位中…</string>

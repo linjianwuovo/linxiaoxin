@@ -425,6 +425,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ui_002">Debug features</string>
     <string name="svc_loc_perm_missing">Location permission missing</string>
     <string name="svc_run_active">Run in progress</string>
+    <string name="svc_run_target">Target %1$s km</string>
     <string name="svc_run_paused">Run paused</string>
     <string name="svc_waiting_gps">Waiting for GPS</string>
     <string name="svc_waiting_loc">Waiting for location…</string>
