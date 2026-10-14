@@ -325,6 +325,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="mock_loc_row_on">Feeding</string>
     <string name="mock_loc_no_write">While feeding, our own location readers follow this track; submitting a run or checking in still never happens on its own.</string>
     <string name="mock_loc_title">Mock location (LinXin only)</string>
+    <string name="live_map_title">Live track (follows along)</string>
     <string name="mock_loc_state_idle">Not feeding</string>
     <string name="mock_loc_state_feeding">Feeding · %1$d points</string>
     <string name="mock_loc_mode_current">My position</string>

@@ -325,6 +325,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="mock_loc_row_on">喂点中</string>
     <string name="mock_loc_no_write">喂点期间首页、跑步这些读定位的地方会跟着动；提交跑步记录、打卡这类写操作不会因此自动发生，还是得你自己点。</string>
     <string name="mock_loc_title">模拟定位（只影响安大信）</string>
+    <string name="live_map_title">实时轨迹（跟着走）</string>
     <string name="mock_loc_state_idle">没在喂点</string>
     <string name="mock_loc_state_feeding">正在喂点 · 已发 %1$d 个</string>
     <string name="mock_loc_mode_current">当前位置</string>

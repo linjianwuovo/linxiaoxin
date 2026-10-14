@@ -1,6 +1,5 @@
 package com.linxin.feature.running.ui
 
-import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -56,12 +55,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.osmdroid.api.IGeoPoint
-import org.osmdroid.config.Configuration
+import com.linxin.core.map.AmapStreetTileSource
+import com.linxin.core.map.prepareOsmdroid
 import org.osmdroid.util.GeoPoint
-import org.osmdroid.util.MapTileIndex
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Overlay
-import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -355,28 +353,6 @@ fun RoutePlannerScreen(
             }
         }
     }
-}
-
-/** osmdroid 要个 UA 才拿得到瓦片；配置存我们自己的 sp，不去碰系统默认那份 */
-private fun prepareOsmdroid(context: Context) {
-    val config = Configuration.getInstance()
-    config.userAgentValue = context.packageName
-    config.load(context, context.getSharedPreferences("osmdroid", Context.MODE_PRIVATE))
-}
-
-/** 高德街道图瓦片：同一套 Web Mercator XYZ，直接喂给 osmdroid */
-private class AmapStreetTileSource : OnlineTileSourceBase(
-    "AMapStreet",
-    3,
-    18,
-    256,
-    ".png",
-    arrayOf("https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&"),
-) {
-    override fun getTileURLString(tileIndex: Long): String =
-        baseUrl + "x=" + MapTileIndex.getX(tileIndex) +
-            "&y=" + MapTileIndex.getY(tileIndex) +
-            "&z=" + MapTileIndex.getZoom(tileIndex)
 }
 
 /**
