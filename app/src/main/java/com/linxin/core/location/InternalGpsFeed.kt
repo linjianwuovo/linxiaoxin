@@ -57,7 +57,8 @@ class InternalGpsFeed @Inject constructor() {
     /**
      * 沿一条线跑，**每秒发一个点**，一秒走多远由配速决定 —— 这样"采集频率"和"速度"两件事分开，
      * 不会因为发得勤就显得跑得飞快。点与点之间按弧长在原始线上取（不是按下标跳），
-     * 走完一圈从头接上，直到点停止。
+     * 走到线尾就**倒着走回来**（像真人跑一段折返），绝不从终点瞬移回起点 ——
+     * 那种一秒跳几百米的断点，服务器一眼就当轨迹异常。
      */
     fun startRoute(points: List<TrackPoint>, paceKmh: Double) {
         stopJob()
@@ -76,6 +77,7 @@ class InternalGpsFeed @Inject constructor() {
         job = scope.launch {
             var traveled = 0.0
             var speed = target
+            var forward = true
             while (isActive) {
                 val base = sampler.at(traveled)
                 val off = wander.next()
@@ -86,8 +88,15 @@ class InternalGpsFeed @Inject constructor() {
                     accuracy = (3.0 + kotlin.math.abs(off.first) / 2.0).toFloat(),
                 )
                 speed = (speed + (kotlin.random.Random.nextDouble() - 0.5) * 0.3).coerceIn(speedLow, speedHigh)
-                traveled += speed
-                if (traveled >= sampler.totalMeters) traveled -= sampler.totalMeters
+                traveled += if (forward) speed else -speed
+                // 到端点反射回来，不瞬移
+                if (traveled >= sampler.totalMeters) {
+                    traveled = 2.0 * sampler.totalMeters - traveled
+                    forward = false
+                } else if (traveled <= 0.0) {
+                    traveled = -traveled
+                    forward = true
+                }
                 delay(TICK_MS)
             }
         }
