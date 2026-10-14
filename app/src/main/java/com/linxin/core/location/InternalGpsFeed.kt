@@ -92,11 +92,18 @@ class InternalGpsFeed @Inject constructor() {
         _trail.value = emptyList()
         val seconds = if (durationSeconds > 0) durationSeconds else points.size.toLong()
         val perPointMs = (seconds * 1000L / points.size).coerceIn(200L, 4000L)
+        val wander = Wander(random = java.util.Random(seed()))
         job = scope.launch {
             var index = 0
             while (isActive) {
                 val point = points[index % points.size]
-                emit(point.latitude, point.longitude, accuracy = 3.5f)
+                val off = wander.next()
+                emit(
+                    point.latitude + off.first / METERS_PER_LAT_DEGREE,
+                    point.longitude + off.second /
+                        (METERS_PER_LAT_DEGREE * kotlin.math.cos(Math.toRadians(point.latitude))),
+                    accuracy = (3.0 + kotlin.math.abs(off.first) / 2.0).toFloat(),
+                )
                 delay(perPointMs)
                 index++
             }
@@ -134,6 +141,11 @@ class InternalGpsFeed @Inject constructor() {
             private set
 
         private const val TRAIL_MAX_POINTS = 1500
+
+        /** 一个纬度度约等于这么多米，喂点算偏移用 */
+        private const val METERS_PER_LAT_DEGREE = 111_320.0
+
+        private fun seed(): Long = System.nanoTime()
     }
 
     private fun emit(latitude: Double, longitude: Double, accuracy: Float) {
@@ -152,5 +164,27 @@ class InternalGpsFeed @Inject constructor() {
         _fedCount.value = _fedCount.value + 1
         // 最多留 1500 个点（约 25 分钟），够看一屏，也不至于把内存吃满
         _trail.value = (_trail.value + TrackPoint(latitude, longitude)).takeLast(TRAIL_MAX_POINTS)
+    }
+}
+
+/**
+ * 随机偏移：真 GPS 从来不是贴着线上走的，是一米一米地晃。
+ * 所以这里不是每点独立撒噪声（那样相邻点可能比 1.5 米还近，会被 tracker 的抖动过滤吃掉，
+ * 距离反而不涨），而是让偏移本身做一次缓慢的随机游走：每步最多挪 0.6 米，
+ * 离理想线最远 2.5 米 —— 看着就是"沿这条路跑，但不在一条直线上"。
+ */
+private class Wander(private val random: java.util.Random) {
+
+    private var north = 0.0
+    private var east = 0.0
+
+    fun next(): Pair<Double, Double> {
+        north = (north + (random.nextDouble() - 0.5) * 1.2).coerceIn(-MAX_OFFSET, MAX_OFFSET)
+        east = (east + (random.nextDouble() - 0.5) * 1.2).coerceIn(-MAX_OFFSET, MAX_OFFSET)
+        return north to east
+    }
+
+    private companion object {
+        const val MAX_OFFSET = 2.5
     }
 }
