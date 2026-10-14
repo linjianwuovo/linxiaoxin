@@ -71,7 +71,7 @@ import com.linxin.core.designsystem.theme.LxTerra
 import com.linxin.feature.checkin.domain.CheckinTask
 import com.linxin.feature.holiday.domain.HolidayTask
 import com.linxin.core.domain.SectionSchedule
-import com.linxin.feature.running.domain.RunningDashboard
+import com.linxin.feature.sports.domain.RunRules
 import com.linxin.feature.schedule.domain.Course
 import com.linxin.navigation.Routes
 import kotlinx.coroutines.delay
@@ -207,7 +207,7 @@ fun HomeDashboard(
 
                     StaggeredCard(index = 2) {
                         RunningCard(
-                            dashboard = data.runningProgress,
+                            rules = data.runningProgress,
                             error = errors["running"],
                             onClick = {
                                 navController.navigate(Routes.RUNNING_HOME) { launchSingleTop = true }
@@ -584,7 +584,7 @@ private fun HolidayCard(task: HolidayTask, onClick: () -> Unit) {
 // ═══════════════ 运动进度 ═══════════════
 
 @Composable
-private fun RunningCard(dashboard: RunningDashboard?, error: String?, onClick: () -> Unit) {
+private fun RunningCard(rules: RunRules?, error: String?, onClick: () -> Unit) {
     // badge 承载互补信息（body 说"离完成还差 X"，badge 说"目标 3 km"）
     val targetBadge = stringResource(R.string.home_running_target, DAILY_TARGET_KM.toInt())
     DashboardCard(
@@ -594,10 +594,10 @@ private fun RunningCard(dashboard: RunningDashboard?, error: String?, onClick: (
     ) {
         when {
             error != null -> LxErrorHint(error)
-            dashboard == null -> LxEmptyHint(stringResource(R.string.home_running_empty))
+            rules == null -> LxEmptyHint(stringResource(R.string.home_running_empty))
             else -> {
-                val dailyProgress = (dashboard.todayKm / DAILY_TARGET_KM).coerceIn(0.0, 1.0).toFloat()
-                val remaining = max(DAILY_TARGET_KM - dashboard.todayKm, 0.0)
+                val dailyProgress = (rules.todayMileKm / DAILY_TARGET_KM).coerceIn(0.0, 1.0).toFloat()
+                val remaining = max(DAILY_TARGET_KM - rules.todayMileKm, 0.0)
 
                 Row(
                     modifier = Modifier.defaultMinSize(minHeight = 54.dp),
@@ -631,13 +631,13 @@ private fun RunningCard(dashboard: RunningDashboard?, error: String?, onClick: (
                         verticalArrangement = Arrangement.Center,
                     ) {
                         Text(
-                            text = stringResource(R.string.home_running_today, formatKm(dashboard.todayKm)),
+                            text = stringResource(R.string.home_running_today, formatKm(rules.todayMileKm)),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
                             lineHeight = 19.sp,
                         )
                         Spacer(modifier = Modifier.height(4.dp))
-                        val subtitle = if (dashboard.todayKm >= DAILY_TARGET_KM) {
+                        val subtitle = if (rules.todayMileKm >= DAILY_TARGET_KM) {
                             stringResource(R.string.home_running_done)
                         } else {
                             stringResource(R.string.home_running_remaining, formatKm(remaining))

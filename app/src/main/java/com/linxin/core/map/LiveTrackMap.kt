@@ -17,7 +17,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.linxin.core.location.CoordinateConverter
 import com.linxin.feature.running.domain.RunningCampus
-import com.linxin.feature.running.domain.TrackPoint
+import com.linxin.feature.sports.SportsCoords
+import com.linxin.feature.sports.domain.WgsPoint
 import org.osmdroid.api.IGeoPoint
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
@@ -64,26 +65,26 @@ fun prepareOsmdroid(context: Context) {
  */
 @Composable
 fun LiveTrackMap(
-    points: List<TrackPoint>,
+    points: List<WgsPoint>,
     modifier: Modifier = Modifier,
     /** 最后一个点画大圆当"我在这儿"；预览一圈时不要，看着像已经跑到那儿了 */
     markLast: Boolean = true,
     /** 跟着最新点走；预览时关掉，不然一换圈心就跳图 */
     follow: Boolean = true,
     /** 点图选一个位置（拿回来的是 WGS-84，可以直接当圈心/拐点） */
-    onPick: ((TrackPoint) -> Unit)? = null,
+    onPick: ((WgsPoint) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val trackOverlay = remember { TrackOverlay() }
     val pickOverlay = remember { TapOverlay { geo ->
-        val wgs = CoordinateConverter.gcj02ToWgs84(geo.latitude, geo.longitude)
-        onPick?.invoke(TrackPoint(wgs.latitude, wgs.longitude))
+        val wgs = SportsCoords.gcjToWgs(geo.latitude, geo.longitude)
+        onPick?.invoke(WgsPoint(wgs.latitude, wgs.longitude))
     } }
     var mapView by remember { mutableStateOf<MapView?>(null) }
 
     LaunchedEffect(points) {
         trackOverlay.display = points.map {
-            val gcj = CoordinateConverter.wgs84ToGcj02(it.latitude, it.longitude)
+            val gcj = SportsCoords.wgsToGcj(it.latitude, it.longitude)
             GeoPoint(gcj.latitude, gcj.longitude)
         }
         trackOverlay.markLast = markLast
@@ -103,7 +104,7 @@ fun LiveTrackMap(
                 overlays.add(trackOverlay)
                 overlays.add(pickOverlay)
                 controller.setZoom(17.5)
-                val gcj = CoordinateConverter.wgs84ToGcj02(
+                val gcj = SportsCoords.wgsToGcj(
                     RunningCampus.CENTER_LATITUDE,
                     RunningCampus.CENTER_LONGITUDE,
                 )
