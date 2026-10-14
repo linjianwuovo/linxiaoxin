@@ -47,6 +47,23 @@ object CoordinateConverter {
         return LatLng(bdLat, bdLng)
     }
 
+    /**
+     * GCJ-02 → WGS-84：在高德底图上点出来的点要存回真坐标才用。
+     * 反向没有闭式解，用"把这一点的偏移量减掉"再迭代一次校正 —— 合肥这一带误差在米级，
+     * 规划路线够用，但别拿它当签到坐标（签到的坐标另有来路，不经过地图）。
+     */
+    fun gcj02ToWgs84(lat: Double, lng: Double): LatLng {
+        if (outOfChina(lat, lng)) return LatLng(lat, lng)
+        var wLat = lat
+        var wLng = lng
+        repeat(2) {
+            val back = wgs84ToGcj02(wLat, wLng)
+            wLat += lat - back.latitude
+            wLng += lng - back.longitude
+        }
+        return LatLng(wLat, wLng)
+    }
+
     private fun transformLat(x: Double, y: Double): Double {
         var ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * sqrt(abs(x))
         ret += (20.0 * sin(6.0 * x * PI) + 20.0 * sin(2.0 * x * PI)) * 2.0 / 3.0

@@ -25,6 +25,17 @@
     <string name="title_more_functions">More</string>
     <string name="title_dorm_checkin">Dorm Check-in</string>
     <string name="title_mock_submit">Mock Submit</string>
+    <string name="planner_entry">Plan on the map</string>
+    <string name="planner_title">Plan a route</string>
+    <string name="planner_distance">%1$d points · %2$s km</string>
+    <string name="planner_hint">Tap the map to add a corner; drag and pinch as usual. Save it once the line is runnable. Tiles: AMap street.</string>
+    <string name="planner_undo">Undo</string>
+    <string name="planner_clear">Clear</string>
+    <string name="planner_me">To me</string>
+    <string name="planner_name">Route name (optional)</string>
+    <string name="planner_save">Save route</string>
+    <string name="planner_library">Saved routes</string>
+    <string name="planner_library_empty">No saved routes yet</string>
     <string name="title_template_manage">Templates</string>
     <string name="title_template_detail">Template</string>
     <string name="title_checkin">Check-in</string>

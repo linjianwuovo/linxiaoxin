@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.linxin.R
+import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxEmpty
 import com.linxin.core.designsystem.component.LxTopBar
@@ -46,6 +47,7 @@ import com.linxin.feature.running.domain.RouteTemplate
 fun RouteTemplateListScreen(
     onBack: () -> Unit,
     onOpenDetail: (String) -> Unit,
+    onOpenPlanner: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RouteTemplateViewModel = hiltViewModel(),
 ) {
@@ -56,22 +58,32 @@ fun RouteTemplateListScreen(
         containerColor = MiuixTheme.colorScheme.background,
         topBar = { LxTopBar(title = stringResource(R.string.title_template_manage), onBack = onBack) },
     ) { padding ->
-        if (uiState.templates.isEmpty()) {
-            LxEmpty(
-                message = stringResource(R.string.tpl_list_empty),
-                modifier = Modifier.padding(padding).fillMaxSize(),
+        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            // 一条路线不必非得靠腿录：在地图上点几个拐点也能存出来，存完就能拿去喂内部假 GPS
+            LxButton(
+                text = stringResource(R.string.planner_entry),
+                onClick = onOpenPlanner,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
             )
-        } else {
-            LazyColumn(
-                modifier = Modifier.padding(padding).fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(uiState.templates, key = { it.id }) { template ->
-                    TemplateCard(
-                        template = template,
-                        onClick = { onOpenDetail(template.id) },
-                    )
+            if (uiState.templates.isEmpty()) {
+                LxEmpty(
+                    message = stringResource(R.string.tpl_list_empty),
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(uiState.templates, key = { it.id }) { template ->
+                        TemplateCard(
+                            template = template,
+                            onClick = { onOpenDetail(template.id) },
+                        )
+                    }
                 }
             }
         }

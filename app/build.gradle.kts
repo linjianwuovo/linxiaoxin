@@ -26,8 +26,8 @@ android {
         minSdk = 26
         targetSdk = 35
         applicationId = "com.linxin"
-        versionCode = 91
-        versionName = "1.3.9-beta21"
+        versionCode = 92
+        versionName = "1.3.9-beta22"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -135,6 +135,9 @@ dependencies {
     // Kyant Liquid Glass (真·液态玻璃：refraction lens + vibrancy + highlight)
     implementation(libs.kyant.backdrop)
     implementation(libs.kyant.shapes)
+
+    // 内置地图（路线规划那一页用）：Apache-2.0
+    implementation(libs.osmdroid.android)
 
     testImplementation("junit:junit:4.13.2")
 }

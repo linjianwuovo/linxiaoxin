@@ -65,6 +65,7 @@ import com.linxin.feature.more.ui.MockLocationScreen
 import com.linxin.feature.onboarding.ui.OnboardingScreen
 import com.linxin.feature.running.ui.RouteSimulationSettingsScreen
 import com.linxin.feature.running.ui.RouteTemplateDetailScreen
+import com.linxin.feature.running.ui.RoutePlannerScreen
 import com.linxin.feature.running.ui.RouteTemplateListScreen
 import com.linxin.feature.running.ui.RouteTemplateRecordScreen
 import com.linxin.feature.running.ui.RouteTemplateViewModel
@@ -468,7 +469,15 @@ fun LinXinNavHost(
                 onOpenDetail = { id ->
                     navController.navigate(Routes.runningRouteDetail(id)) { launchSingleTop = true }
                 },
+                onOpenPlanner = {
+                    navController.navigate(Routes.RUNNING_ROUTE_PLANNER) { launchSingleTop = true }
+                },
             )
+        }
+
+        // 地图规划路线（内置 osmdroid + 高德瓦片）
+        composable(Routes.RUNNING_ROUTE_PLANNER) {
+            RoutePlannerScreen(onBack = { navController.popBackStack() })
         }
         composable(
             route = Routes.RUNNING_ROUTE_DETAIL,
