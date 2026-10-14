@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.EventNote
 import androidx.compose.material.icons.outlined.Grading
+import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -82,6 +83,7 @@ fun MoreFeaturesScreen(
     onNavigateExam: () -> Unit,
     onNavigateCredit: () -> Unit,
     onNavigateHoliday: () -> Unit,
+    onNavigateMockLocation: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -224,6 +226,13 @@ fun MoreFeaturesScreen(
                             },
                         )
                         MoreMenuDivider()
+                        MoreMenuDivider()
+                        // 内置 FakeLocation：验跑步那条实况不用真去跑一圈（beta 工具页）
+                        MoreMenuRow(
+                            icon = Icons.Outlined.MyLocation,
+                            title = stringResource(R.string.mock_loc_row),
+                            onClick = onNavigateMockLocation,
+                        )
                         MoreMenuRow(
                             icon = Icons.Outlined.Settings,
                             title = stringResource(R.string.more_fluid_cloud_settings),

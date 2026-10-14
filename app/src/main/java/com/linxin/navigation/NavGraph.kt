@@ -61,6 +61,7 @@ import com.linxin.feature.messages.ui.MessagesScreen
 import com.linxin.feature.card.ui.CampusCardScreen
 import com.linxin.feature.login.ui.LoginScreen
 import com.linxin.feature.more.ui.MoreFeaturesScreen
+import com.linxin.feature.more.ui.MockLocationScreen
 import com.linxin.feature.onboarding.ui.OnboardingScreen
 import com.linxin.feature.running.ui.RouteSimulationSettingsScreen
 import com.linxin.feature.running.ui.RouteTemplateDetailScreen
@@ -669,7 +670,15 @@ fun LinXinNavHost(
                 onNavigateHoliday = {
                     navController.navigate(Routes.HOLIDAY_LIST) { launchSingleTop = true }
                 },
+                onNavigateMockLocation = {
+                    navController.navigate(Routes.MOCK_LOCATION) { launchSingleTop = true }
+                },
             )
+        }
+
+        // 内置模拟定位（beta 上的工具页，转正时不 cherry-pick 这一条）
+        composable(Routes.MOCK_LOCATION) {
+            MockLocationScreen(onBack = { navController.popBackStack() })
         }
 
         // Exam

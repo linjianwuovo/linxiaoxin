@@ -53,6 +53,8 @@ object Routes {
 
     // More Features
     const val MORE_FEATURES = "more"
+    /** 内置模拟定位那一页（喂假 GPS 验跑步实况） */
+    const val MOCK_LOCATION = "more/mock-location"
 
     // Exam
     const val EXAM_SCORES = "exam/scores"
