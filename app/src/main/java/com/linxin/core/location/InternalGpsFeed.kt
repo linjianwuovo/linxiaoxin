@@ -1,6 +1,7 @@
 package com.linxin.core.location
 
 import android.location.Location
+import com.linxin.feature.running.domain.RunningCampus
 import com.linxin.feature.running.domain.TrackPoint
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -89,6 +90,57 @@ class InternalGpsFeed @Inject constructor() {
         }
     }
 
+    /**
+     * 绕圈跑：在学校中心旁边现造一圈 320 米的矩形环线，一秒发一个点、每点约 2 米（≈7.2 km/h），
+     * 走完一圈接着走，直到点停止。
+     *
+     * 为什么要单独一档：定住那种模式下相邻点只差 0.9 米，会被 `RunningTracker` 那道
+     * "小于 1.5 米不算一段"的抖动过滤全吃掉，距离永远显示 0.00 —— 想虚拟跑就必须真的在动。
+     * 7.2 km/h 也正好落在学校那套 `minSpeed=2 / maxSpeed=15` 的配速窗口里。
+     */
+    fun startLaps() {
+        stopJob()
+        val lap = lapRingMeters()
+        if (lap.size < 4) return
+        isOnNow = true
+        _isOn.value = true
+        _fedCount.value = 0
+        job = scope.launch {
+            var index = 0
+            while (isActive) {
+                val point = lap[index % lap.size]
+                emit(point.latitude, point.longitude, accuracy = 3.5f)
+                delay(LAP_TICK_MS)
+                index++
+            }
+        }
+    }
+
+    /** 320 米一圈的环线，相邻两点约 2 米（米制偏移直接走 RunningCampus，省得自己算球面） */
+    private fun lapRingMeters(): List<TrackPoint> {
+        val corners = listOf(
+            doubleArrayOf(0.0, 0.0),
+            doubleArrayOf(0.0, LAP_LONG_METERS),
+            doubleArrayOf(-LAP_SHORT_METERS, LAP_LONG_METERS),
+            doubleArrayOf(-LAP_SHORT_METERS, 0.0),
+        )
+        val out = ArrayList<TrackPoint>(corners.size * (LAP_STEP_METERS.toInt() + 1))
+        for (i in corners.indices) {
+            val from = corners[i]
+            val to = corners[(i + 1) % corners.size]
+            val length = kotlin.math.hypot(to[0] - from[0], to[1] - from[1])
+            val steps = (length / LAP_STEP_METERS).toInt().coerceAtLeast(1)
+            for (s in 0 until steps) {
+                val ratio = s.toDouble() / steps
+                out += RunningCampus.pointAt(
+                    from[0] + (to[0] - from[0]) * ratio,
+                    from[1] + (to[1] - from[1]) * ratio,
+                )
+            }
+        }
+        return out
+    }
+
     fun stop() {
         stopJob()
         isOnNow = false
@@ -118,6 +170,16 @@ class InternalGpsFeed @Inject constructor() {
         @Volatile
         var isOnNow: Boolean = false
             private set
+
+        /** 环线两条边：160 米 × 96 米，一圈 512 米，凑不进 400 米标准也无所谓，绕着走就行 */
+        private const val LAP_LONG_METERS = 160.0
+        private const val LAP_SHORT_METERS = 96.0
+
+        /** 相邻两点约 2 米：刚好越过 `RunningTracker` 那道 1.5 米的抖动过滤 */
+        private const val LAP_STEP_METERS = 2.0
+
+        /** 一步一秒 → 约 7.2 km/h，在学校 2–15 的配速窗口内 */
+        private const val LAP_TICK_MS = 1000L
     }
 
     private fun emit(latitude: Double, longitude: Double, accuracy: Float) {
