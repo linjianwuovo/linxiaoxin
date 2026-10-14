@@ -18,8 +18,8 @@ import com.linxin.feature.home.domain.SubtitleContext
 import com.linxin.feature.home.domain.SubtitleLibrary
 import com.linxin.feature.labor.data.LaborRepository
 import com.linxin.feature.labor.domain.HoursSummary
-import com.linxin.feature.running.data.RunningRepository
-import com.linxin.feature.running.domain.RunningDashboard
+import com.linxin.feature.sports.data.SportsRepository
+import com.linxin.feature.sports.domain.RunRules
 import com.linxin.feature.schedule.data.ScheduleRepository
 import com.linxin.feature.schedule.domain.Course
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,7 +40,7 @@ data class HomeDashboardData(
     val currentWeek: Int = 0,
     val nextCheckin: CheckinTask? = null,
     val holidayTask: HolidayTask? = null,
-    val runningProgress: RunningDashboard? = null,
+    val runningProgress: RunRules? = null,
     val laborHours: HoursSummary? = null,
 )
 
@@ -59,7 +59,7 @@ class HomeViewModel @Inject constructor(
     private val scheduleRepository: ScheduleRepository,
     private val checkinRepository: CheckinRepository,
     private val holidayRepository: HolidayRepository,
-    private val runningRepository: RunningRepository,
+    private val sportsRepository: SportsRepository,
     private val laborRepository: LaborRepository,
     private val tokenManager: TokenManager,
     private val courseNotificationScheduler: CourseNotificationScheduler,
@@ -302,8 +302,8 @@ class HomeViewModel @Inject constructor(
         return Pair(result.getOrNull(), result.exceptionOrNull()?.message)
     }
 
-    private suspend fun loadRunning(): Pair<RunningDashboard?, String?> {
-        val result = runningRepository.getDashboard()
+    private suspend fun loadRunning(): Pair<RunRules?, String?> {
+        val result = sportsRepository.rules()
         return Pair(result.getOrNull(), result.exceptionOrNull()?.message)
     }
 
