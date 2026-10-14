@@ -33,7 +33,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.linxin.R
 import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxCard
-import com.linxin.core.map.LiveTrackMap
 import com.linxin.core.designsystem.component.LxEmpty
 import com.linxin.core.designsystem.component.LxLoading
 import com.linxin.core.designsystem.component.LxOutlinedButton
@@ -139,26 +138,6 @@ private fun RunningActiveContent(
                         text = "km",
                         style = MiuixTheme.textStyles.title3,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    )
-                }
-            }
-        }
-
-        item {
-            LxCard {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = stringResource(R.string.live_map_title),
-                        style = MiuixTheme.textStyles.footnote1,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.padding(start = 16.dp, top = 14.dp, bottom = 8.dp),
-                    )
-                    // 虚拟跑要看得见：喂点在动这条线就跟着长，比只盯数字好判断
-                    LiveTrackMap(
-                        points = trackerState.points,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(240.dp),
                     )
                 }
             }

@@ -469,9 +469,6 @@ fun LinXinNavHost(
                 onOpenDetail = { id ->
                     navController.navigate(Routes.runningRouteDetail(id)) { launchSingleTop = true }
                 },
-                onOpenPlanner = {
-                    navController.navigate(Routes.RUNNING_ROUTE_PLANNER) { launchSingleTop = true }
-                },
             )
         }
 
@@ -687,7 +684,12 @@ fun LinXinNavHost(
 
         // 内置模拟定位（beta 上的工具页，转正时不 cherry-pick 这一条）
         composable(Routes.MOCK_LOCATION) {
-            MockLocationScreen(onBack = { navController.popBackStack() })
+            MockLocationScreen(
+                onBack = { navController.popBackStack() },
+                onOpenPlanner = {
+                    navController.navigate(Routes.RUNNING_ROUTE_PLANNER) { launchSingleTop = true }
+                },
+            )
         }
 
         // Exam
