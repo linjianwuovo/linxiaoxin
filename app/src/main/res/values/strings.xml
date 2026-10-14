@@ -45,7 +45,7 @@
     <string name="title_course_detail">课程详情</string>
     <string name="title_running">跑步中</string>
     <string name="title_running_result">跑步结果</string>
-    <string name="title_route_mock">路线模拟</string>
+    <string name="title_route_mock">跑步 · 模拟路线</string>
     <string name="title_sport_checkin">锻炼考勤</string>
     <string name="title_running_home">运动跑步</string>
 

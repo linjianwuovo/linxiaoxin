@@ -45,7 +45,7 @@
     <string name="title_course_detail">Course</string>
     <string name="title_running">Running</string>
     <string name="title_running_result">Run Result</string>
-    <string name="title_route_mock">Route Simulation</string>
+    <string name="title_route_mock">Running · simulated route</string>
     <string name="title_sport_checkin">Exercise Attendance</string>
     <string name="title_running_home">Running</string>
 
