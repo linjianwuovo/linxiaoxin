@@ -172,6 +172,23 @@ class RunningViewModel @Inject constructor(
         _uiState.update { it.copy(armedPaceKmh = kmh) }
     }
 
+    /**
+     * 暂停 / 继续：官方那颗按钮干的是 `clearWatch` + `clearInterval` ——
+     * 暂停期间不收点、时长也不走。这边两件事一起办：tracker 停收，
+     * 模拟定位开着的话喂点也一起停住。
+     */
+    fun togglePaused() {
+        val state = _uiState.value.trackerState
+        if (!state.isSessionActive) return
+        if (state.isPaused) {
+            tracker.resume()
+            gpsFeed.paused = false
+        } else {
+            tracker.pause()
+            gpsFeed.paused = true
+        }
+    }
+
     suspend fun finishRealRun() {
         if (_uiState.value.isUploadingRun) return
         gpsFeed.stop()

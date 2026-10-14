@@ -69,7 +69,10 @@ import com.linxin.feature.running.ui.RouteTemplateListScreen
 import com.linxin.feature.running.ui.RouteTemplateRecordScreen
 import com.linxin.feature.running.ui.RouteTemplateViewModel
 import com.linxin.feature.running.ui.RunningActiveScreen
+import com.linxin.feature.running.ui.MaintainRecordScreen
+import com.linxin.feature.running.ui.RunDetailScreen
 import com.linxin.feature.running.ui.RunningHomeScreen
+import com.linxin.feature.running.ui.SportRecordScreen
 import com.linxin.feature.running.exercise.ui.ClubDetailScreen
 import com.linxin.feature.running.exercise.ui.ExerciseCheckScreen
 import com.linxin.feature.running.ui.RunningResultScreen
@@ -350,7 +353,35 @@ fun LinXinNavHost(
                         launchSingleTop = true
                     }
                 },
+                onOpenRecords = {
+                    navController.navigate(Routes.SPORT_RECORDS) { launchSingleTop = true }
+                },
             )
+        }
+        composable(Routes.SPORT_RECORDS) {
+            SportRecordScreen(
+                onBack = { navController.popBackStack() },
+                onOpenDetail = { checkId ->
+                    navController.navigate(Routes.sportRecordDetail(checkId)) { launchSingleTop = true }
+                },
+                onOpenMaintain = {
+                    navController.navigate(Routes.SPORT_MAINTAIN) { launchSingleTop = true }
+                },
+            )
+        }
+        composable(
+            route = Routes.SPORT_RECORD_DETAIL,
+            arguments = listOf(navArgument("checkId") { type = NavType.StringType }),
+        ) {
+            RunDetailScreen(
+                onBack = { navController.popBackStack() },
+                onOpenMaintain = {
+                    navController.navigate(Routes.SPORT_MAINTAIN) { launchSingleTop = true }
+                },
+            )
+        }
+        composable(Routes.SPORT_MAINTAIN) {
+            MaintainRecordScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.RUNNING_ACTIVE) { backStackEntry ->
             val homeEntry = remember(backStackEntry) { navController.getBackStackEntry(Routes.HOME) }
