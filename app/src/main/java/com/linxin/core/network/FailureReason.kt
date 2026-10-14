@@ -75,10 +75,11 @@ fun netFail(t: Throwable, fallback: String, campusOnlyHost: String? = null): Exc
     Exception(netFailMessage(t, fallback, campusOnlyHost), t)
 
 fun netFailMessage(t: Throwable, fallback: String, campusOnlyHost: String? = null): String {
-    // 体育那台是校内地址：人不在校园网里连不上是**正常**的，说"检查网络/关 VPN"是误导
+    // 体育那台（sports.aiit.edu.cn:8082）自己常挂：2026-10-14 15:5x 在米11 上现测，
+    // TCP 能连上、DNS 也正常，裸发一个 GET 要 40 秒才回，回的是 503 维护页 ——
+    // 我们客户端等不到那么久，先超时了。所以这句不许写成"检查网络/关 VPN"，那会把人往错方向带。
     if (t is java.io.IOException && campusOnlyHost != null) {
-        val detail = t.message?.takeIf { it.isNotBlank() }?.let { "（$it）" } ?: ""
-        return "连不上体育服务器$detail —— $campusOnlyHost 是校内地址，不在校园网（或能进内网的 VPN）里就是打不开，回学校再试"
+        return "体育服务器这会儿没应答（$campusOnlyHost 这台服务经常自己挂掉，不是你的网络）—— 过几分钟再点重试"
     }
     (t as? retrofit2.HttpException)?.let { e ->
         return when {
