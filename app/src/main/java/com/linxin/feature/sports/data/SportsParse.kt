@@ -48,8 +48,9 @@ internal object SportsParse {
         detailJson: JsonObject?,
         termJson: JsonObject?,
     ): RunRules {
-        val extraInfo = planJson?.child("extraInfo")
-        val detail = detailJson?.child("extraDetail")
+        // 官方把这两坨塞在 data 下面（data.extraInfo / data.extraDetail），根上没有
+        val extraInfo = section(planJson, "extraInfo")
+        val detail = section(detailJson, "extraDetail")
         val year = text(termJson ?: JsonObject(), "XN")
         val termNo = text(termJson ?: JsonObject(), "XQ")
         val termTitle = if (year.isBlank()) {
@@ -189,6 +190,13 @@ internal object SportsParse {
     fun textOf(json: JsonObject, vararg keys: String): String = pick(json, *keys)
 
     
+
+    /** 根上找，找不到再往 data 里找一层 */
+    private fun section(json: JsonObject?, name: String): JsonObject? {
+        json ?: return null
+        json.child(name)?.let { return it }
+        return json.child("data")?.child(name)
+    }
 
     private fun JsonObject.child(key: String): JsonObject? =
         get(key)?.takeIf { it.isJsonObject }?.asJsonObject
