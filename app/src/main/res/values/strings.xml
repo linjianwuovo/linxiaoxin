@@ -25,6 +25,17 @@
     <string name="title_more_functions">更多功能</string>
     <string name="title_dorm_checkin">查寝签到</string>
     <string name="title_mock_submit">模拟提交</string>
+    <string name="planner_entry">在地图上规划路线</string>
+    <string name="planner_title">地图规划路线</string>
+    <string name="planner_distance">%1$d 个点 · %2$s km</string>
+    <string name="planner_hint">点一下地图加一个拐点，拖动缩放照常；连成一条能跑的线再存。底图是高德街道图。</string>
+    <string name="planner_undo">撤一步</string>
+    <string name="planner_clear">清空</string>
+    <string name="planner_me">到我这儿</string>
+    <string name="planner_name">路线名（不填自动起）</string>
+    <string name="planner_save">存成路线</string>
+    <string name="planner_library">打开已存路线</string>
+    <string name="planner_library_empty">还没有存过的路线</string>
     <string name="title_template_manage">模板管理</string>
     <string name="title_template_detail">模板详情</string>
     <string name="title_checkin">签到</string>

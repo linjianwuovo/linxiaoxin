@@ -35,6 +35,8 @@ object Routes {
     const val RUNNING_ROUTE_LIST = "running/route/list"
     const val RUNNING_ROUTE_DETAIL = "running/route/detail/{templateId}"
     fun runningRouteDetail(templateId: String) = "running/route/detail/$templateId"
+    /** 地图上点选规划路线那一页 */
+    const val RUNNING_ROUTE_PLANNER = "running/route/planner"
 
     // Running - 大二俱乐部 / 锻炼考勤
     const val RUNNING_CLUB_DETAIL = "running/club"
