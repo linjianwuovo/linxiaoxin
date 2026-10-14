@@ -76,10 +76,12 @@ class LocationProvider @Inject constructor(
                 // 权限被收回：喂点还开着就继续靠喂点，别整条流直接死掉
             }
 
+            // 喂点固定一秒一次：调用方要的 3 秒是问真 GPS 的频率，
+            // 拿它当采样间隔会把记录点变成 3 秒一个，比真跑的轨迹稀一大截
             val pump = launch {
                 while (isActive) {
                     internalFeed.snapshot()?.let { trySend(it) }
-                    delay(intervalMs)
+                    delay(FEED_PUMP_INTERVAL_MS)
                 }
             }
 
@@ -88,6 +90,10 @@ class LocationProvider @Inject constructor(
                 locationManager.removeUpdates(listener)
             }
         }
+    }
+
+    private companion object {
+        const val FEED_PUMP_INTERVAL_MS = 1000L
     }
 
     /** 只问系统权限，不含"喂点开着也算"那层放宽 */
