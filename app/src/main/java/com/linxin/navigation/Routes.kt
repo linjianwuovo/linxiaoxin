@@ -55,8 +55,6 @@ object Routes {
 
     // More Features
     const val MORE_FEATURES = "more"
-    /** 内置虚拟跑步那一页（软件内喂点 + 真跑步链路） */
-    const val RUNNING_VIRTUAL_RUN = "running/virtual"
 
     // Exam
     const val EXAM_SCORES = "exam/scores"

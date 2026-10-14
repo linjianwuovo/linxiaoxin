@@ -41,17 +41,23 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.linxin.R
+import com.linxin.core.designsystem.theme.LxInk
+import com.linxin.core.designsystem.theme.LxInkMuted
+import com.linxin.core.designsystem.theme.LxSandDeep
 import com.linxin.core.designsystem.theme.LxTabularNums
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.platform.LocalContext
 import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxCard
+import com.linxin.core.designsystem.component.LxDialog
 import com.linxin.core.designsystem.component.LxDetailRow
+import com.linxin.core.designsystem.component.LxFilterChip
 import com.linxin.core.designsystem.component.LxError
 import com.linxin.core.designsystem.component.LxLoading
 import com.linxin.core.designsystem.component.LxOutlinedButton
 import com.linxin.core.designsystem.component.LxTopBar
 import com.linxin.feature.running.domain.ClubSummary
+import com.linxin.feature.running.domain.RouteTemplate
 import com.linxin.feature.running.domain.RunningDashboard
 import com.linxin.feature.running.service.RunTrackingService
 import kotlinx.coroutines.launch
@@ -64,9 +70,11 @@ fun RunningHomeScreen(
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     onOpenClub: () -> Unit = {},
+    onOpenPlanner: () -> Unit = {},
     viewModel: RunningViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showRoutePicker by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var permissionError by remember { mutableStateOf<String?>(null) }
@@ -138,6 +146,12 @@ fun RunningHomeScreen(
                     }
                 },
                 onSimAction = onOpenSim,
+                armedRoute = uiState.armedRoute,
+                armedPaceKmh = uiState.armedPaceKmh,
+                routeChoices = uiState.routeChoices,
+                onPickRoute = viewModel::armRoute,
+                onPace = viewModel::setArmedPace,
+                onOpenPlanner = onOpenPlanner,
                 modifier = Modifier.padding(padding),
             )
         }
@@ -156,7 +170,14 @@ private fun RunningHomeContent(
     onSimAction: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenClub: () -> Unit = {},
+    armedRoute: RouteTemplate? = null,
+    armedPaceKmh: Double = 9.0,
+    routeChoices: List<RouteTemplate> = emptyList(),
+    onPickRoute: (RouteTemplate) -> Unit = {},
+    onPace: (Double) -> Unit = {},
+    onOpenPlanner: () -> Unit = {},
 ) {
+    var showRoutePicker by remember { mutableStateOf(false) }
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
@@ -215,6 +236,18 @@ private fun RunningHomeContent(
                 onClick = onPrimaryAction,
                 enabled = !isStarting,
             )
+            // 模拟路线：挑一条自己画的线，之后点「开始跑步」就沿这条线喂点。
+            // 喂的是我们自己进程内的假坐标，不碰系统定位、没 root 也能用；提交还是走真那条路。
+            Spacer(modifier = Modifier.height(10.dp))
+            LxOutlinedButton(
+                text = if (armedRoute == null) {
+                    stringResource(R.string.run_arm_route)
+                } else {
+                    stringResource(R.string.run_armed, armedRoute.name, "%.0f".format(armedPaceKmh))
+                },
+                onClick = { showRoutePicker = true },
+                enabled = !isStarting,
+            )
             if (advancedEnabled) {
                 Spacer(modifier = Modifier.height(10.dp))
                 LxOutlinedButton(
@@ -224,6 +257,72 @@ private fun RunningHomeContent(
                 )
             }
         }
+    }
+
+    if (showRoutePicker) {
+        LxDialog(
+            title = stringResource(R.string.run_arm_route),
+            message = stringResource(R.string.run_arm_route_note),
+            confirmText = stringResource(R.string.action_confirm),
+            onConfirm = { showRoutePicker = false },
+            onDismiss = { showRoutePicker = false },
+            onDismissRequest = { showRoutePicker = false },
+            content = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (routeChoices.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.run_arm_route_empty),
+                            style = MiuixTheme.textStyles.footnote1,
+                            color = LxInkMuted,
+                        )
+                    } else {
+                        routeChoices.forEach { route ->
+                            val picked = armedRoute?.id == route.id
+                            LxCard(onClick = { onPickRoute(route) }) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = route.name,
+                                        style = MiuixTheme.textStyles.body2,
+                                        color = if (picked) LxSandDeep else LxInk,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    Text(
+                                        text = if (picked) {
+                                            stringResource(R.string.run_arm_route_on)
+                                        } else {
+                                            "%.2f km".format(route.totalDistanceMeters / 1000.0)
+                                        },
+                                        style = MiuixTheme.textStyles.footnote1,
+                                        color = if (picked) LxSandDeep else LxInkMuted,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(6.0, 9.0, 12.0).forEach { kmh ->
+                            LxFilterChip(
+                                label = "%.0f km/h".format(kmh),
+                                selected = armedPaceKmh == kmh,
+                                onClick = { onPace(kmh) },
+                            )
+                        }
+                    }
+                    LxOutlinedButton(
+                        text = stringResource(R.string.planner_entry),
+                        onClick = {
+                            showRoutePicker = false
+                            onOpenPlanner()
+                        },
+                    )
+                }
+            },
+        )
     }
 }
 

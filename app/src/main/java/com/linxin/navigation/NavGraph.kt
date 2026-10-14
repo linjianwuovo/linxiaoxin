@@ -61,7 +61,6 @@ import com.linxin.feature.messages.ui.MessagesScreen
 import com.linxin.feature.card.ui.CampusCardScreen
 import com.linxin.feature.login.ui.LoginScreen
 import com.linxin.feature.more.ui.MoreFeaturesScreen
-import com.linxin.feature.running.ui.VirtualRunScreen
 import com.linxin.feature.onboarding.ui.OnboardingScreen
 import com.linxin.feature.running.ui.RouteSimulationSettingsScreen
 import com.linxin.feature.running.ui.RouteTemplateDetailScreen
@@ -337,6 +336,9 @@ fun LinXinNavHost(
                     navController.navigate(Routes.RUNNING_CLUB_DETAIL) {
                         launchSingleTop = true
                     }
+                },
+                onOpenPlanner = {
+                    navController.navigate(Routes.RUNNING_ROUTE_PLANNER) { launchSingleTop = true }
                 },
                 onOpenActive = {
                     navController.navigate(Routes.RUNNING_ACTIVE) {
@@ -675,19 +677,6 @@ fun LinXinNavHost(
                 },
                 onNavigateHoliday = {
                     navController.navigate(Routes.HOLIDAY_LIST) { launchSingleTop = true }
-                },
-                onNavigateVirtualRun = {
-                    navController.navigate(Routes.RUNNING_VIRTUAL_RUN) { launchSingleTop = true }
-                },
-            )
-        }
-
-        // 内置模拟定位（beta 上的工具页，转正时不 cherry-pick 这一条）
-        composable(Routes.RUNNING_VIRTUAL_RUN) {
-            VirtualRunScreen(
-                onBack = { navController.popBackStack() },
-                onOpenPlanner = {
-                    navController.navigate(Routes.RUNNING_ROUTE_PLANNER) { launchSingleTop = true }
                 },
             )
         }

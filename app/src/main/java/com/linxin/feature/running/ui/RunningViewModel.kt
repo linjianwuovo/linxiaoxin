@@ -48,6 +48,11 @@ data class RunningUiState(
     val shouldNavigateToResult: Boolean = false,
     val defaultTemplate: RouteTemplate? = null,
     val templateCount: Int = 0,
+    /** 「模拟路线」挑中的那条线；null = 没开模拟，开始跑步就是真跑 */
+    val armedRoute: RouteTemplate? = null,
+    /** 这一场按多快喂点，学校那条窗口是 2–15 km/h */
+    val armedPaceKmh: Double = 9.0,
+    val routeChoices: List<RouteTemplate> = emptyList(),
     val advancedEnabled: Boolean = false,
 )
 
@@ -57,6 +62,7 @@ class RunningViewModel @Inject constructor(
     private val tracker: RunningTracker,
     private val templateStore: RouteTemplateStore,
     private val developerPrefs: DeveloperPrefs,
+    private val gpsFeed: com.linxin.core.location.InternalGpsFeed,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RunningUiState())
@@ -84,6 +90,7 @@ class RunningViewModel @Inject constructor(
                     it.copy(
                         defaultTemplate = list.firstOrNull { t -> t.isDefault },
                         templateCount = list.size,
+                        routeChoices = list.sortedByDescending { t -> t.updatedAtMillis },
                     )
                 }
             }
@@ -132,6 +139,12 @@ class RunningViewModel @Inject constructor(
         return repository.startRunning().fold(
             onSuccess = { startInfo ->
                 tracker.beginSession(startInfo)
+                // 挑了「模拟路线」才喂点：喂的是进程内的假坐标，只影响我们自己
+                _uiState.value.armedRoute?.let { arm ->
+                    val seconds = (arm.totalDistanceMeters / (gpsPaceMetersPerSecond(_uiState.value.armedPaceKmh)))
+                        .toLong().coerceAtLeast(1L)
+                    gpsFeed.startRoute(gpsFeed.densify(arm.points), seconds)
+                }
                 _uiState.update { it.copy(isStarting = false) }
                 Result.success(startInfo)
             },
@@ -147,8 +160,25 @@ class RunningViewModel @Inject constructor(
         )
     }
 
+    /** 挑一条线当这一场要跑的路线；再点一次取消 */
+    fun armRoute(route: RouteTemplate) {
+        _uiState.update { it.copy(armedRoute = if (it.armedRoute?.id == route.id) null else route) }
+    }
+
+    fun disarmRoute() {
+        _uiState.update { it.copy(armedRoute = null) }
+    }
+
+    fun setArmedPace(kmh: Double) {
+        _uiState.update { it.copy(armedPaceKmh = kmh) }
+    }
+
+    /** 模拟那一场的路线总长，喂点按这个配速换算要走多久 */
+    private fun gpsPaceMetersPerSecond(kmh: Double): Double = kmh / 3.6
+
     suspend fun finishRealRun() {
         if (_uiState.value.isUploadingRun) return
+        gpsFeed.stop()
         val snapshot = tracker.snapshotForUpload()
         if (snapshot == null) {
             _uiState.update { it.copy(startError = AppText.str(R.string.rvm_no_upload)) }
@@ -160,6 +190,7 @@ class RunningViewModel @Inject constructor(
     }
 
     fun abandonRealRun() {
+        gpsFeed.stop()
         tracker.cancelSession()
     }
 
