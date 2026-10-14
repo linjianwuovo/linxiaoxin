@@ -34,6 +34,7 @@ import com.linxin.core.designsystem.theme.LxInkMuted
 import com.linxin.core.designsystem.theme.LxSandDeep
 import com.linxin.core.location.InternalGpsFeed
 import com.linxin.core.location.LocationProvider
+import com.linxin.core.map.LiveTrackMap
 import com.linxin.feature.running.data.RouteTemplateStore
 import com.linxin.feature.running.domain.RouteTemplate
 import com.linxin.feature.running.domain.RunningCampus
@@ -80,6 +81,37 @@ class MockLocationViewModel @Inject constructor(
         notice = null
     }
 
+    /** 圈心：默认拿当前位置，读不到才退回学校中心；可以在预览图上点着挪 */
+    var ringCenter by mutableStateOf<TrackPoint?>(null)
+        private set
+
+    var ringPerimeter by mutableStateOf(400.0)
+        private set
+
+    fun pickCenter(point: TrackPoint) {
+        ringCenter = point
+    }
+
+    fun pickPerimeter(meters: Double) {
+        ringPerimeter = meters
+    }
+
+    /** 当前位置优先；喂点正开着时读到的就是喂进去的那份，所以先记下再取 */
+    fun resolvedRingCenter(): TrackPoint =
+        ringCenter ?: locationProvider.getLastKnownLocation()?.let {
+            TrackPoint(it.latitude, it.longitude)
+        } ?: TrackPoint(RunningCampus.CENTER_LATITUDE, RunningCampus.CENTER_LONGITUDE)
+
+    /** 预览/开跑前都要拿到的那一圈点 */
+    fun ringPoints(): List<TrackPoint> = feed.lapRing(resolvedRingCenter(), ringPerimeter)
+
+    fun useCurrentAsCenter() {
+        locationProvider.getLastKnownLocation()?.let {
+            ringCenter = TrackPoint(it.latitude, it.longitude)
+            notice = null
+        } ?: run { notice = "没读到当前位置，直接在图上点一个圈心" }
+    }
+
     fun start(template: RouteTemplate?) {
         notice = null
         when (mode) {
@@ -97,7 +129,7 @@ class MockLocationViewModel @Inject constructor(
                 TrackPoint(RunningCampus.CENTER_LATITUDE, RunningCampus.CENTER_LONGITUDE),
             )
 
-            MockMode.LAPS -> feed.startLaps()
+            MockMode.LAPS -> feed.startLaps(resolvedRingCenter(), ringPerimeter)
 
             MockMode.ROUTE -> {
                 if (template == null) {
@@ -233,6 +265,49 @@ fun MockLocationScreen(
                                 )
                             }
                         }
+                    }
+                }
+            }
+
+            if (viewModel.mode == MockMode.LAPS) {
+                item(key = "mock_ring_map") {
+                    LxCard {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = stringResource(R.string.mock_loc_ring_hint),
+                                style = MiuixTheme.textStyles.footnote1,
+                                color = LxInkMuted,
+                                modifier = Modifier.padding(start = 16.dp, top = 14.dp, bottom = 8.dp),
+                            )
+                            LiveTrackMap(
+                                points = viewModel.ringPoints(),
+                                markLast = false,
+                                follow = false,
+                                onPick = { viewModel.pickCenter(it) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(260.dp),
+                            )
+                        }
+                    }
+                }
+                item(key = "mock_ring_size") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        listOf(400.0, 512.0, 800.0).forEach { meters ->
+                            ModeChip(
+                                label = "%.0f 米".format(meters),
+                                selected = viewModel.ringPerimeter == meters,
+                                onClick = { viewModel.pickPerimeter(meters) },
+                            )
+                        }
+                        ModeChip(
+                            label = stringResource(R.string.mock_loc_ring_center_now),
+                            selected = false,
+                            onClick = { viewModel.useCurrentAsCenter() },
+                        )
                     }
                 }
             }

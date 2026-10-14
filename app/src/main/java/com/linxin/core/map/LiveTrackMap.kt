@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Point
+import android.view.MotionEvent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -17,6 +18,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.linxin.core.location.CoordinateConverter
 import com.linxin.feature.running.domain.RunningCampus
 import com.linxin.feature.running.domain.TrackPoint
+import org.osmdroid.api.IGeoPoint
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
 import org.osmdroid.util.GeoPoint
@@ -64,9 +66,19 @@ fun prepareOsmdroid(context: Context) {
 fun LiveTrackMap(
     points: List<TrackPoint>,
     modifier: Modifier = Modifier,
+    /** 最后一个点画大圆当"我在这儿"；预览一圈时不要，看着像已经跑到那儿了 */
+    markLast: Boolean = true,
+    /** 跟着最新点走；预览时关掉，不然一换圈心就跳图 */
+    follow: Boolean = true,
+    /** 点图选一个位置（拿回来的是 WGS-84，可以直接当圈心/拐点） */
+    onPick: ((TrackPoint) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val trackOverlay = remember { TrackOverlay() }
+    val pickOverlay = remember { TapOverlay { geo ->
+        val wgs = CoordinateConverter.gcj02ToWgs84(geo.latitude, geo.longitude)
+        onPick?.invoke(TrackPoint(wgs.latitude, wgs.longitude))
+    } }
     var mapView by remember { mutableStateOf<MapView?>(null) }
 
     LaunchedEffect(points) {
@@ -74,8 +86,9 @@ fun LiveTrackMap(
             val gcj = CoordinateConverter.wgs84ToGcj02(it.latitude, it.longitude)
             GeoPoint(gcj.latitude, gcj.longitude)
         }
+        trackOverlay.markLast = markLast
         val last = trackOverlay.display.lastOrNull()
-        if (last != null) mapView?.controller?.setCenter(last)
+        if (last != null && follow) mapView?.controller?.setCenter(last)
         mapView?.invalidate()
     }
 
@@ -88,6 +101,7 @@ fun LiveTrackMap(
                 setMultiTouchControls(true)
                 setUseDataConnection(true)
                 overlays.add(trackOverlay)
+                overlays.add(pickOverlay)
                 controller.setZoom(17.5)
                 val gcj = CoordinateConverter.wgs84ToGcj02(
                     RunningCampus.CENTER_LATITUDE,
@@ -100,6 +114,7 @@ fun LiveTrackMap(
         },
         onRelease = { view ->
             view.overlays.remove(trackOverlay)
+            view.overlays.remove(pickOverlay)
             view.onPause()
         },
     )
@@ -109,6 +124,7 @@ fun LiveTrackMap(
 private class TrackOverlay : Overlay() {
 
     var display: List<GeoPoint> = emptyList()
+    var markLast: Boolean = true
 
     private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -146,9 +162,23 @@ private class TrackOverlay : Overlay() {
             canvas.drawCircle(point.x.toFloat(), point.y.toFloat(), 8f, dotPaint)
             canvas.drawCircle(point.x.toFloat(), point.y.toFloat(), 8f, ringPaint)
         }
+        if (!markLast) return
         screen.lastOrNull()?.let { here ->
             canvas.drawCircle(here.x.toFloat(), here.y.toFloat(), 24f, dotPaint)
             canvas.drawCircle(here.x.toFloat(), here.y.toFloat(), 24f, ringPaint)
         }
+    }
+}
+
+
+/** 单击地图 → 一个坐标（GCJ-02 的 GeoPoint，调用方自己换回 WGS-84） */
+class TapOverlay(
+    private val onPick: (IGeoPoint) -> Unit,
+) : Overlay() {
+
+    override fun onSingleTapConfirmed(event: MotionEvent, mapView: MapView): Boolean {
+        val geo = mapView.projection.fromPixels(event.x.toInt(), event.y.toInt()) ?: return false
+        onPick(geo)
+        return true
     }
 }
