@@ -70,7 +70,6 @@ import com.linxin.core.designsystem.theme.LxCream
 import com.linxin.core.designsystem.theme.LxInk
 import com.linxin.core.designsystem.theme.LxInkGhost
 import com.linxin.core.designsystem.theme.LxInkSoft
-import com.linxin.core.location.InternalGpsFeed
 import com.linxin.core.designsystem.theme.LxSand
 import com.linxin.core.designsystem.theme.LxSandDeep
 
@@ -84,7 +83,6 @@ fun MoreFeaturesScreen(
     onNavigateExam: () -> Unit,
     onNavigateCredit: () -> Unit,
     onNavigateHoliday: () -> Unit,
-    onNavigateVirtualRun: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -227,19 +225,6 @@ fun MoreFeaturesScreen(
                             },
                         )
                         MoreMenuDivider()
-                        MoreMenuDivider()
-                        // 内置 FakeLocation：验跑步那条实况不用真去跑一圈（beta 工具页）
-                        MoreMenuRow(
-                            icon = Icons.Outlined.MyLocation,
-                            title = stringResource(R.string.virtual_run_row),
-                            trailing = if (InternalGpsFeed.isOnNow) {
-                                stringResource(R.string.mock_loc_row_on)
-                            } else {
-                                null
-                            },
-                            trailingColor = if (InternalGpsFeed.isOnNow) LxSandDeep else LxInkGhost,
-                            onClick = onNavigateVirtualRun,
-                        )
                         MoreMenuRow(
                             icon = Icons.Outlined.Settings,
                             title = stringResource(R.string.more_fluid_cloud_settings),

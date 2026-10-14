@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.linxin.core.designsystem.theme.LxInkMuted
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -33,6 +34,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.linxin.R
 import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxCard
+import com.linxin.core.map.LiveTrackMap
 import com.linxin.core.designsystem.component.LxEmpty
 import com.linxin.core.designsystem.component.LxLoading
 import com.linxin.core.designsystem.component.LxOutlinedButton
@@ -116,6 +118,26 @@ private fun RunningActiveContent(
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        item(key = "active_map") {
+            LxCard {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = stringResource(R.string.run_live_map_title),
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = LxInkMuted,
+                        modifier = Modifier.padding(start = 16.dp, top = 14.dp, bottom = 8.dp),
+                    )
+                    // 跑的是哪条线、走到哪儿了，这张图当场看着
+                    LiveTrackMap(
+                        points = trackerState.points,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(240.dp),
+                    )
+                }
+            }
+        }
+
         item {
             LxCard {
                 Column(
