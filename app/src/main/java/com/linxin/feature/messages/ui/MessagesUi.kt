@@ -131,6 +131,9 @@ fun MessagesCard(viewModel: MessageSettingsViewModel = hiltViewModel()) {
                 CheckRow(stringResource(R.string.msg_src_return), settings.returnToSchool) {
                     viewModel.setSource(MessageTag.RETURN, it)
                 }
+                CheckRow(stringResource(R.string.msg_src_msg_center), settings.msgCenter) {
+                    viewModel.setSource(MessageTag.MSG_CENTER, it)
+                }
                 Text(
                     text = stringResource(R.string.msg_check_now),
                     style = MiuixTheme.textStyles.footnote2,

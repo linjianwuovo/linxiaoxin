@@ -20,6 +20,9 @@ object Routes {
 
     // News 公告
     const val NEWS_DETAIL = "news/detail/{newsId}"
+
+    // 消息中心（通知点进来落这一页，底栏那个 tab 是同一块内容）
+    const val MESSAGES = "messages/list"
     fun newsDetail(newsId: String) = "news/detail/${Uri.encode(newsId)}"
 
     // Running

@@ -57,6 +57,7 @@ import com.linxin.feature.repair.ui.RepairFormScreen
 import com.linxin.feature.repair.ui.RepairScreen
 import com.linxin.feature.leave.ui.LeaveCreateScreen
 import com.linxin.feature.leave.ui.LeaveScreen
+import com.linxin.feature.messages.ui.MessagesScreen
 import com.linxin.feature.card.ui.CampusCardScreen
 import com.linxin.feature.login.ui.LoginScreen
 import com.linxin.feature.more.ui.MoreFeaturesScreen
@@ -522,6 +523,11 @@ fun LinXinNavHost(
         }
 
         // 请假（只读）
+        // 消息中心：底栏那个 tab 已经常驻一份，这一份是给通知点进来用的独立页
+        composable(Routes.MESSAGES) {
+            MessagesScreen(onBack = { navController.popBackStack() })
+        }
+
         composable(Routes.LEAVE_LIST) {
             LeaveScreen(
                 onBack = { navController.popBackStack() },

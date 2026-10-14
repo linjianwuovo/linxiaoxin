@@ -233,6 +233,8 @@ class MessagesViewModel @Inject constructor(
  */
 @Composable
 fun MessagesScreen(
+    /** 底栏那个 tab 里用是 null；从通知点进来是独立一页，要能退回去 */
+    onBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     viewModel: MessagesViewModel = hiltViewModel(),
 ) {
@@ -261,12 +263,22 @@ fun MessagesScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
+            if (onBack != null) {
+                Text(
+                    text = stringResource(R.string.msg_back),
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = LxTerra,
+                    modifier = Modifier
+                        .padding(start = 20.dp, top = 16.dp)
+                        .clickable { onBack() },
+                )
+            }
             Text(
                 text = stringResource(R.string.tab_messages),
                 style = MiuixTheme.textStyles.title1,
                 fontWeight = FontWeight.Bold,
                 color = LxInk,
-                modifier = Modifier.padding(start = 20.dp, top = 28.dp, bottom = 6.dp),
+                modifier = Modifier.padding(start = 20.dp, top = 8.dp, bottom = 6.dp),
             )
 
             Row(
