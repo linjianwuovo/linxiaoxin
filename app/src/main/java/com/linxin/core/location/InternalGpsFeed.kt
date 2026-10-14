@@ -55,58 +55,78 @@ class InternalGpsFeed @Inject constructor() {
     fun snapshot(): Location? = if (_isOn.value) last else null
 
     /**
-     * 把一条稀疏的线打密：地图上点出来的拐点之间可能隔上百米，直接发会被
-     * `RunningTracker` 那道"单段大于 120 米不算"的过滤丢掉，距离就一顿一顿的。
-     * 默认每 2 米一个点 —— 跟真 GPS 一秒一个点的密度一个量级。
+     * 沿一条线跑，**每秒发一个点**，一秒走多远由配速决定 —— 这样"采集频率"和"速度"两件事分开，
+     * 不会因为发得勤就显得跑得飞快。点与点之间按弧长在原始线上取（不是按下标跳），
+     * 走完一圈从头接上，直到点停止。
      */
-    fun densify(points: List<TrackPoint>, stepMeters: Double = 2.0): List<TrackPoint> {
-        if (points.size < 2) return points
-        val out = ArrayList<TrackPoint>(points.size * 8)
-        for (i in 0 until points.lastIndex) {
-            val a = points[i]
-            val b = points[i + 1]
-            val meters = GeoDistance.metersBetween(a.latitude, a.longitude, b.latitude, b.longitude)
-            val steps = (meters / stepMeters).toInt().coerceAtLeast(1)
-            for (step in 0 until steps) {
-                val ratio = step.toDouble() / steps
-                out += TrackPoint(
-                    latitude = a.latitude + (b.latitude - a.latitude) * ratio,
-                    longitude = a.longitude + (b.longitude - a.longitude) * ratio,
-                )
-            }
-        }
-        out += points.last()
-        return out
-    }
-
-    /**
-     * 沿一条线走：节奏用这条线自己存的 `durationSeconds` 除点数 ——
-     * 那就是当初录/画这条线时的用时，不另外编一个速度。走完一圈从头再来，直到点停止。
-     */
-    fun startRoute(points: List<TrackPoint>, durationSeconds: Long) {
+    fun startRoute(points: List<TrackPoint>, paceKmh: Double) {
         stopJob()
-        if (points.size < 2) return
+        val sampler = LineSampler(points)
+        if (sampler.totalMeters < 20.0) return
+        val metersPerSecond = (paceKmh / 3.6).coerceIn(0.6, 4.2)
         isOnNow = true
         _isOn.value = true
         _fedCount.value = 0
         _trail.value = emptyList()
-        val seconds = if (durationSeconds > 0) durationSeconds else points.size.toLong()
-        val perPointMs = (seconds * 1000L / points.size).coerceIn(200L, 4000L)
-        val wander = Wander(random = java.util.Random(seed()))
+        val wander = Wander(java.util.Random(System.nanoTime()))
         job = scope.launch {
-            var index = 0
+            var traveled = 0.0
             while (isActive) {
-                val point = points[index % points.size]
+                val base = sampler.at(traveled)
                 val off = wander.next()
                 emit(
-                    point.latitude + off.first / METERS_PER_LAT_DEGREE,
-                    point.longitude + off.second /
-                        (METERS_PER_LAT_DEGREE * kotlin.math.cos(Math.toRadians(point.latitude))),
+                    base.latitude + off.first / METERS_PER_LAT_DEGREE,
+                    base.longitude + off.second /
+                        (METERS_PER_LAT_DEGREE * kotlin.math.cos(Math.toRadians(base.latitude))),
                     accuracy = (3.0 + kotlin.math.abs(off.first) / 2.0).toFloat(),
                 )
-                delay(perPointMs)
-                index++
+                traveled += metersPerSecond
+                if (traveled >= sampler.totalMeters) traveled -= sampler.totalMeters
+                delay(TICK_MS)
             }
+        }
+    }
+
+    /**
+     * 按弧长在一条折线上取点：先累出每段长度，取的时候二分太浪费，直接线性找段。
+     * 拐点稀疏也没关系 —— 我们是按"走了多少米"取位置，不是按第几个拐点跳。
+     */
+    private class LineSampler(source: List<TrackPoint>) {
+
+        private val points: List<TrackPoint> = source
+        private val cumulative: DoubleArray
+        val totalMeters: Double
+
+        init {
+            val list = if (points.size >= 2) points else emptyList()
+            cumulative = DoubleArray(list.size)
+            var sum = 0.0
+            for (i in 1 until list.size) {
+                sum += GeoDistance.metersBetween(
+                    list[i - 1].latitude, list[i - 1].longitude,
+                    list[i].latitude, list[i].longitude,
+                )
+                cumulative[i] = sum
+            }
+            totalMeters = sum
+        }
+
+        fun at(meters: Double): TrackPoint {
+            val list = points
+            if (list.size < 2) return TrackPoint(0.0, 0.0)
+            val target = meters % totalMeters
+            var index = 1
+            while (index < list.size && cumulative[index] < target) index++
+            val to = if (index >= list.size) list.lastIndex else index
+            val from = (to - 1).coerceAtLeast(0)
+            val segLength = (cumulative[to] - cumulative[from]).coerceAtLeast(0.001)
+            val ratio = ((target - cumulative[from]) / segLength).coerceIn(0.0, 1.0)
+            val a = list[from]
+            val b = list[to]
+            return TrackPoint(
+                a.latitude + (b.latitude - a.latitude) * ratio,
+                a.longitude + (b.longitude - a.longitude) * ratio,
+            )
         }
     }
 
@@ -142,10 +162,12 @@ class InternalGpsFeed @Inject constructor() {
 
         private const val TRAIL_MAX_POINTS = 1500
 
+        /** 一秒一个点，跟真 GPS 的采集频率一个量级 */
+        private const val TICK_MS = 1000L
+
         /** 一个纬度度约等于这么多米，喂点算偏移用 */
         private const val METERS_PER_LAT_DEGREE = 111_320.0
 
-        private fun seed(): Long = System.nanoTime()
     }
 
     private fun emit(latitude: Double, longitude: Double, accuracy: Float) {

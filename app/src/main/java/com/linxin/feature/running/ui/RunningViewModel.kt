@@ -141,9 +141,8 @@ class RunningViewModel @Inject constructor(
                 tracker.beginSession(startInfo)
                 // 挑了「模拟路线」才喂点：喂的是进程内的假坐标，只影响我们自己
                 _uiState.value.armedRoute?.let { arm ->
-                    val seconds = (arm.totalDistanceMeters / (gpsPaceMetersPerSecond(_uiState.value.armedPaceKmh)))
-                        .toLong().coerceAtLeast(1L)
-                    gpsFeed.startRoute(gpsFeed.densify(arm.points), seconds)
+                    // 一秒一个点，一秒走多远由配速决定；线本身按弧长取，拐点稀也不怕
+                    gpsFeed.startRoute(arm.points, _uiState.value.armedPaceKmh)
                 }
                 _uiState.update { it.copy(isStarting = false) }
                 Result.success(startInfo)
@@ -172,9 +171,6 @@ class RunningViewModel @Inject constructor(
     fun setArmedPace(kmh: Double) {
         _uiState.update { it.copy(armedPaceKmh = kmh) }
     }
-
-    /** 模拟那一场的路线总长，喂点按这个配速换算要走多久 */
-    private fun gpsPaceMetersPerSecond(kmh: Double): Double = kmh / 3.6
 
     suspend fun finishRealRun() {
         if (_uiState.value.isUploadingRun) return
