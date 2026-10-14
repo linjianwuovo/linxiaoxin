@@ -45,6 +45,7 @@ import com.linxin.core.designsystem.theme.LxSandDeep
 import com.linxin.feature.leave.data.LeaveDetail
 import com.linxin.feature.leave.data.LeaveItem
 import com.linxin.feature.leave.data.LeaveRepository
+import com.linxin.feature.leave.data.LeaveXjInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import androidx.compose.foundation.horizontalScroll
@@ -85,6 +86,10 @@ data class LeaveUiState(
     /** 有写操作在飞：按钮全灭，防止连点两下变成审两次 */
     val isSubmitting: Boolean = false,
     val submitError: String? = null,
+    /** 销假弹层：点「销假」先去问学校超没超假（`getXjxx.do`），这三行全是它给的，我们不自己算 */
+    val xjInfo: LeaveXjInfo? = null,
+    val isLoadingXj: Boolean = false,
+    val xjError: String? = null,
 ) {
     val shown: List<LeaveItem> get() = lists[tab].orEmpty()
     val isLoading: Boolean get() = tab in loadingTabs
@@ -160,6 +165,11 @@ class LeaveViewModel @Inject constructor(
                 detail = null,
                 isLoadingDetail = true,
                 detailError = null,
+                xjInfo = null,
+                isLoadingXj = false,
+                xjError = null,
+                // 上一条的失败原因不许跟到这一条的弹层里
+                submitError = null,
             )
         }
         viewModelScope.launch {
@@ -181,8 +191,42 @@ class LeaveViewModel @Inject constructor(
 
     fun closeDetail() {
         _uiState.update {
-            it.copy(openedItem = null, detail = null, isLoadingDetail = false, detailError = null)
+            it.copy(
+                openedItem = null,
+                detail = null,
+                isLoadingDetail = false,
+                detailError = null,
+                xjInfo = null,
+                isLoadingXj = false,
+                xjError = null,
+                submitError = null,
+            )
         }
+    }
+
+    /**
+     * 开弹层前先去问「超没超假」。这是只读，挂了可以在弹层里重试；
+     * 没拿到之前【确认】不会发写请求 —— 免得显示着"读不到"还把人那条销假发出去了。
+     */
+    fun askCancelLeave() {
+        val item = _uiState.value.openedItem ?: return
+        if (_uiState.value.isLoadingXj) return
+        _uiState.update { it.copy(xjInfo = null, isLoadingXj = true, xjError = null) }
+        viewModelScope.launch {
+            val result = repository.xjInfo(item.id)
+            _uiState.update { current ->
+                if (current.openedItem?.id != item.id) return@update current
+                current.copy(
+                    xjInfo = result.getOrNull(),
+                    isLoadingXj = false,
+                    xjError = result.exceptionOrNull()?.message,
+                )
+            }
+        }
+    }
+
+    fun cancelLeave(item: LeaveItem, dataJson: String) {
+        submit("销假") { repository.cancelLeave(item.id, item.ruTaskNodeId, dataJson) }
     }
 
     fun withdraw(executionId: String) {
@@ -365,14 +409,23 @@ fun LeaveScreen(
             detail = uiState.detail,
             isLoading = uiState.isLoadingDetail,
             error = uiState.detailError,
-            canApprove = uiState.tab == TAB_TODO,
+            canApprove = uiState.tab == TAB_TODO && !opened.canCancelLeave,
             canDelete = uiState.tab == TAB_APPLY,
+            // 待销假（状态码 5）才给这颗钮；学校自己的页面在这种件上只摆「销假」，
+            // 同意/驳回一起出现就成了两个都能点、不知道该点哪个，所以上面把 canApprove 关了
+            canCancelLeave = opened.canCancelLeave,
+            xjInfo = uiState.xjInfo,
+            isLoadingXj = uiState.isLoadingXj,
+            xjError = uiState.xjError,
+            submitError = uiState.submitError,
             isSubmitting = uiState.isSubmitting,
             onRetry = viewModel::retryDetail,
             onWithdraw = { viewModel.withdraw(opened.id) },
             onApprove = { remark -> viewModel.approve(opened, uiState.detail?.rawFormValues.orEmpty(), remark) },
             onReject = { remark -> viewModel.reject(opened, uiState.detail?.rawFormValues.orEmpty(), remark) },
             onDelete = { viewModel.delete(opened) },
+            onAskXj = viewModel::askCancelLeave,
+            onCancelLeave = { viewModel.cancelLeave(opened, uiState.detail?.rawFormValues.orEmpty()) },
             onDismiss = viewModel::closeDetail,
         )
     }
@@ -397,18 +450,26 @@ private fun LeaveDetailDialog(
     error: String?,
     canApprove: Boolean,
     canDelete: Boolean,
+    canCancelLeave: Boolean,
+    xjInfo: LeaveXjInfo?,
+    isLoadingXj: Boolean,
+    xjError: String?,
+    submitError: String?,
     isSubmitting: Boolean,
     onRetry: () -> Unit,
     onWithdraw: () -> Unit,
     onApprove: (String) -> Unit,
     onReject: (String) -> Unit,
     onDelete: () -> Unit,
+    onAskXj: () -> Unit,
+    onCancelLeave: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     var confirmWithdraw by remember { mutableStateOf(false) }
     var confirmApprove by remember { mutableStateOf(false) }
     var confirmReject by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var showXjDialog by remember { mutableStateOf(false) }
     var rejectRemark by remember { mutableStateOf("") }
     Dialog(
         onDismissRequest = onDismiss,
@@ -586,6 +647,21 @@ private fun LeaveDetailDialog(
                     }
                 }
 
+                // 销假：批下来了、人回来了要报这一条。点开弹层才去问超没超假（只读那一发）
+                if (canCancelLeave && detail != null) {
+                    item(key = "detail_xj") {
+                        LxButton(
+                            text = stringResource(R.string.leave_xj),
+                            enabled = !isSubmitting,
+                            onClick = {
+                                showXjDialog = true
+                                onAskXj()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+
                 if (item.withdrawable) {
                     item(key = "detail_withdraw") {
                         LxOutlinedButton(
@@ -605,6 +681,17 @@ private fun LeaveDetailDialog(
                             enabled = !isSubmitting,
                             onClick = { confirmDelete = true },
                             modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+
+                // 写操作失败的原因以前只写进 errors[tab]，列表非空时屏幕上看不见 —— 现在摆在这
+                if (!submitError.isNullOrBlank()) {
+                    item(key = "detail_submit_error") {
+                        Text(
+                            text = submitError,
+                            style = MiuixTheme.textStyles.footnote1,
+                            color = MiuixTheme.colorScheme.error,
                         )
                     }
                 }
@@ -691,6 +778,98 @@ private fun LeaveDetailDialog(
             },
             onDismiss = { confirmDelete = false },
             onDismissRequest = { confirmDelete = false },
+        )
+    }
+
+    // 销假弹层：内容照学校那三行摆，说明也抄它自己的话。这一发是写操作，点确认就出去了、撤不回来
+    if (showXjDialog) {
+        LxDialog(
+            title = stringResource(R.string.leave_xj),
+            // 一个弹层只留一个主动作：读到数据了这颗就是「确定」（发写请求），
+            // 没读到它就是「再问一次」（发读请求），标签跟着作用改，不摆第二个重试钮
+            confirmText = stringResource(
+                if (xjInfo != null && !isLoadingXj) R.string.action_confirm else R.string.leave_xj_reask,
+            ),
+            dismissText = stringResource(R.string.action_cancel),
+            onDismiss = { showXjDialog = false },
+            onDismissRequest = { showXjDialog = false },
+            onConfirm = {
+                if (xjInfo != null && !isLoadingXj) {
+                    showXjDialog = false
+                    onCancelLeave()
+                } else {
+                    // 没问出超没超假就不发：弹层留着，转圈或报错都在这一层看
+                    onAskXj()
+                }
+            },
+            content = {
+                Text(
+                    text = stringResource(R.string.leave_xj_confirm),
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.error,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.leave_xj_note),
+                    style = MiuixTheme.textStyles.footnote2,
+                    color = LxInkMuted,
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                when {
+                    isLoadingXj -> Text(
+                        text = stringResource(R.string.leave_xj_loading),
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = LxInkMuted,
+                    )
+
+                    xjInfo == null -> {
+                        Text(
+                            text = xjError?.takeIf { it.isNotBlank() }
+                                ?: stringResource(R.string.leave_xj_failed),
+                            style = MiuixTheme.textStyles.footnote1,
+                            color = MiuixTheme.colorScheme.error,
+                        )
+                    }
+
+                    else -> {
+                        val info = xjInfo
+                        LeaveXjRow(stringResource(R.string.leave_xj_over), info.over)
+                        LeaveXjRow(stringResource(R.string.leave_xj_range), info.rangeText())
+                        LeaveXjRow(stringResource(R.string.leave_xj_duration), info.duration)
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = stringResource(R.string.leave_xj_no_file),
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = LxInkMuted,
+                )
+            },
+        )
+    }
+}
+
+/** 销假弹层里的一行：学校没给值的那行干脆不显示，不摆个空值当"是 0" */
+@Composable
+private fun LeaveXjRow(label: String, value: String) {
+    if (value.isBlank()) return
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+    ) {
+        Text(
+            text = label,
+            style = MiuixTheme.textStyles.footnote1,
+            color = LxInkMuted,
+            modifier = Modifier.width(96.dp),
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = value,
+            style = MiuixTheme.textStyles.body2,
+            color = LxInk,
+            modifier = Modifier.weight(1f),
         )
     }
 }

@@ -50,6 +50,11 @@ data class LeaveItem(
     val ruTaskNodeId: String = "",
     /** 学校 H5 从「我的申请」进详情传 type=3、从「待办」进传 type=1，我们照抄 */
     val formType: String = DETAIL_TYPE_APPLY,
+    /**
+     * 服务端那个原始状态码（`status`，不是拿来显示的 `statusTxt`）。
+     * 显示文案会跟着版本改词，判"这条能不能销假"这种事只认码。
+     */
+    val statusCode: String = "",
 ) {
     companion object {
         const val DETAIL_TYPE_APPLY = "3"
@@ -60,11 +65,17 @@ data class LeaveItem(
          * 我们的 `getForm.do` 对它回的是学校后端的越界异常，所以点它直接跳我们的查寝页。
          */
         const val CHECKIN_TODO_TITLE_MARK = "签到时间到达"
+        /** 请假批下来了、人还没回来销假：列表行的 `status` 就是这个码，`statusTxt` 写「待销假」/「正在休假中」 */
+        const val STATUS_PENDING_XJ = "5"
     }
 
     /** 这条待办其实是查寝提醒 */
     val isCheckinTodo: Boolean
         get() = title.contains(CHECKIN_TODO_TITLE_MARK)
+
+    /** 这条该不该给「销假」按钮：只认状态码 5，跟它在哪一栏无关（学校自己的页面在「我的请求」里也摆这颗钮） */
+    val canCancelLeave: Boolean
+        get() = statusCode == STATUS_PENDING_XJ
 }
 
 /**
@@ -91,6 +102,17 @@ data class LeaveFlowResponse(
  * 取不到就不显示数字 —— 不猜一个键名当它一定在。
  */
 data class LeaveCountResponse(
+    val flag: Boolean?,
+    val result: String?,
+    val data: com.google.gson.JsonElement?,
+)
+
+/**
+ * `process/getXjxx.do` 的外层：销假弹层那三行（是否超假 / 超假起止时间 / 超假时长）从这来。
+ * 实测 `data` 是 `{isCj, cjStartTimeStr, cjEndTimeStr, cjScStr, cjSc, cjStartTime, cjEndTime}`，
+ * 只有一个样本，所以照样收 JsonElement 现场按候选键取，取不到就显示空、不猜。
+ */
+data class LeaveXjxxResponse(
     val flag: Boolean?,
     val result: String?,
     val data: com.google.gson.JsonElement?,

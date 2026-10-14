@@ -271,6 +271,81 @@ class LeaveRepository @Inject constructor(
     }
 
     /**
+     * 销假前问一句超没超假（`getXjxx.do`，只读）。
+     * 页面上「超假时长」显示的是 `cjScStr`；同一条里的 `cjSc` 没超假时给的是**负数**
+     * （2026-10-14 实测：`cjScStr="0"`、`cjSc="-7"`，学校自己这两个值就打架），
+     * 所以只取 `cjScStr`，它空了才退回 `cjSc`，绝不把那个负数当"超了 7"显示出去。
+     */
+    suspend fun xjInfo(executionId: String): Result<LeaveXjInfo> {
+        if (executionId.isBlank()) return Result.failure(Exception("没拿到这条流程的编号"))
+        return try {
+            val me = identity()
+            val resp = api.getXjxx(
+                executionId,
+                me.accessToken,
+                me.userCode,
+                me.userType,
+                me.userCode,
+                me.userCode,
+            )
+            if (resp.flag != true) {
+                return Result.failure(
+                    Exception(failureReason(resp.result, fallback = "销假信息没取到，服务端也没给原因")),
+                )
+            }
+            val data = resp.data.asObjectOrNull()
+            if (data == null || data.entrySet().isEmpty()) {
+                return Result.failure(Exception("学校那边没给销假信息"))
+            }
+            val info = LeaveXjInfo(
+                over = data.optStringOrEmpty("isCj"),
+                start = data.optStringOrEmpty("cjStartTimeStr"),
+                end = data.optStringOrEmpty("cjEndTimeStr"),
+                duration = data.optStringOrEmpty("cjScStr").ifBlank { data.optStringOrEmpty("cjSc") },
+            )
+            if (info.over.isBlank() && info.duration.isBlank() && info.start.isBlank() && info.end.isBlank()) {
+                Result.failure(Exception("学校那边没给销假信息"))
+            } else {
+                Result.success(info)
+            }
+        } catch (e: Exception) {
+            Result.failure(netFail(e, "销假信息没取到"))
+        }
+    }
+
+    /**
+     * 销假。打到同意同一口 `agree.do`：`dataJson` 用 `getForm` 的原文回显（一个字都不重拼，
+     * 拼错就是把人家填的东西改掉），`stuQjsq` 只带附件清单 —— 这版没有附件，所以固定 `{"xjfjList":[]}`。
+     * 写操作：失败不重试，界面必须先弹确认。
+     */
+    suspend fun cancelLeave(
+        executionId: String,
+        ruTaskNodeId: String,
+        dataJson: String,
+    ): Result<Unit> {
+        if (dataJson.isBlank()) return Result.failure(Exception("销假要原样回传的那份申请表没读到，退出去再点一次试试"))
+        return write("销假没成功") { me ->
+            api.cancelLeave(
+                dataJson,
+                executionId,
+                ruTaskNodeId,
+                XJ_PAYLOAD_NO_FILE,
+                System.currentTimeMillis(),
+                me.accessToken,
+                me.userCode,
+                me.userType,
+                me.userCode,
+                me.userCode,
+            )
+        }
+    }
+
+    private companion object {
+        /** 抓包实测：没附件时 H5 就发这么个空壳，其余业务字段服务器自己按 executionId 去取 */
+        const val XJ_PAYLOAD_NO_FILE = """{"xjfjList":[]}"""
+    }
+
+    /**
      * 表单默认值（标题/申请人/班级/学号/手机号/流水号）。
      * H5 是先拿 flowSheet、再打这个接口做只读预填，所以界面里这些字段不让手打。
      * 服务端偶尔给数字（比如流水号），Gson 到 `Map<String, Any?>` 会变成 `Double`，
@@ -320,6 +395,7 @@ class LeaveRepository @Inject constructor(
                 withdrawable = row.isWithdraw == "1",
                 ruTaskNodeId = row.ruTaskNodeId.orEmpty().trim(),
                 formType = formType,
+                statusCode = row.status.orEmpty().trim(),
             )
         }
         val totalRecords = total ?: items.size
@@ -421,6 +497,21 @@ data class LeaveDetail(
 )
 
 data class LeaveField(val label: String, val value: String)
+
+/**
+ * 销假弹层那三行（`getXjxx.do`）。
+ * 注意学校给的 `start`/`end` 在没超假时是**倒着的**（起始=请假结束点、截止=按销假的当下），
+ * 那是学校自己的口径，我们原样显示、不自己算，免得跟它页面不一致。
+ */
+data class LeaveXjInfo(
+    val over: String,
+    val start: String,
+    val end: String,
+    val duration: String,
+) {
+    /** 三个值拼成人话的一行；都没给就空着，界面就不显示这行 */
+    fun rangeText(): String = listOf(start, end).filter { it.isNotBlank() }.joinToString(" ~ ")
+}
 
 /** 审批进度的一步。字段名是它 H5 模板里直接读的那几个 */
 data class LeaveFlowStep(

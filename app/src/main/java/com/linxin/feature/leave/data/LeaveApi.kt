@@ -19,7 +19,10 @@ import retrofit2.http.POST
  * 空身份直接探测过这个地址，服务端回 `{"data":{},"flag":false,"result":"非法访问"}`，
  * 所以外层是 `{data,flag,result,rows,total}`（注意这套不是门户那套 `code/msg`），列表在顶层 `rows`。
  *
- * 写接口（`submitForm` / `saveForm` / `withdrawExecution` / `agree` / `disagree`）一个都没接。
+ * 写接口里 `submitForm` / `withdrawExecution` 早就接了，`agree` / `disagree` /
+ * `deleteExecution` / `mobileReadBulk` 是 2026-10-13 接的（当天只接不提交），
+ * `agree.do` 的销假用法是 2026-10-14 在 OPPO 上抓准的。暂存（`saveForm.do`）没做。
+ * **这些一律不自动重试。**
  */
 interface LeaveApi {
 
@@ -191,6 +194,42 @@ interface LeaveApi {
         @Field("executionId") executionId: String,
         @Field("ruTaskNodeId") ruTaskNodeId: String,
         @Field("remark") remark: String,
+        @Field("_t") t: Long,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveListResponse
+
+    /**
+     * 销假前问一句「超没超假」。参数只有一个 `id`，值就是 executionId
+     * （2026-10-14 OPPO 抓包：点「销假」那一刻打这一发，弹层那三行全从这里来）。
+     */
+    @FormUrlEncoded
+    @POST("mobile/process/getXjxx.do")
+    suspend fun getXjxx(
+        @Field("id") id: String,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveXjxxResponse
+
+    /**
+     * 销假提交。**打到的是同意同一口 `agree.do`**，区别只在 body：
+     * 没有 `remark`，多一个 `stuQjsq`；而且 `stuQjsq` 里只放附件清单 `{"xjfjList":[]}`，
+     * `getForm` 给的那 28 个键的完整记录 H5 一个都不回传，服务器自己按 executionId 取
+     * （2026-10-14 抓包实测，字段顺序也照抄：dataJson, executionId, ruTaskNodeId, stuQjsq, _t, 身份五个）。
+     */
+    @FormUrlEncoded
+    @POST("mobile/process/agree.do")
+    suspend fun cancelLeave(
+        @Field("dataJson") dataJson: String,
+        @Field("executionId") executionId: String,
+        @Field("ruTaskNodeId") ruTaskNodeId: String,
+        @Field("stuQjsq") stuQjsq: String,
         @Field("_t") t: Long,
         @Field("accessToken") accessToken: String,
         @Field("_userCode") userCodeUnderscore: String,
