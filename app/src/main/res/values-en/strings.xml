@@ -332,6 +332,8 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="mock_loc_mode_campus">Campus centre</string>
     <string name="mock_loc_mode_route">Along a route</string>
     <string name="mock_loc_mode_laps">Run laps</string>
+    <string name="mock_loc_ring_hint">This is the lap. Tap the map to move its centre, pick a length below; check it is on a road before starting.</string>
+    <string name="mock_loc_ring_center_now">Centre = me</string>
     <string name="mock_loc_start">Start feeding</string>
     <string name="mock_loc_stop">Stop feeding</string>
     <string name="mock_loc_no_route">No recorded route yet: record one in Running first</string>

@@ -91,17 +91,17 @@ class InternalGpsFeed @Inject constructor() {
     }
 
     /**
-     * 绕圈跑：在学校中心旁边现造一圈 320 米的矩形环线，一秒发一个点、每点约 2 米（≈7.2 km/h），
-     * 走完一圈接着走，直到点停止。
+     * 绕圈跑：绕**给定的圈心**走一圈，走完接着走，直到点停止。
      *
-     * 为什么要单独一档：定住那种模式下相邻点只差 0.9 米，会被 `RunningTracker` 那道
-     * "小于 1.5 米不算一段"的抖动过滤全吃掉，距离永远显示 0.00 —— 想虚拟跑就必须真的在动。
-     * 7.2 km/h 也正好落在学校那套 `minSpeed=2 / maxSpeed=15` 的配速窗口里。
+     * 圈心必须由外面传进来（界面上要么取当前位置、要么让人在地图上点），
+     * 别再写死在校园中心 —— 2026-10-14 他一句"你画的圈我又不知道在哪"就是这个：
+     * 圈看不见、也不知道在哪，等于没法监督。圈点同时给界面画出来。
      */
-    fun startLaps() {
+    fun startLaps(center: TrackPoint, perimeterMeters: Double) {
         stopJob()
-        val lap = lapRingMeters()
+        val lap = lapRing(center, perimeterMeters)
         if (lap.size < 4) return
+        _ring.value = lap
         isOnNow = true
         _isOn.value = true
         _fedCount.value = 0
@@ -116,15 +116,25 @@ class InternalGpsFeed @Inject constructor() {
         }
     }
 
-    /** 320 米一圈的环线，相邻两点约 2 米（米制偏移直接走 RunningCampus，省得自己算球面） */
-    private fun lapRingMeters(): List<TrackPoint> {
+    /** 当前这一圈的圈点，界面拿去画（没开过就是空表） */
+    private val _ring = MutableStateFlow<List<TrackPoint>>(emptyList())
+    val ring: StateFlow<List<TrackPoint>> = _ring.asStateFlow()
+
+    /**
+     * 造一圈：正方形环线，边长按周长除四。
+     * 相邻两点约 2 米 —— 刚好越过 `RunningTracker` 那道"小于 1.5 米不算一段"的抖动过滤，
+     * 不然距离永远显示 0.00。一步一秒 → 约 7.2 km/h，在学校 2–15 的配速窗口里。
+     */
+    fun lapRing(center: TrackPoint, perimeterMeters: Double): List<TrackPoint> {
+        val side = (perimeterMeters / 4.0).coerceIn(40.0, 400.0)
+        val half = side / 2.0
         val corners = listOf(
-            doubleArrayOf(0.0, 0.0),
-            doubleArrayOf(0.0, LAP_LONG_METERS),
-            doubleArrayOf(-LAP_SHORT_METERS, LAP_LONG_METERS),
-            doubleArrayOf(-LAP_SHORT_METERS, 0.0),
+            doubleArrayOf(-half, -half),
+            doubleArrayOf(-half, half),
+            doubleArrayOf(half, half),
+            doubleArrayOf(half, -half),
         )
-        val out = ArrayList<TrackPoint>(corners.size * (LAP_STEP_METERS.toInt() + 1))
+        val out = ArrayList<TrackPoint>((side / LAP_STEP_METERS).toInt() * 4 + 8)
         for (i in corners.indices) {
             val from = corners[i]
             val to = corners[(i + 1) % corners.size]
@@ -132,13 +142,22 @@ class InternalGpsFeed @Inject constructor() {
             val steps = (length / LAP_STEP_METERS).toInt().coerceAtLeast(1)
             for (s in 0 until steps) {
                 val ratio = s.toDouble() / steps
-                out += RunningCampus.pointAt(
+                out += offsetMeters(
+                    center,
                     from[0] + (to[0] - from[0]) * ratio,
                     from[1] + (to[1] - from[1]) * ratio,
                 )
             }
         }
         return out
+    }
+
+    /** 以"米"为单位的偏移转成经纬度（小范围够用，别扯椭球） */
+    fun offsetMeters(center: TrackPoint, northMeters: Double, eastMeters: Double): TrackPoint {
+        val lat = center.latitude + northMeters / METERS_PER_LAT_DEGREE
+        val lng = center.longitude + eastMeters /
+            (METERS_PER_LAT_DEGREE * kotlin.math.cos(Math.toRadians(center.latitude)))
+        return TrackPoint(lat, lng)
     }
 
     fun stop() {
@@ -171,12 +190,10 @@ class InternalGpsFeed @Inject constructor() {
         var isOnNow: Boolean = false
             private set
 
-        /** 环线两条边：160 米 × 96 米，一圈 512 米，凑不进 400 米标准也无所谓，绕着走就行 */
-        private const val LAP_LONG_METERS = 160.0
-        private const val LAP_SHORT_METERS = 96.0
-
         /** 相邻两点约 2 米：刚好越过 `RunningTracker` 那道 1.5 米的抖动过滤 */
         private const val LAP_STEP_METERS = 2.0
+
+        private const val METERS_PER_LAT_DEGREE = 111_320.0
 
         /** 一步一秒 → 约 7.2 km/h，在学校 2–15 的配速窗口内 */
         private const val LAP_TICK_MS = 1000L
