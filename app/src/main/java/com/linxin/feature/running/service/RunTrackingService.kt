@@ -2,11 +2,9 @@ package com.linxin.feature.running.service
 
 import com.linxin.core.locale.AppText
 import com.linxin.R
-import android.Manifest
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.IBinder
 import androidx.core.content.ContextCompat
@@ -54,7 +52,8 @@ class RunTrackingService : Service() {
     }
 
     private fun startTracking() {
-        if (!hasLocationPermission()) {
+        // 走 LocationProvider 那句：应用内部喂点开着的时候不需要真定位权限
+        if (!locationProvider.hasLocationPermission()) {
             tracker.onLocationError(AppText.str(R.string.svc_loc_perm_missing))
             stopSelf()
             return
@@ -171,12 +170,6 @@ class RunTrackingService : Service() {
         return if (h > 0) String.format("%02d:%02d:%02d", h, m, s)
         else String.format("%02d:%02d", m, s)
     }
-
-    private fun hasLocationPermission(): Boolean =
-        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
-            PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
-                PackageManager.PERMISSION_GRANTED
 
     companion object {
         private const val NOTIFICATION_KEY = "running"
