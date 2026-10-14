@@ -47,6 +47,10 @@ class InternalGpsFeed @Inject constructor() {
     private val _fedCount = MutableStateFlow(0)
     val fedCount: StateFlow<Int> = _fedCount.asStateFlow()
 
+    /** 这一趟真发出去的点，界面拿去画"跑到哪儿了" */
+    private val _trail = MutableStateFlow<List<TrackPoint>>(emptyList())
+    val trail: StateFlow<List<TrackPoint>> = _trail.asStateFlow()
+
     /** 开喂之后 `getLastKnownLocation()` 走这个；没开返回 null，让调用方回到真定位 */
     fun snapshot(): Location? = if (_isOn.value) last else null
 
@@ -56,6 +60,7 @@ class InternalGpsFeed @Inject constructor() {
         isOnNow = true
         _isOn.value = true
         _fedCount.value = 0
+        _trail.value = emptyList()
         job = scope.launch {
             var tick = 0
             while (isActive) {
@@ -105,6 +110,7 @@ class InternalGpsFeed @Inject constructor() {
         isOnNow = true
         _isOn.value = true
         _fedCount.value = 0
+        _trail.value = emptyList()
         job = scope.launch {
             var index = 0
             while (isActive) {
@@ -197,6 +203,8 @@ class InternalGpsFeed @Inject constructor() {
 
         /** 一步一秒 → 约 7.2 km/h，在学校 2–15 的配速窗口内 */
         private const val LAP_TICK_MS = 1000L
+
+        private const val TRAIL_MAX_POINTS = 1500
     }
 
     private fun emit(latitude: Double, longitude: Double, accuracy: Float) {
@@ -213,5 +221,7 @@ class InternalGpsFeed @Inject constructor() {
         last = location
         _point.value = TrackPoint(latitude = latitude, longitude = longitude, timestampMillis = System.currentTimeMillis())
         _fedCount.value = _fedCount.value + 1
+        // 最多留 1500 个点（约 25 分钟），够看一屏，也不至于把内存吃满
+        _trail.value = (_trail.value + TrackPoint(latitude, longitude)).takeLast(TRAIL_MAX_POINTS)
     }
 }

@@ -26,6 +26,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.linxin.R
 import com.linxin.core.designsystem.component.LxButton
+import com.linxin.core.designsystem.component.LxOutlinedButton
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxFilterChip
 import com.linxin.core.designsystem.component.LxTopBar
@@ -66,6 +67,7 @@ class MockLocationViewModel @Inject constructor(
     val point = feed.point
     val fedCount = feed.fedCount
     val templates = routeTemplateStore.templates
+    val trail = feed.trail
 
     var mode by mutableStateOf(MockMode.CURRENT)
         private set
@@ -147,6 +149,7 @@ class MockLocationViewModel @Inject constructor(
 @Composable
 fun MockLocationScreen(
     onBack: () -> Unit,
+    onOpenPlanner: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MockLocationViewModel = hiltViewModel(),
 ) {
@@ -154,6 +157,7 @@ fun MockLocationScreen(
     val point by viewModel.point.collectAsStateWithLifecycle()
     val fedCount by viewModel.fedCount.collectAsStateWithLifecycle()
     val templates by viewModel.templates.collectAsStateWithLifecycle()
+    val trail by viewModel.trail.collectAsStateWithLifecycle()
     var selectedRoute by remember { mutableStateOf<RouteTemplate?>(null) }
 
     Scaffold(
@@ -269,21 +273,23 @@ fun MockLocationScreen(
                 }
             }
 
-            if (viewModel.mode == MockMode.LAPS) {
+            if (viewModel.mode == MockMode.LAPS || isOn) {
                 item(key = "mock_ring_map") {
                     LxCard {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Text(
-                                text = stringResource(R.string.mock_loc_ring_hint),
+                                text = stringResource(
+                                    if (isOn) R.string.mock_loc_trail_hint else R.string.mock_loc_ring_hint,
+                                ),
                                 style = MiuixTheme.textStyles.footnote1,
                                 color = LxInkMuted,
                                 modifier = Modifier.padding(start = 16.dp, top = 14.dp, bottom = 8.dp),
                             )
                             LiveTrackMap(
-                                points = viewModel.ringPoints(),
-                                markLast = false,
-                                follow = false,
-                                onPick = { viewModel.pickCenter(it) },
+                                points = if (isOn) trail else viewModel.ringPoints(),
+                                markLast = isOn,
+                                follow = isOn,
+                                onPick = if (isOn) null else { picked -> viewModel.pickCenter(picked) },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(260.dp),
@@ -329,6 +335,15 @@ fun MockLocationScreen(
                     ),
                     onClick = { if (isOn) viewModel.stop() else viewModel.start(selectedRoute) },
                     enabled = !isOn || viewModel.mode != MockMode.ROUTE || selectedRoute != null,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            item(key = "mock_planner") {
+                // 想画一条真路线就去地图上点：那一页是我自己的，不碰旧的"路线模拟"
+                LxOutlinedButton(
+                    text = stringResource(R.string.planner_entry),
+                    onClick = onOpenPlanner,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

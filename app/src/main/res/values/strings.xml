@@ -334,6 +334,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="mock_loc_mode_laps">绕圈跑</string>
     <string name="mock_loc_ring_hint">这一圈在这儿。点地图挪圈心，下面选一圈多长；开跑前你自己看一眼是不是在路上。</string>
     <string name="mock_loc_ring_center_now">圈心=我这儿</string>
+    <string name="mock_loc_trail_hint">正在喂：这条线就是已经发出去的点，跟着走。</string>
     <string name="mock_loc_start">开始喂点</string>
     <string name="mock_loc_stop">停止喂点</string>
     <string name="mock_loc_no_route">还没有录好的路线：先去跑步那里录一条</string>
