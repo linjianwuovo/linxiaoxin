@@ -327,13 +327,13 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="virtual_run_title">虚拟跑步</string>
     <string name="virtual_run_row">虚拟跑步（内置）</string>
     <string name="virtual_run_map_running">正在喂：这条线就是已经发出去的点。</string>
-    <string name="virtual_run_map_pick">这一圈在这儿。点地图挪圈心，下面选一圈多长。</string>
+    <string name="virtual_run_none">还没选</string>
+    <string name="virtual_run_routes_title">跑哪条线（最近画的那条已经选上）</string>
+    <string name="virtual_run_map_pick">跑这条：%1$s（%2$s）。开跑后这张图换成已经走过的点。</string>
     <string name="virtual_run_distance">距离</string>
     <string name="virtual_run_points">轨迹点</string>
     <string name="virtual_run_points_unit">个</string>
     <string name="virtual_run_speed">速度</string>
-    <string name="virtual_run_ring">绕圈跑</string>
-    <string name="virtual_run_route">走录好的路线</string>
     <string name="virtual_run_no_route">还没有录好的路线：先用下面那颗「在地图上规划」点一条</string>
     <string name="virtual_run_start">开始虚拟跑</string>
     <string name="virtual_run_finish">结束这一场</string>
