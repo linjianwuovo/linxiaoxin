@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -121,11 +120,6 @@ fun MockLocationScreen(
     val templates by viewModel.templates.collectAsStateWithLifecycle()
     var selectedRoute by remember { mutableStateOf<RouteTemplate?>(null) }
 
-    // 走了就停：喂点不该在没人看着的时候一直开着
-    DisposableEffect(Unit) {
-        onDispose { viewModel.stop() }
-    }
-
     Scaffold(
         modifier = modifier,
         containerColor = MiuixTheme.colorScheme.background,
@@ -161,7 +155,9 @@ fun MockLocationScreen(
                         }
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = stringResource(R.string.mock_loc_scope),
+                            text = stringResource(
+                                if (isOn) R.string.mock_loc_scope_on else R.string.mock_loc_scope,
+                            ),
                             style = MiuixTheme.textStyles.footnote1,
                             color = LxInkMuted,
                         )

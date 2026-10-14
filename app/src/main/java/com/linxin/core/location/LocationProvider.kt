@@ -10,6 +10,9 @@ import android.os.Looper
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import javax.inject.Inject
@@ -43,11 +46,16 @@ class LocationProvider @Inject constructor(
         }
     }
 
-    /** 持续获取GPS位置更新，返回 Flow<Location> */
+    /**
+     * 持续获取位置，返回 Flow<Location>。
+     *
+     * 内部喂点是**并着收**的，不是"订阅那一刻没开就整条流都收不到"：
+     * 2026-10-14 他先开跑步、再开喂点，跑步页就永远停在「正在获取 GPS · 0 个轨迹点」——
+     * 因为流是在订阅时决定走真 GPS 还是走喂点的。现在两个来源同时吐，谁先开都一样。
+     */
     fun locationUpdates(intervalMs: Long = 3000L, minDistanceM: Float = 2f): Flow<Location> {
-        if (internalFeed.isOn.value) return internalFeed.updates(intervalMs)
         return callbackFlow {
-            if (!hasLocationPermission()) {
+            if (!hasLocationPermission() && !internalFeed.isOn.value) {
                 close(SecurityException("缺少定位权限"))
                 return@callbackFlow
             }
@@ -55,21 +63,35 @@ class LocationProvider @Inject constructor(
             val listener = LocationListener { location -> trySend(location) }
 
             try {
-                locationManager.requestLocationUpdates(
-                    LocationManager.GPS_PROVIDER,
-                    intervalMs,
-                    minDistanceM,
-                    listener,
-                    Looper.getMainLooper(),
-                )
-            } catch (e: SecurityException) {
-                close(e)
-                return@callbackFlow
+                if (hasRealGpsPermission()) {
+                    locationManager.requestLocationUpdates(
+                        LocationManager.GPS_PROVIDER,
+                        intervalMs,
+                        minDistanceM,
+                        listener,
+                        Looper.getMainLooper(),
+                    )
+                }
+            } catch (_: SecurityException) {
+                // 权限被收回：喂点还开着就继续靠喂点，别整条流直接死掉
+            }
+
+            val pump = launch {
+                while (isActive) {
+                    internalFeed.snapshot()?.let { trySend(it) }
+                    delay(intervalMs)
+                }
             }
 
             awaitClose {
+                pump.cancel()
                 locationManager.removeUpdates(listener)
             }
         }
     }
+
+    /** 只问系统权限，不含"喂点开着也算"那层放宽 */
+    private fun hasRealGpsPermission(): Boolean = ContextCompat.checkSelfPermission(
+        context, Manifest.permission.ACCESS_FINE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED
 }

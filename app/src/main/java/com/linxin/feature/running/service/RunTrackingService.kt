@@ -31,6 +31,8 @@ class RunTrackingService : Service() {
     @Inject lateinit var tracker: RunningTracker
     @Inject lateinit var notifier: LiveActivityNotifier
 
+    @Inject lateinit var internalFeed: com.linxin.core.location.InternalGpsFeed
+
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var trackingJob: Job? = null
 
@@ -127,12 +129,18 @@ class RunTrackingService : Service() {
         val speedStr = if (speedKmh > 0.0) String.format("%.1f km/h", speedKmh) else "-- km/h"
         val capsuleText = String.format("%.2fkm", distanceKm)
         val content = AppText.str(R.string.svc_content, distanceStr, durationStr)
-        val bigText = AppText.str(R.string.svc_bigtext, distanceStr, durationStr, speedStr, state.locationLabel)
+        // 喂点开着就必须标出来：不然屏幕上看着像真在跑，回头提交才发现是假坐标
+        val label = if (internalFeed.isOn.value) {
+            state.locationLabel + "（模拟定位）"
+        } else {
+            state.locationLabel
+        }
+        val bigText = AppText.str(R.string.svc_bigtext, distanceStr, durationStr, speedStr, label)
 
         val extras = Bundle().apply {
             putString("bigText", bigText)
             putString("distance", distanceStr)
-            putString("line2", AppText.str(R.string.svc_line2, durationStr, speedStr, state.locationLabel))
+            putString("line2", AppText.str(R.string.svc_line2, durationStr, speedStr, label))
             putString("line3", "")
         }
 
