@@ -30,11 +30,6 @@ object Routes {
     const val RUNNING_ACTIVE = "running/active"
     const val RUNNING_SIM = "running/sim"
     const val RUNNING_RESULT = "running/result"
-    const val RUNNING_ROUTE_SETTINGS = "running/route/settings"
-    const val RUNNING_ROUTE_RECORD = "running/route/record"
-    const val RUNNING_ROUTE_LIST = "running/route/list"
-    const val RUNNING_ROUTE_DETAIL = "running/route/detail/{templateId}"
-    fun runningRouteDetail(templateId: String) = "running/route/detail/$templateId"
     /** 地图上点选规划路线那一页 */
     const val RUNNING_ROUTE_PLANNER = "running/route/planner"
     /** 运动记录（官方 /motionRecord） */

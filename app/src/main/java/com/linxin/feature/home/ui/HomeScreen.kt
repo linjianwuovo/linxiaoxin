@@ -145,7 +145,8 @@ fun HomeScreen(
                             }
                         },
                         onNavigateRouteSimulation = {
-                            navController.navigate(Routes.RUNNING_ROUTE_SETTINGS) {
+                            // 旧那页「路线模拟设置」已经归档，现在模拟路线在开始运动那一屏上
+                            navController.navigate(Routes.RUNNING_HOME) {
                                 launchSingleTop = true
                             }
                         },

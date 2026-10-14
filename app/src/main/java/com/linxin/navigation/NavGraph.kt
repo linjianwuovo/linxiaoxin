@@ -356,6 +356,9 @@ fun LinXinNavHost(
         composable(Routes.SPORT_MAINTAIN) {
             SportsAppealsScreen(onBack = { navController.popBackStack() })
         }
+        composable(Routes.RUNNING_ROUTE_PLANNER) {
+            SportsPlannerScreen(onBack = { navController.popBackStack() })
+        }
         composable(Routes.RUNNING_CLUB_DETAIL) {
             ClubDetailScreen(
                 onBack = { navController.popBackStack() },
