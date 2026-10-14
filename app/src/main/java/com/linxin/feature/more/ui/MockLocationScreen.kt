@@ -44,8 +44,8 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-/** 这一页能干的三种事：定在当前位置、定在学校中心、沿录好的路线走 */
-enum class MockMode { CURRENT, CAMPUS, ROUTE }
+/** 这一页能干的四种事：定在当前位置、定在学校中心、沿录好的路线走、原地绕圈跑 */
+enum class MockMode { CURRENT, CAMPUS, ROUTE, LAPS }
 
 /**
  * 应用内部喂假 GPS 那一页。
@@ -73,7 +73,9 @@ class MockLocationViewModel @Inject constructor(
     var notice by mutableStateOf<String?>(null)
         private set
 
+    /** 换档先停当前这一档：不然"点了没反应"看起来像坏了，其实是还在喂上一档 */
     fun selectMode(next: MockMode) {
+        if (feed.isOn.value) feed.stop()
         mode = next
         notice = null
     }
@@ -94,6 +96,8 @@ class MockLocationViewModel @Inject constructor(
             MockMode.CAMPUS -> feed.startHold(
                 TrackPoint(RunningCampus.CENTER_LATITUDE, RunningCampus.CENTER_LONGITUDE),
             )
+
+            MockMode.LAPS -> feed.startLaps()
 
             MockMode.ROUTE -> {
                 if (template == null) {
@@ -184,6 +188,11 @@ fun MockLocationScreen(
                         label = stringResource(R.string.mock_loc_mode_route),
                         selected = viewModel.mode == MockMode.ROUTE,
                         onClick = { viewModel.selectMode(MockMode.ROUTE) },
+                    )
+                    ModeChip(
+                        label = stringResource(R.string.mock_loc_mode_laps),
+                        selected = viewModel.mode == MockMode.LAPS,
+                        onClick = { viewModel.selectMode(MockMode.LAPS) },
                     )
                 }
             }

@@ -330,6 +330,7 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="mock_loc_mode_current">当前位置</string>
     <string name="mock_loc_mode_campus">学校中心</string>
     <string name="mock_loc_mode_route">沿路线走</string>
+    <string name="mock_loc_mode_laps">绕圈跑</string>
     <string name="mock_loc_start">开始喂点</string>
     <string name="mock_loc_stop">停止喂点</string>
     <string name="mock_loc_no_route">还没有录好的路线：先去跑步那里录一条</string>
