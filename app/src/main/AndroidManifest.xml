@@ -10,10 +10,12 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
     <!-- 内置模拟定位用：声明了它，开发者选项的「选择模拟位置应用」列表里才会出现安大信。
-         系统不会自动给，必须他自己去选上；lint 的 ProtectedPermissions 是给系统应用的，这里忽略。 -->
+         系统不会自动给，必须他自己去选上。两条 lint 是故意按掉的：ProtectedPermissions 那条只管系统应用，
+         MockLocation 那条的意思是"这权限只该出现在 debug manifest 里" —— 我们要的就是发布版里带着它，
+         所以这条不许被 cherry-pick 进 main。 -->
     <uses-permission
         android:name="android.permission.ACCESS_MOCK_LOCATION"
-        tools:ignore="ProtectedPermissions" />
+        tools:ignore="MockLocation,ProtectedPermissions" />
     <uses-permission android:name="flyme.permission.READ_NOTIFICATION_LIVE_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
