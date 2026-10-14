@@ -52,6 +52,7 @@ class InternalGpsFeed @Inject constructor() {
     /** 定在一个点上，每秒挪一点点，免得轨迹是死的 */
     fun startHold(point: TrackPoint) {
         stopJob()
+        isOnNow = true
         _isOn.value = true
         _fedCount.value = 0
         job = scope.launch {
@@ -72,6 +73,7 @@ class InternalGpsFeed @Inject constructor() {
     fun startRoute(points: List<TrackPoint>, durationSeconds: Long) {
         stopJob()
         if (points.size < 2) return
+        isOnNow = true
         _isOn.value = true
         _fedCount.value = 0
         val seconds = if (durationSeconds > 0) durationSeconds else points.size.toLong()
@@ -89,6 +91,7 @@ class InternalGpsFeed @Inject constructor() {
 
     fun stop() {
         stopJob()
+        isOnNow = false
         _isOn.value = false
         last = null
         _point.value = null
@@ -105,6 +108,16 @@ class InternalGpsFeed @Inject constructor() {
     private fun stopJob() {
         job?.cancel()
         job = null
+    }
+
+    companion object {
+        /**
+         * 给不吃 Hilt 的那几处界面（更多页那一行）留的直读开关。
+         * 状态流才是准的，这个只用来在页面重新可见时标一下"还在喂"。
+         */
+        @Volatile
+        var isOnNow: Boolean = false
+            private set
     }
 
     private fun emit(latitude: Double, longitude: Double, accuracy: Float) {

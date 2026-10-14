@@ -70,6 +70,7 @@ import com.linxin.core.designsystem.theme.LxCream
 import com.linxin.core.designsystem.theme.LxInk
 import com.linxin.core.designsystem.theme.LxInkGhost
 import com.linxin.core.designsystem.theme.LxInkSoft
+import com.linxin.core.location.InternalGpsFeed
 import com.linxin.core.designsystem.theme.LxSand
 import com.linxin.core.designsystem.theme.LxSandDeep
 
@@ -231,6 +232,12 @@ fun MoreFeaturesScreen(
                         MoreMenuRow(
                             icon = Icons.Outlined.MyLocation,
                             title = stringResource(R.string.mock_loc_row),
+                            trailing = if (InternalGpsFeed.isOnNow) {
+                                stringResource(R.string.mock_loc_row_on)
+                            } else {
+                                null
+                            },
+                            trailingColor = if (InternalGpsFeed.isOnNow) LxSandDeep else LxInkGhost,
                             onClick = onNavigateMockLocation,
                         )
                         MoreMenuRow(

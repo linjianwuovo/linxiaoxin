@@ -321,6 +321,8 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="more_fluid_cloud_settings">系统那一栏（小米叫实时动态、OPPO 叫流体云）</string>
     <string name="more_open_settings">去设置</string>
     <string name="mock_loc_scope">只在我们自己进程里生效：安大信读到的是这份轨迹，别的 App 完全不受影响，也不用去开发者选项里选谁。</string>
+    <string name="mock_loc_scope_on">喂点还在跑：离开这一页也不会停，跑步页读到的就是这条轨迹。要停下来回这页点「停止喂点」。</string>
+    <string name="mock_loc_row_on">喂点中</string>
     <string name="mock_loc_no_write">喂点期间首页、跑步这些读定位的地方会跟着动；提交跑步记录、打卡这类写操作不会因此自动发生，还是得你自己点。</string>
     <string name="mock_loc_title">模拟定位（只影响安大信）</string>
     <string name="mock_loc_state_idle">没在喂点</string>

@@ -321,6 +321,8 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="more_fluid_cloud_settings">System live notifications (Live alerts / Fluid Cloud)</string>
     <string name="more_open_settings">Open</string>
     <string name="mock_loc_scope">In-process only: LinXin reads this track, other apps are untouched, and no developer-option pick is needed.</string>
+    <string name="mock_loc_scope_on">Still feeding: leaving this page does not stop it, and Running reads exactly this track. Come back here and tap Stop to end it.</string>
+    <string name="mock_loc_row_on">Feeding</string>
     <string name="mock_loc_no_write">While feeding, our own location readers follow this track; submitting a run or checking in still never happens on its own.</string>
     <string name="mock_loc_title">Mock location (LinXin only)</string>
     <string name="mock_loc_state_idle">Not feeding</string>
