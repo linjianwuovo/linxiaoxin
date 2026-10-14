@@ -84,7 +84,7 @@ fun MoreFeaturesScreen(
     onNavigateExam: () -> Unit,
     onNavigateCredit: () -> Unit,
     onNavigateHoliday: () -> Unit,
-    onNavigateMockLocation: () -> Unit,
+    onNavigateVirtualRun: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -231,14 +231,14 @@ fun MoreFeaturesScreen(
                         // 内置 FakeLocation：验跑步那条实况不用真去跑一圈（beta 工具页）
                         MoreMenuRow(
                             icon = Icons.Outlined.MyLocation,
-                            title = stringResource(R.string.mock_loc_row),
+                            title = stringResource(R.string.virtual_run_row),
                             trailing = if (InternalGpsFeed.isOnNow) {
                                 stringResource(R.string.mock_loc_row_on)
                             } else {
                                 null
                             },
                             trailingColor = if (InternalGpsFeed.isOnNow) LxSandDeep else LxInkGhost,
-                            onClick = onNavigateMockLocation,
+                            onClick = onNavigateVirtualRun,
                         )
                         MoreMenuRow(
                             icon = Icons.Outlined.Settings,
