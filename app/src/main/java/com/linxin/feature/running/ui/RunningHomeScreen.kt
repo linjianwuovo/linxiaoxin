@@ -171,7 +171,7 @@ private fun RunningHomeContent(
     modifier: Modifier = Modifier,
     onOpenClub: () -> Unit = {},
     armedRoute: RouteTemplate? = null,
-    armedPaceKmh: Double = 9.0,
+    armedPaceKmh: Double = 7.0,
     routeChoices: List<RouteTemplate> = emptyList(),
     onPickRoute: (RouteTemplate) -> Unit = {},
     onPace: (Double) -> Unit = {},
@@ -305,7 +305,7 @@ private fun RunningHomeContent(
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(6.0, 9.0, 12.0).forEach { kmh ->
+                        listOf(6.0, 7.0, 9.0).forEach { kmh ->
                             LxFilterChip(
                                 label = "%.0f km/h".format(kmh),
                                 selected = armedPaceKmh == kmh,

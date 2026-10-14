@@ -51,7 +51,7 @@ data class RunningUiState(
     /** 「模拟路线」挑中的那条线；null = 没开模拟，开始跑步就是真跑 */
     val armedRoute: RouteTemplate? = null,
     /** 这一场按多快喂点，学校那条窗口是 2–15 km/h */
-    val armedPaceKmh: Double = 9.0,
+    val armedPaceKmh: Double = 7.0,
     val routeChoices: List<RouteTemplate> = emptyList(),
     val advancedEnabled: Boolean = false,
 )

@@ -63,7 +63,11 @@ class InternalGpsFeed @Inject constructor() {
         stopJob()
         val sampler = LineSampler(points)
         if (sampler.totalMeters < 20.0) return
-        val metersPerSecond = (paceKmh / 3.6).coerceIn(0.6, 4.2)
+        val target = (paceKmh / 3.6).coerceIn(SPEED_MIN_MS, SPEED_MAX_MS)
+        // 一秒能走多远在目标上下小幅漂，别锁死成一个匀速的机器步；
+        // 上下各留 15%，并且始终不越学校那条 2–15 km/h
+        val speedLow = (target * 0.85).coerceAtLeast(SPEED_MIN_MS)
+        val speedHigh = (target * 1.15).coerceAtMost(SPEED_MAX_MS)
         isOnNow = true
         _isOn.value = true
         _fedCount.value = 0
@@ -71,6 +75,7 @@ class InternalGpsFeed @Inject constructor() {
         val wander = Wander(java.util.Random(System.nanoTime()))
         job = scope.launch {
             var traveled = 0.0
+            var speed = target
             while (isActive) {
                 val base = sampler.at(traveled)
                 val off = wander.next()
@@ -80,7 +85,8 @@ class InternalGpsFeed @Inject constructor() {
                         (METERS_PER_LAT_DEGREE * kotlin.math.cos(Math.toRadians(base.latitude))),
                     accuracy = (3.0 + kotlin.math.abs(off.first) / 2.0).toFloat(),
                 )
-                traveled += metersPerSecond
+                speed = (speed + (kotlin.random.Random.nextDouble() - 0.5) * 0.3).coerceIn(speedLow, speedHigh)
+                traveled += speed
                 if (traveled >= sampler.totalMeters) traveled -= sampler.totalMeters
                 delay(TICK_MS)
             }
@@ -164,6 +170,10 @@ class InternalGpsFeed @Inject constructor() {
 
         /** 一秒一个点，跟真 GPS 的采集频率一个量级 */
         private const val TICK_MS = 1000L
+
+        /** 学校那条窗口：2–15 km/h，换算成米每秒 */
+        private const val SPEED_MIN_MS = 0.6
+        private const val SPEED_MAX_MS = 4.2
 
         /** 一个纬度度约等于这么多米，喂点算偏移用 */
         private const val METERS_PER_LAT_DEGREE = 111_320.0
