@@ -38,13 +38,10 @@ import com.linxin.core.designsystem.theme.LxInk
 import com.linxin.core.designsystem.theme.LxInkMuted
 import com.linxin.core.designsystem.theme.LxSandDeep
 import com.linxin.core.location.InternalGpsFeed
-import com.linxin.core.location.LocationProvider
 import com.linxin.core.map.LiveTrackMap
 import com.linxin.feature.running.data.RunningRepository
 import com.linxin.feature.running.data.RouteTemplateStore
-import com.linxin.feature.running.domain.RunningCampus
 import com.linxin.feature.running.domain.RunningTrackerState
-import com.linxin.feature.running.domain.TrackPoint
 import com.linxin.feature.running.service.RunTrackingService
 import com.linxin.feature.running.service.RunningTracker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -58,18 +55,17 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-/** 虚拟跑走哪条线：现造一圈，还是走一条录好的路线 */
-enum class VirtualSource { RING, ROUTE }
-
 /**
- * 应用内虚拟跑步。
+ * 应用内虚拟跑步：跑的是**你自己规划的那条线**。
  *
- * 一頁办完：选一条线（圈或录过的路线）→ 喂点 → 起真正的跑步前台服务 → 地图上看着它跑 →
- * 结束。**提交那一发永远是他自己点**，这一页不会替他往学校传任何东西。
+ * 一页办完：选一条线（地图规划的、或者录过的）→ 开始 → 地图上看着它跑 → 结束 →
+ * 提交还是丢掉，两颗分开、提交要二次确认。
  *
- * 喂点只在我们自己进程里（`InternalGpsFeed`），不碰系统定位、不影响别的 App；
+ * 喂点只在我们自己进程里（`InternalGpsFeed`），不碰系统定位、不影响别的 App，
  * 所以没 root 的手机也能用。跑的是同一条真链路：`RunTrackingService` + `RunningTracker`，
- * 距离、配速、实况通知都按真 GPS 那套算，不是另写一份假的。
+ * 距离、配速、实况通知都按真 GPS 那套算。
+ *
+ * 没有"绕个圈"这种选项 —— 圈是我凭空画的，画在哪儿我自己都不知道，要看就画一条真的线。
  */
 @HiltViewModel
 class VirtualRunViewModel @Inject constructor(
@@ -77,7 +73,6 @@ class VirtualRunViewModel @Inject constructor(
     private val feed: InternalGpsFeed,
     private val tracker: RunningTracker,
     private val repository: RunningRepository,
-    private val locationProvider: LocationProvider,
     routeTemplateStore: RouteTemplateStore,
 ) : ViewModel() {
 
@@ -96,57 +91,45 @@ class VirtualRunViewModel @Inject constructor(
     private val _finishedMeters = MutableStateFlow(0.0)
     val finishedMeters: StateFlow<Double> = _finishedMeters.asStateFlow()
 
-    var source by mutableStateOf(VirtualSource.RING)
-        private set
-
-    var ringCenter by mutableStateOf<TrackPoint?>(null)
-        private set
-
-    var ringPerimeter by mutableStateOf(400.0)
-        private set
-
     var routeId by mutableStateOf<String?>(null)
         private set
 
-    fun pickSource(next: VirtualSource) {
+    /** 这一场按多快跑：学校那条窗口是 2–15 km/h，三档都在里面 */
+    var paceKmh by mutableStateOf(9.0)
+        private set
+
+    fun pickPace(kmh: Double) {
         if (isRunning) return
-        source = next
-    }
-
-    fun pickCenter(point: TrackPoint) {
-        ringCenter = point
-    }
-
-    fun pickPerimeter(meters: Double) {
-        ringPerimeter = meters
-    }
-
-    fun pickRoute(id: String) {
-        routeId = id
+        paceKmh = kmh
     }
 
     val isRunning: Boolean get() = feed.isOn.value
 
-    fun resolvedRingCenter(): TrackPoint =
-        ringCenter ?: locationProvider.getLastKnownLocation()?.let { TrackPoint(it.latitude, it.longitude) }
-            ?: TrackPoint(RunningCampus.CENTER_LATITUDE, RunningCampus.CENTER_LONGITUDE)
+    /** 没手动选就取最近动过的那条（刚在地图上规划完的那条正好排第一） */
+    fun selectedRoute() = templates.value.firstOrNull { it.id == routeId }
+        ?: templates.value.maxByOrNull { it.updatedAtMillis }
 
-    fun ringPoints(): List<TrackPoint> = feed.lapRing(resolvedRingCenter(), ringPerimeter)
+    fun pickRoute(id: String) {
+        if (isRunning) return
+        routeId = id
+    }
 
-    private fun selectedRoute() = templates.value.firstOrNull { it.id == routeId }
+    fun report(text: String) {
+        _message.value = text
+    }
 
     /**
      * 开始：先喂点再起服务。
      *
-     * 顺序不能反 —— 跑步那条流是在订阅时决定收谁的，先起服务再开喂点会错过头几秒；
-     * 另外 `RunningTracker` 要 `isSessionActive` 才收点，所以这里必须自己开一个会话。
+     * 顺序不能反 —— 跑步那条流订阅时决定收谁，先起服务再开喂点会错过头几秒；
+     * 另外 `RunningTracker` 要 `isSessionActive` 才收点，所以会话得这页自己开。
      */
     fun start() {
         if (isRunning) return
         _message.value = null
-        val route = if (source == VirtualSource.ROUTE) selectedRoute() else null
-        if (source == VirtualSource.ROUTE && route == null) {
-            _message.value = "还没选路线，先选一条或者改用绕圈"
+        val route = selectedRoute()
+        if (route == null || route.points.size < 2) {
+            _message.value = "还没有可选的路线，先点「在地图上规划路线」画一条"
             return
         }
         _busy.value = true
@@ -154,22 +137,15 @@ class VirtualRunViewModel @Inject constructor(
             // 学校那边的"开始跑步"：拿到单次要求公里数，实况通知那根进度条才有分母。
             // 拿不到也照跑，只是通知退回纯文字样式。
             val startInfo = repository.startRunning().getOrNull()
-            if (startInfo != null) {
-                tracker.beginSession(startInfo)
-            } else {
-                tracker.beginTemplateSession()
-            }
-            if (route != null) {
-                feed.startRoute(route.points, route.durationSeconds)
-            } else {
-                feed.startLaps(resolvedRingCenter(), ringPerimeter)
-            }
+            if (startInfo != null) tracker.beginSession(startInfo) else tracker.beginTemplateSession()
+            // 按选定的速度换算成"这条线要走多少秒"，再把线打密到每 2 米一个点
+            val meters = route.totalDistanceMeters
+            val seconds = (meters / (paceKmh / 3.6)).toLong().coerceAtLeast(1L)
+            feed.startRoute(feed.densify(route.points), seconds)
             RunTrackingService.start(context)
             _busy.value = false
-            _message.value = if (startInfo == null) {
-                "学校那边没应（这会儿体育服务常在抽风），先本地跑着，进度条可能不出来"
-            } else {
-                null
+            if (startInfo == null) {
+                _message.value = "学校体育那边没应（这台服务常在抽风）：本地照跑，距离照走，只是进度条可能不出来"
             }
         }
     }
@@ -182,17 +158,12 @@ class VirtualRunViewModel @Inject constructor(
         feed.stop()
     }
 
-    /** 不要了这一场：服务那边是 cancel，会话直接丢，不写学校 */
+    /** 不要了这一场：走 cancel，会话直接丢，学校那边什么都收不到 */
     fun discard() {
         _finishedMeters.value = 0.0
         RunTrackingService.cancel(context)
         feed.stop()
         _message.value = null
-    }
-
-    /** 界面上那行提示：提交结果、开始失败都写这一处 */
-    fun report(text: String) {
-        _message.value = text
     }
 
     fun upload(onDone: (String) -> Unit) {
@@ -207,7 +178,7 @@ class VirtualRunViewModel @Inject constructor(
             _busy.value = false
             onDone(
                 result.fold(
-                    onSuccess = { "已提交：${if (it.success) it.message.ifBlank { "学校收了" } else "学校没收"}" },
+                    onSuccess = { if (it.success) "已提交：${it.message.ifBlank { "学校收了" }}" else "学校没收：${it.message}" },
                     onFailure = { "提交失败：${it.message ?: "没给原因"}" },
                 )
             )
@@ -228,10 +199,11 @@ fun VirtualRunScreen(
     val runState by viewModel.runState.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val finished by viewModel.finishedMeters.collectAsStateWithLifecycle()
     var confirmDiscard by remember { mutableStateOf(false) }
     var confirmUpload by remember { mutableStateOf(false) }
     val isRunning = viewModel.isRunning
-    val finished = viewModel.finishedMeters.collectAsStateWithLifecycle().value
+    val route = viewModel.selectedRoute()
 
     Scaffold(
         modifier = modifier,
@@ -249,18 +221,24 @@ fun VirtualRunScreen(
                 LxCard {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = stringResource(
-                                if (isRunning) R.string.virtual_run_map_running else R.string.virtual_run_map_pick,
-                            ),
+                            text = if (isRunning) {
+                                stringResource(R.string.virtual_run_map_running)
+                            } else {
+                                stringResource(
+                                    R.string.virtual_run_map_pick,
+                                    route?.name ?: stringResource(R.string.virtual_run_none),
+                                    route?.let { "%.2f km".format(it.totalDistanceMeters / 1000.0) }
+                                        ?: "--",
+                                )
+                            },
                             style = MiuixTheme.textStyles.footnote1,
                             color = LxInkMuted,
                             modifier = Modifier.padding(start = 16.dp, top = 14.dp, bottom = 8.dp),
                         )
                         LiveTrackMap(
-                            points = if (isRunning) trail else viewModel.ringPoints(),
+                            points = if (isRunning) trail else route?.points.orEmpty(),
                             markLast = isRunning,
                             follow = isRunning,
-                            onPick = if (isRunning) null else { picked -> viewModel.pickCenter(picked) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(280.dp),
@@ -291,7 +269,7 @@ fun VirtualRunScreen(
                         )
                         NumberCell(
                             title = stringResource(R.string.virtual_run_speed),
-                            value = speedKmh(runState).let { "%.1f".format(it) },
+                            value = "%.1f".format(speedKmh(runState)),
                             unit = "km/h",
                             modifier = Modifier.weight(1f),
                         )
@@ -299,78 +277,70 @@ fun VirtualRunScreen(
                 }
             }
 
-            item(key = "vr_source") {
+            item(key = "vr_pace") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LxFilterChip(
-                        label = stringResource(R.string.virtual_run_ring),
-                        selected = viewModel.source == VirtualSource.RING,
-                        onClick = { viewModel.pickSource(VirtualSource.RING) },
-                    )
-                    LxFilterChip(
-                        label = stringResource(R.string.virtual_run_route),
-                        selected = viewModel.source == VirtualSource.ROUTE,
-                        onClick = { viewModel.pickSource(VirtualSource.ROUTE) },
-                    )
+                    listOf(6.0 to "慢 6", 9.0 to "中 9", 12.0 to "快 12").forEach { (kmh, label) ->
+                        LxFilterChip(
+                            label = "%s km/h".format(label),
+                            selected = viewModel.paceKmh == kmh,
+                            onClick = { viewModel.pickPace(kmh) },
+                        )
+                    }
                 }
             }
 
             item(key = "vr_planner") {
-                LxOutlinedButton(
+                LxButton(
                     text = stringResource(R.string.planner_entry),
                     onClick = onOpenPlanner,
+                    enabled = !isRunning,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
 
-            if (viewModel.source == VirtualSource.RING) {
-                item(key = "vr_perimeter") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(400.0, 512.0, 800.0).forEach { meters ->
-                            LxFilterChip(
-                                label = "%.0f 米".format(meters),
-                                selected = viewModel.ringPerimeter == meters,
-                                onClick = { viewModel.pickPerimeter(meters) },
-                            )
-                        }
-                    }
+            item(key = "vr_routes_title") {
+                Text(
+                    text = stringResource(R.string.virtual_run_routes_title),
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = LxInkMuted,
+                )
+            }
+
+            if (templates.isEmpty()) {
+                item(key = "vr_no_route") {
+                    Text(
+                        text = stringResource(R.string.virtual_run_no_route),
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = LxInkMuted,
+                    )
                 }
             } else {
-                if (templates.isEmpty()) {
-                    item(key = "vr_no_route") {
-                        Text(
-                            text = stringResource(R.string.virtual_run_no_route),
-                            style = MiuixTheme.textStyles.footnote1,
-                            color = LxInkMuted,
-                        )
-                    }
-                } else {
-                    item(key = "vr_routes") {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            templates.forEach { template ->
-                                val picked = viewModel.routeId == template.id
-                                LxCard(onClick = { viewModel.pickRoute(template.id) }) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(14.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Text(
-                                            text = template.name,
-                                            style = MiuixTheme.textStyles.body2,
-                                            color = LxInk,
-                                            modifier = Modifier.weight(1f),
-                                        )
-                                        Text(
-                                            text = if (picked) {
-                                                stringResource(R.string.mock_loc_picked)
-                                            } else {
-                                                "%.2f km".format(template.totalDistanceMeters / 1000.0)
-                                            },
-                                            style = MiuixTheme.textStyles.footnote1,
-                                            color = if (picked) LxSandDeep else LxInkMuted,
-                                        )
-                                    }
+                item(key = "vr_routes") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        templates.forEach { template ->
+                            val picked = route?.id == template.id
+                            LxCard(onClick = { viewModel.pickRoute(template.id) }) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = template.name,
+                                        style = MiuixTheme.textStyles.body2,
+                                        color = if (picked) LxSandDeep else LxInk,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    Text(
+                                        text = if (picked) {
+                                            stringResource(R.string.mock_loc_picked)
+                                        } else {
+                                            "%.2f km".format(template.totalDistanceMeters / 1000.0)
+                                        },
+                                        style = MiuixTheme.textStyles.footnote1,
+                                        color = if (picked) LxSandDeep else LxInkMuted,
+                                    )
                                 }
                             }
                         }
@@ -398,7 +368,7 @@ fun VirtualRunScreen(
                 } else {
                     LxButton(
                         text = stringResource(R.string.virtual_run_start),
-                        enabled = !busy,
+                        enabled = !busy && route != null,
                         onClick = viewModel::start,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -406,7 +376,7 @@ fun VirtualRunScreen(
             }
 
             if (!isRunning && finished > 0.0) {
-                item(key = "vr_after") {
+                item(key = "vr_upload") {
                     LxButton(
                         text = stringResource(R.string.virtual_run_upload, "%.2f".format(finished / 1000.0)),
                         enabled = !busy,

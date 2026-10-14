@@ -327,13 +327,13 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="virtual_run_title">Virtual run</string>
     <string name="virtual_run_row">Virtual run (built in)</string>
     <string name="virtual_run_map_running">Feeding: this line is every point already sent.</string>
-    <string name="virtual_run_map_pick">This is the lap. Tap the map to move its centre, pick a length below.</string>
+    <string name="virtual_run_none">none picked</string>
+    <string name="virtual_run_routes_title">Which line to run (the newest one is already picked)</string>
+    <string name="virtual_run_map_pick">Running this one: %1$s (%2$s). Once it starts the map shows the points actually sent.</string>
     <string name="virtual_run_distance">Distance</string>
     <string name="virtual_run_points">Points</string>
     <string name="virtual_run_points_unit"></string>
     <string name="virtual_run_speed">Speed</string>
-    <string name="virtual_run_ring">Run laps</string>
-    <string name="virtual_run_route">Along a saved route</string>
     <string name="virtual_run_no_route">No saved route yet: draw one with the button below</string>
     <string name="virtual_run_start">Start virtual run</string>
     <string name="virtual_run_finish">End this run</string>
