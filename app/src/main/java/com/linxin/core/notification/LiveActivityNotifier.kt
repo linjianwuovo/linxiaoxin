@@ -20,7 +20,6 @@ class LiveActivityNotifier @Inject constructor(
         context.getSystemService(NotificationManager::class.java)
 
     private val keyToId = mutableMapOf<String, Int>()
-    private val keyToBackend = mutableMapOf<String, LiveActivityBackend>()
     private var nextId = 3001
 
     private val flymeBackend by lazy { FlymeLiveBackend() }
@@ -37,8 +36,11 @@ class LiveActivityNotifier @Inject constructor(
     private fun idFor(key: String): Int =
         keyToId.getOrPut(key) { nextId++ }
 
-    private fun backendForKey(key: String): LiveActivityBackend =
-        keyToBackend.getOrPut(key) { backendFor(context) }
+    /**
+     * 每次都重新判能力，别按 key 缓存 backend：ColorOS 那个流体云开关是用户随时能在设置里
+     * 拨的，缓存下来他在不重启进程的情况下打开，我们也还是发普通通知，看着就像"适配没生效"。
+     */
+    private fun backendForKey(key: String): LiveActivityBackend = backendFor(context)
 
     /**
      * 构建初始 Notification 对象（用于 startForeground）。
@@ -61,7 +63,6 @@ class LiveActivityNotifier @Inject constructor(
      * 取消指定 key 的通知。
      */
     fun cancel(key: String) {
-        keyToBackend.remove(key)
         keyToId.remove(key)?.let { id ->
             notificationManager.cancel(id)
         }

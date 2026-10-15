@@ -47,12 +47,15 @@ class RunningEncryption @Inject constructor() {
             "sourceInfo" to payload.sourceInfo,
         )
 
+        // 官方原生那一条 addExtraCheckNew.do 实测：10 个键名全部加密、9 个值加密，
+        // 唯独轨迹那个值是**明文 JSON 数组**直接放进去了。我们原先连轨迹一起加密，
+        // 服务器那边读里程/速率/时长都正常（说明解密是对的），偏偏轨迹解析不出来，
+        // 结果整条记录被判「运动轨迹异常，无效」。所以这里跟官方对齐：轨迹不加密。
         val encryptedObject = JSONObject()
         plainValues.forEach { (key, value) ->
-            encryptedObject.put(
-                RSAUtils.encryptSportData(key),
-                RSAUtils.encryptSportData(value),
-            )
+            val encryptedKey = RSAUtils.encryptSportData(key)
+            val encryptedValue = if (key == "runningRoute") value else RSAUtils.encryptSportData(value)
+            encryptedObject.put(encryptedKey, encryptedValue)
         }
 
         return JSONArray().put(encryptedObject).toString()

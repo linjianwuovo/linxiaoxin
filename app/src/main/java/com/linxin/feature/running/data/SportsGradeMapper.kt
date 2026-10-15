@@ -11,6 +11,16 @@ data class JuniorExtraDetail(
     val surplusMileKm: Double = 0.0,
     val maxMileKm: Double = 0.0,
     val maxMileDate: String = "",
+    /** 任务起止：`extraStartDate` / `extraEndDate`，官方那一屏写在进度条下面 */
+    val startDate: String = "",
+    val endDate: String = "",
+    /** 今日里程那一天：`todayDate` */
+    val todayDate: String = "",
+    /** 单日最多累计多少公里算数：`maxDayMile` */
+    val maxDayMileKm: Double = 0.0,
+    /** 速率窗口：官方 `minSpeed` / `maxSpeed`，实测 2 和 15 */
+    val minSpeedKmh: Double = 0.0,
+    val maxSpeedKmh: Double = 0.0,
 )
 
 /**
@@ -46,6 +56,12 @@ object SportsGradeMapper {
             surplusMileKm = detail.string("surplusMile").toDoubleOrNull() ?: 0.0,
             maxMileKm = detail.string("maxMile").toDoubleOrNull() ?: 0.0,
             maxMileDate = detail.string("maxMileDate"),
+            startDate = detail.string("extraStartDate"),
+            endDate = detail.string("extraEndDate"),
+            todayDate = detail.string("todayDate"),
+            maxDayMileKm = detail.string("maxDayMile").toDoubleOrNull() ?: 0.0,
+            minSpeedKmh = detail.string("minSpeed").toDoubleOrNull() ?: 0.0,
+            maxSpeedKmh = detail.string("maxSpeed").toDoubleOrNull() ?: 0.0,
         )
     }
 

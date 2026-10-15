@@ -144,11 +144,6 @@ fun HomeScreen(
                                 launchSingleTop = true
                             }
                         },
-                        onNavigateRouteSimulation = {
-                            navController.navigate(Routes.RUNNING_ROUTE_SETTINGS) {
-                                launchSingleTop = true
-                            }
-                        },
                         onNavigateAbout = {
                             navController.navigate(Routes.ABOUT) {
                                 launchSingleTop = true

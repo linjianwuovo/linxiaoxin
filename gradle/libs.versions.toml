@@ -13,11 +13,13 @@ nav-compose = "2.9.7"
 coil = "3.0.4"
 activity-compose = "1.13.0"
 lifecycle = "2.10.0"
-core-ktx = "1.15.0"
+core-ktx = "1.18.0"
 camerax = "1.5.0-alpha06"
 mlkit-barcode = "17.3.0"
 zxing = "3.5.3"
 haze = "1.6.6"
+# 地图：Apache-2.0，只拿它做瓦片/缩放/折线，不接任何家 SDK
+osmdroid = "6.1.20"
 miuix = "0.9.4"
 backdrop = "2.0.0"
 kyant-shapes = "1.2.0"
@@ -78,6 +80,7 @@ miuix-icons = { group = "top.yukonga.miuix.kmp", name = "miuix-icons", version.r
 # Kyant Liquid Glass (真·液态玻璃：refraction lens + vibrancy + highlight)
 # 注意：backdrop 必须用 2.0.0（Kotlin 2.3.21 编译）；2.0.1 是 Kotlin 2.4.10，
 # 本项目编译器 2.2.10 读不了其 2.4.0 元数据。shapes 同理用 1.2.0（2.3.10）。
+osmdroid-android = { group = "org.osmdroid", name = "osmdroid-android", version.ref = "osmdroid" }
 kyant-backdrop = { group = "io.github.kyant0", name = "backdrop", version.ref = "backdrop" }
 kyant-shapes = { group = "io.github.kyant0", name = "shapes", version.ref = "kyant-shapes" }
 

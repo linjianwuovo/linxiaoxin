@@ -19,7 +19,10 @@ import retrofit2.http.POST
  * 空身份直接探测过这个地址，服务端回 `{"data":{},"flag":false,"result":"非法访问"}`，
  * 所以外层是 `{data,flag,result,rows,total}`（注意这套不是门户那套 `code/msg`），列表在顶层 `rows`。
  *
- * 写接口（`submitForm` / `saveForm` / `withdrawExecution` / `agree` / `disagree`）一个都没接。
+ * 写接口里 `submitForm` / `withdrawExecution` 早就接了，`agree` / `disagree` /
+ * `deleteExecution` / `mobileReadBulk` 是 2026-10-13 接的（当天只接不提交），
+ * `agree.do` 的销假用法是 2026-10-14 在 OPPO 上抓准的。暂存（`saveForm.do`）没做。
+ * **这些一律不自动重试。**
  */
 interface LeaveApi {
 
@@ -37,12 +40,17 @@ interface LeaveApi {
         @Field("xh") xh: String,
     ): LeaveListResponse
 
+    /**
+     * 「待我处理」。`approvedType` 其实是它 H5 那个页面的 tab 号：待处理=1、待阅=2
+     * （`activeName` 初值 "1"，`onLoad` 直接 `approvedType: this.activeName`，2026-10-13 读
+     * chunk-cb78b4cc 对上的）。我们以前发的是 2，等于一直在显示抄送件而不是真要办的，已改回 1。
+     */
     @FormUrlEncoded
     @POST("mobile/flowRuTask/getRunTaskByUserCode.do")
     suspend fun todoTasks(
         @Field("currentPageNo") currentPageNo: Int,
         @Field("pageSize") pageSize: Int,
-        @Field("approvedType") approvedType: String = "2",
+        @Field("approvedType") approvedType: String = "1",
         @Field("accessToken") accessToken: String,
         @Field("_userCode") userCodeUnderscore: String,
         @Field("_userType") userType: String,
@@ -94,6 +102,167 @@ interface LeaveApi {
         @Field("userCode") userCode: String,
         @Field("xh") xh: String,
     ): LeaveListResponse
+    /**
+     * 打开一条已经提交过的请假。参数照它 H5 的原样：executionId + type + ruTaskNodeId，
+     * 从「我的申请」进 type=3、从「待办」进 type=1（2026-10-13 读 ywlz 那套 chunk 的
+     * `query:{type:3,executionId:...,ruTaskNodeId:...}` 对上了）。
+     * 回来的 data.formJson 是表单结构、data.dataJson 是当时填的值，两个都是"字符串套 JSON"。
+     */
+    @FormUrlEncoded
+    @POST("mobile/process/getForm.do")
+    suspend fun getForm(
+        @Field("executionId") executionId: String,
+        @Field("type") type: String,
+        @Field("ruTaskNodeId") ruTaskNodeId: String,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveFormResponse
+
+    /** 审批进度：一条一步。H5 那发还带了个 `_t` 时间戳防缓存，照抄 */
+    @FormUrlEncoded
+    @POST("mobile/flowRuTask/getApprovedInfoByExeId.do")
+    suspend fun approvedInfo(
+        @Field("executionId") executionId: String,
+        @Field("_t") t: Long,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveFlowResponse
+
+    /**
+     * 已办事项。参数跟「我的请求」同一个形状，多带 `timeType:1, status:3`，
+     * 另外页面还有个「筛选」面板会并进来关键词和时间区间（我们这版先不带筛选）。
+     */
+    @FormUrlEncoded
+    @POST("mobile/flowRuTask/getHiTaskByUserCode.do")
+    suspend fun doneTasks(
+        @Field("currentPageNo") currentPageNo: Int,
+        @Field("pageSize") pageSize: Int,
+        @Field("timeType") timeType: String = "1",
+        @Field("status") status: String = "3",
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveListResponse
+
+    /**
+     * 服务页那张「待办事务」卡上的角标数。**一个业务参数都不带**，
+     * 回的是 `data.redDot`（各栏的未读数），页面上有数就显示、没有就不显示。
+     */
+    @FormUrlEncoded
+    @POST("mobile/flowRuTask/getYwdtCount.do")
+    suspend fun todoCounts(
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveCountResponse
+
+    /**
+     * 同意。body 五个字段照它 H5 原样：`dataJson`（表单值，我们把 `getForm.do` 拿到的原文回显回去，
+     * 不自己拼 —— 拼错一个键就可能把申请人填的东西改掉）、`executionId`、`ruTaskNodeId`、
+     * `remark`（审批意见，可空）、`_t`（毫秒时间戳）。成功只认外层 `flag`。
+     */
+    @FormUrlEncoded
+    @POST("mobile/process/agree.do")
+    suspend fun agree(
+        @Field("dataJson") dataJson: String,
+        @Field("executionId") executionId: String,
+        @Field("ruTaskNodeId") ruTaskNodeId: String,
+        @Field("remark") remark: String,
+        @Field("_t") t: Long,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveListResponse
+
+    /** 驳回。跟同意同一个 body 形状，打到 disagree.do */
+    @FormUrlEncoded
+    @POST("mobile/process/disagree.do")
+    suspend fun disagree(
+        @Field("dataJson") dataJson: String,
+        @Field("executionId") executionId: String,
+        @Field("ruTaskNodeId") ruTaskNodeId: String,
+        @Field("remark") remark: String,
+        @Field("_t") t: Long,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveListResponse
+
+    /**
+     * 销假前问一句「超没超假」。参数只有一个 `id`，值就是 executionId
+     * （2026-10-14 OPPO 抓包：点「销假」那一刻打这一发，弹层那三行全从这里来）。
+     */
+    @FormUrlEncoded
+    @POST("mobile/process/getXjxx.do")
+    suspend fun getXjxx(
+        @Field("id") id: String,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveXjxxResponse
+
+    /**
+     * 销假提交。**打到的是同意同一口 `agree.do`**，区别只在 body：
+     * 没有 `remark`，多一个 `stuQjsq`；而且 `stuQjsq` 里只放附件清单 `{"xjfjList":[]}`，
+     * `getForm` 给的那 28 个键的完整记录 H5 一个都不回传，服务器自己按 executionId 取
+     * （2026-10-14 抓包实测，字段顺序也照抄：dataJson, executionId, ruTaskNodeId, stuQjsq, _t, 身份五个）。
+     */
+    @FormUrlEncoded
+    @POST("mobile/process/agree.do")
+    suspend fun cancelLeave(
+        @Field("dataJson") dataJson: String,
+        @Field("executionId") executionId: String,
+        @Field("ruTaskNodeId") ruTaskNodeId: String,
+        @Field("stuQjsq") stuQjsq: String,
+        @Field("_t") t: Long,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveListResponse
+
+    /** 删除一条流程。H5 弹的是「一经删除，该流程自动移除，请谨慎操作。」 */
+    @FormUrlEncoded
+    @POST("mobile/flowRuTask/deleteExecution.do")
+    suspend fun deleteExecution(
+        @Field("executionId") executionId: String,
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveListResponse
+
+    /** 批量已阅：ids 是 ruTaskNodeId 用逗号拼起来，approvedType 固定 "2"（待阅那一栏） */
+    @FormUrlEncoded
+    @POST("mobile/flowRuTask/mobileReadBulk.do")
+    suspend fun mobileReadBulk(
+        @Field("ids") ids: String,
+        @Field("approvedType") approvedType: String = "2",
+        @Field("accessToken") accessToken: String,
+        @Field("_userCode") userCodeUnderscore: String,
+        @Field("_userType") userType: String,
+        @Field("userCode") userCode: String,
+        @Field("xh") xh: String,
+    ): LeaveListResponse
+
     /**
      * 打开表单后 H5 紧接着调这个拿默认值（标题/申请人/班级/学号/手机号/流水号都是它给的，
      * 界面上这些字段是只读预填，不让人手打）。
