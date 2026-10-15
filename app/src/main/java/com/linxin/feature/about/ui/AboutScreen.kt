@@ -54,6 +54,9 @@ import com.linxin.core.designsystem.theme.LxSand
 import com.linxin.core.designsystem.theme.LxSandDeep
 import com.linxin.core.designsystem.theme.LxTerra
 
+private const val UNLOCK_TAPS = 10
+private const val UNLOCK_GAP_MS = 1500L
+
 @Composable
 fun AboutScreen(
     onBack: () -> Unit,
@@ -62,6 +65,19 @@ fun AboutScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showConfirmDialog by remember { mutableStateOf(false) }
+    // 连点计数：超过一秒半没再点就从头数，免得平时翻页面误开
+    var taps by remember { mutableStateOf(0) }
+    var lastTapAt by remember { mutableStateOf(0L) }
+
+    fun registerBrandTap() {
+        val now = android.os.SystemClock.elapsedRealtime()
+        taps = if (now - lastTapAt > UNLOCK_GAP_MS) 1 else taps + 1
+        lastTapAt = now
+        if (taps >= UNLOCK_TAPS) {
+            taps = 0
+            if (!uiState.advancedEnabled) showConfirmDialog = true
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -76,29 +92,29 @@ fun AboutScreen(
                 .padding(horizontal = 20.dp)
                 .padding(top = 16.dp, bottom = 28.dp),
         ) {
-            BrandCard(versionName = uiState.versionName)
+            BrandCard(versionName = uiState.versionName, onBrandTap = ::registerBrandTap)
 
             Spacer(modifier = Modifier.height(22.dp))
 
-            LxCard {
-                Column {
-                    DeveloperToggleRow(
-                        enabled = uiState.advancedEnabled,
-                        onCheckedChange = { checked ->
-                            if (checked && !uiState.advancedEnabled) {
-                                showConfirmDialog = true
-                            } else if (!checked) {
-                                viewModel.setAdvancedEnabled(false)
-                            }
-                        },
-                    )
-                    CardDivider()
-                    if (uiState.advancedEnabled) {
-                        NetworkTraceRow(viewModel = viewModel)
+            // 调试那一整块平时不存在：连点十下「安大信」才会开，
+            // 一关掉这一条就自己消失，不留在页面上当摆设
+            if (uiState.advancedEnabled) {
+                LxCard {
+                    Column {
+                        DeveloperToggleRow(
+                            enabled = true,
+                            onCheckedChange = { checked ->
+                                if (!checked) viewModel.setAdvancedEnabled(false)
+                            },
+                        )
                         CardDivider()
+                        NetworkTraceRow(viewModel = viewModel)
                     }
-                    GitHubRow()
                 }
+                Spacer(modifier = Modifier.height(22.dp))
+            }
+            LxCard {
+                Column { GitHubRow() }
             }
         }
     }
@@ -106,7 +122,7 @@ fun AboutScreen(
     if (showConfirmDialog) {
         LxDialog(
             title = "启用调试功能",
-            message = "开启后将显示\"模拟提交\"与\"路线模拟\"入口。此类功能仅供开发调试，生成的数据为模拟结果，不代表真实跑步记录，请勿用于日常考核。",
+            message = "开启后跑步页会出现「模拟路线」：按你画的线往自己进程里喂点，交上去的记录照样进学校系统。仅供自己调试，别拿它当日常考核。",
             confirmText = "确定",
             dismissText = "取消",
             onDismissRequest = { showConfirmDialog = false },
@@ -121,7 +137,7 @@ fun AboutScreen(
 }
 
 @Composable
-private fun BrandCard(versionName: String) {
+private fun BrandCard(versionName: String, onBrandTap: () -> Unit) {
     LxCard {
         Column(
             modifier = Modifier
@@ -151,6 +167,7 @@ private fun BrandCard(versionName: String) {
                 fontSize = 26.sp,
                 lineHeight = 32.sp,
                 color = LxTerra,
+                modifier = Modifier.clickable(onClick = onBrandTap),
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
