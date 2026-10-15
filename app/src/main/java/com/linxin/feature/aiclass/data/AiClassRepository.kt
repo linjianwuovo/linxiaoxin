@@ -9,6 +9,15 @@ import com.linxin.core.network.FifRetrofit
 import com.linxin.core.network.FifSessionManager
 import com.linxin.core.network.IzuoyeRetrofit
 import com.linxin.feature.aiclass.domain.AiCourse
+import com.linxin.feature.aiclass.domain.AiMicroLesson
+import com.linxin.feature.aiclass.domain.AiCourseware
+import com.linxin.feature.aiclass.domain.AiCoursewareDetail
+import com.linxin.feature.aiclass.domain.AiLiveRecord
+import com.linxin.feature.aiclass.domain.AiRecordedVideo
+import com.linxin.feature.aiclass.domain.AiGroupDiscuss
+import com.linxin.feature.aiclass.domain.AiGroupDiscussThread
+import com.linxin.feature.aiclass.domain.AiGroupMessage
+import com.linxin.feature.aiclass.domain.AiStudentGroup
 import com.linxin.feature.aiclass.domain.AiQuiz
 import com.linxin.feature.aiclass.domain.AiClassQrPayload
 import com.linxin.feature.aiclass.domain.AiSignInInfo
@@ -18,11 +27,13 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import com.google.gson.JsonElement
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -39,9 +50,21 @@ import javax.inject.Singleton
 
 private const val REPOSITORY_LOG_TAG = "AiClassRepo"
 private const val WEBVIEW_REQUESTED_WITH = "com.linxin"
-private const val AICLASS_PRIMARY_REQUEST_TIMEOUT_MS = 12_000L
+// 12 秒是学校服务器正常时的余量，但它一慢就先撞这里：屏幕上「获取测验列表超时」
+// 「获取作业列表超时」都是这一句抛的，外面 ViewModel 给到 25 秒也轮不到用。
+// 提到 20 秒，仍然小于 ViewModel 的 25 秒，保证失败时说的是人话而不是 OkHttp 的栈。
+private const val AICLASS_PRIMARY_REQUEST_TIMEOUT_MS = 20_000L
+// 测验/作业这两发是间歇性挂死（2026-10-13 真机日志：一发 20 秒零字节，下一发 84 毫秒就回），
+// 所以它们走「两次各 10 秒」而不是「一次 20 秒」：正常一样快，挂的时候不把整页拖住
+private const val AICLASS_RETRY_REQUEST_TIMEOUT_MS = 10_000L
+// 课件、直录播这两发正常就要十几秒，单次 10 秒会误杀，所以给它们两次各 12 秒
+private const val AICLASS_LONG_RETRY_REQUEST_TIMEOUT_MS = 12_000L
 private const val AICLASS_SUPPLEMENT_REQUEST_TIMEOUT_MS = 6_000L
 private const val AICLASS_TIMETABLE_REQUEST_TIMEOUT_MS = 5_000L
+// 课件逐页图和直录播列表一发就是十几到几十 KB，学校那边慢的时候 12 秒不够，单独放宽
+private const val AICLASS_COURSEWARE_REQUEST_TIMEOUT_MS = 25_000L
+// 小组详情要按活动逐个补，接口一发一组，这里限死补前 3 个，免得课程页被拖慢
+private const val GROUP_DETAIL_FETCH_LIMIT = 3
 
 @Singleton
 class AiClassRepository @Inject constructor(
@@ -59,6 +82,10 @@ class AiClassRepository @Inject constructor(
     private var cachedWorking: AiWorkingRecord? = null
 
     private val warmUpInFlight = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** 学期 id 一学期才变一次，缓存住，省掉每次进课程页多发的一发 8KB termList */
+    @Volatile
+    private var cachedTermId: String? = null
 
     fun peekCourses(): List<AiCourse>? = cachedCourses
 
@@ -178,7 +205,16 @@ class AiClassRepository @Inject constructor(
         }
     }
 
-    /** 查询正在进行的课堂 */
+    /** 查询正在进行的课堂 */    /** AI 课堂消息未读数。拿不到就当 0，不报错——它只是个角标，不该拖住首页 */
+    suspend fun getMessageUnreadCount(): Int = try {
+        val auth = ensureSession()
+        val resp = api.getMessageUnreadCount(auth)
+        if (resp.success == true || resp.status == 0) resp.data ?: 0 else 0
+    } catch (e: Exception) {
+        0
+    }
+
+
     suspend fun getWorkingRecord(): Result<AiWorkingRecord?> {
         return try {
             val auth = ensureSession()
@@ -238,10 +274,13 @@ class AiClassRepository @Inject constructor(
             val userName = fifSession.getUserName().orEmpty()
             val resp = api.submitSignCode(signId, userName, signCode, auth)
 
-            if (resp.status == "success") {
-                Result.success(resp.message ?: "签到成功")
-            } else {
+            // 判成功的口径照官方 H5 抄：它只认 status=="error" 是失败，别的都当过了。
+            // 我们之前判 status=="success"，服务器一换说法（回 "1"、回 true）
+            // 就把真签到成功的人报成失败，比不报还难受。
+            if (resp.status.equals("error", ignoreCase = true)) {
                 Result.failure(Exception(resp.message ?: "签到失败"))
+            } else {
+                Result.success(resp.message?.takeIf { it.isNotBlank() } ?: "签到成功")
             }
         } catch (e: Exception) {
             Result.failure(Exception(mapError("签到", e), e))
@@ -249,6 +288,524 @@ class AiClassRepository @Inject constructor(
     }
 
     /** 查询课程测验列表 */
+    /** 课件列表。userId 用成员 userId（32 位），跟测验列表同源 */
+    suspend fun getCoursewareList(courseId: String, teachClassId: String): Result<List<AiCourseware>> {
+        return try {
+            val auth = ensureSession()
+            val userId = fifSession.getMemberUserId().orEmpty()
+            if (courseId.isBlank() || userId.isBlank()) return Result.failure(Exception("AI课堂身份不完整"))
+            // 这一发以前完全不包超时，全靠 ViewModel 那 25 秒兜着：学校一挂死，屏幕上就是「课件超时」。
+            // 改成两次各 12 秒，第一次挂了就重发，真回不来也还是 25 秒内给人话。
+            val resp = withNetworkRetry("获取课件列表", AICLASS_LONG_RETRY_REQUEST_TIMEOUT_MS) {
+                api.getCoursewareList(courseId, teachClassId, "1", userId, auth)
+            }.getOrElse { error -> return Result.failure(error) }
+            val list = (resp.data ?: emptyList()).map { it ->
+                AiCourseware(
+                    id = it.id ?: it.resourceId ?: it.resourceName.orEmpty(),
+                    name = it.resourceName.orEmpty(),
+                    fileType = it.fileType.orEmpty(),
+                    url = it.resourceUrl.orEmpty(),
+                    createdAt = it.createTime.orEmpty(),
+                    // 点开那一发要的是这两个 id，跟上面那个用来做列表 key 的 id 不是一回事
+                    resourceId = it.resourceId.orEmpty(),
+                    coursewareId = it.coursewareId.orEmpty(),
+                )
+            }
+            Result.success(list)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 点开一个课件：换逐页渲染图。
+     * 走 viewCoursewareTeacher 的 data.pages[].imgUrl —— 学校已经把 pptx 一页一张渲染成 PNG
+     * （抓包实测一节 75 张），安小信自己那个「1 / 75」的翻页查看器吃的就是这批图，
+     * 所以看全篇不用跳出去。拿不到逐页图就如实报失败，不拿没验过的兜底地址充成功。
+     */
+    suspend fun getCoursewareDetail(
+        courseware: AiCourseware,
+        teachClassId: String,
+    ): Result<AiCoursewareDetail> {
+        val auth = try {
+            ensureSession()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return Result.failure(Exception(mapError("打开课件", e), e))
+        }
+        val schoolId = fifSession.getSchoolId().orEmpty()
+        if (courseware.resourceId.isBlank() || courseware.coursewareId.isBlank()) {
+            // 列表里就没给这两个 id，硬发只会拿到一个空对象，不如直说
+            return Result.failure(Exception("课件标识不完整，打不开"))
+        }
+
+        val data = withNetworkTimeout("打开课件", AICLASS_COURSEWARE_REQUEST_TIMEOUT_MS) {
+            api.getCoursewareDetail(
+                resourceId = courseware.resourceId,
+                schoolId = schoolId,
+                courseWareId = courseware.coursewareId,
+                teachClassId = teachClassId,
+                auth = auth,
+            )
+        }.getOrElse { error -> return Result.failure(error) }.data.asObjectOrNull()
+            ?: return Result.failure(Exception("学校没把这个课件渲染出来"))
+
+        // 逐页图：抓到的键是 imgUrl，但类型没逐个记，照旧候选键试
+        val pages = data.childArray("pages").orEmpty().mapNotNull { page ->
+            page.stringValue("imgUrl", "imageUrl", "url", "pageUrl").takeIf { it.isNotBlank() }
+        }
+        val sourceUrl = data.stringValue("resourceUrl", "url").ifBlank { courseware.url }
+        val videoUrl = data.stringValue("videoPath", "audioPath")
+
+        if (pages.isEmpty() && videoUrl.isBlank()) {
+            // 这时候才值得再问一次在线预览地址（studycenter/mobile/preview/owas/url），这一轮没接：
+            // 那条地址要 WebView 才渲染得动，先把「没渲染出页来」如实报出来，
+            // 不拿一条我们没在屏幕上放过的地址去填成功。
+            return Result.failure(Exception("学校没把这个课件渲染出来"))
+        }
+        return Result.success(
+            AiCoursewareDetail(
+                name = data.stringValue("resourceName").ifBlank { courseware.name },
+                pages = pages,
+                previewUrl = "",
+                sourceUrl = sourceUrl,
+                videoUrl = videoUrl,
+            )
+        )
+    }
+
+    /**
+     * 「直录播」列表。参数是照安小信那一发抄的：roomType/liveStatus 都传 0（= 不限），
+     * weekNum/dayNum/timeRange 留空，termId 从学期接口按这门课的学年学期对出来。
+     * 学期 id 拿不到也照发（空串），回空列表就当这门课这学期没有直录播，不编一条状态出来。
+     */
+    suspend fun getLiveRecords(course: AiCourse): Result<List<AiLiveRecord>> {
+        val auth = try {
+            ensureSession()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return Result.failure(Exception(mapError("获取直录播", e), e))
+        }
+        if (course.courseId.isBlank() || course.teachClassId.isBlank()) {
+            return Result.failure(Exception("AI课堂身份不完整"))
+        }
+
+        val termId = cachedTermId ?: run {
+            withNetworkTimeout("获取学期", AICLASS_SUPPLEMENT_REQUEST_TIMEOUT_MS) {
+                api.getTermList(auth)
+            }.getOrNull()?.data?.dataList.orEmpty().let { terms ->
+                terms.firstOrNull { it.year == course.termYear && it.num == course.term }
+                    ?: terms.firstOrNull { it.selected == "1" }
+                    ?: terms.firstOrNull()
+            }.let { it?.id.orEmpty() }.also { cachedTermId = it }
+        }
+
+        val response = withNetworkRetry("获取直录播", AICLASS_LONG_RETRY_REQUEST_TIMEOUT_MS) {
+            api.getLiveAndRecordList(
+                termId = termId,
+                courseId = course.courseId,
+                teachClassId = course.teachClassId,
+                auth = auth,
+            )
+        }.getOrElse { error -> return Result.failure(error) }
+
+        val today = java.time.LocalDate.now().toString()
+        val records = response.data.orEmpty().mapIndexed { index, item ->
+            val playUrl = item.stringValue("livePath", "playUrl", "url")
+            val resourceId = item.stringValue("resourceId")
+            val roomName = item.stringValue("roomName")
+            val dateText = item.stringValue("currentDate").trim()
+            // ISO 的 yyyy-MM-dd 直接按字符串比就是按时间比；对不上这个形状就不猜，当它不是未来
+            val isUpcoming = dateText.length == 10 &&
+                dateText[4] == '-' && dateText[7] == '-' && dateText > today
+            AiLiveRecord(
+                id = item.stringValue("id", "recordId", "courseRecordId").ifBlank { "live_$index" },
+                title = item.stringValue("liveRecordName", "courseName", "name")
+                    .ifBlank { item.stringValue("courseSchedulingName", "itemName") },
+                // 实测 roomName 已经把楼栋带在里面了（博雅楼（A1）S103），再拼 buildingName 就是重复一遍
+                roomText = roomName.ifBlank { item.stringValue("buildingName") },
+                whenText = listOf(
+                    dateText,
+                    item.stringValue("currentWeek").takeIf { it.isNotBlank() }?.let { "第${it}周" }.orEmpty(),
+                ).filter { it.isNotBlank() }.joinToString("  "),
+                dateText = dateText,
+                isUpcoming = isUpcoming,
+                canPlay = playUrl.isNotBlank() || resourceId.isNotBlank(),
+                // 3 是抓包里唯一验证过"点得开"的值（09-22 那两条，官方也在这两条上拿到教师机位）；
+                // 5 有 resourceId 但资源中心回「未获取到录播课信息」，所以不能当可回放显示
+                isReplayReady = item.stringValue("liveStatus").trim() == "3",
+                playUrl = playUrl,
+                resourceId = resourceId,
+            )
+        }
+        // 上过的按日期倒序（最近一节在最前），还没上的按日期正序（下一节在最前）；
+        // 两组分开放，是为了让「能看的」先出现，而不是把一学期的课平铺成一条长队
+        val past = records.filterNot { it.isUpcoming }.sortedByDescending { it.dateText }
+        val upcoming = records.filter { it.isUpcoming }.sortedBy { it.dateText }
+        return Result.success(past + upcoming)
+    }
+
+    /**
+     * 换一节录播的播放地址。
+     * 抓包实测：resc.fifedu.com 的 videoClassInfo 回 data.videoList，一条一个机位
+     * （教师机位 / HDMI），videoPath 是**当场签名**的 minio mp4 直链，签名里带 timestamp，
+     * 所以这一发必须在点开的当下打，不能提前缓存、也不能拿上一次的地址重放。
+     * 多个机位按 videoSize 倒序，最大的那个（实测是教师机位 530MB）当默认。
+     */
+    suspend fun getLiveRecordVideos(resourceId: String): Result<List<AiRecordedVideo>> {
+        val auth = try {
+            ensureSession()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return Result.failure(Exception(mapError("打开录播", e), e))
+        }
+        if (resourceId.isBlank()) {
+            return Result.failure(Exception("这一节没有资源标识，换不到播放地址"))
+        }
+        // 主站那批口吃的是 "Basic <jwt>"（buildAuthHeader 的格式），资源中心不吃这个前缀：
+        // 2026-10-13 抓官方那一发，它的 authorization 就是裸 JWT。
+        // 带着 "Basic " 打过去服务器回 200 但 data=null，看着像"这节没录像"，其实是鉴权没认出来。
+        val bareAuth = auth.removePrefix("Basic ").trim()
+
+        val url = ApiConstants.BASE_FIF_RESC +
+            "/resource-center/app/api/videoClassInfo?isApp=1&resourceId=" +
+            java.net.URLEncoder.encode(resourceId, "UTF-8")
+        val response = withNetworkTimeout("打开录播", AICLASS_COURSEWARE_REQUEST_TIMEOUT_MS) {
+            api.getVideoClassInfo(url, bareAuth)
+        }.getOrElse { error -> return Result.failure(error) }
+        // data 为空时把服务器原话带出来：到底是「未登录」还是「查询成功但这节没机位」，
+        // 这两种在界面上必须长得不一样，不然下次排查还是靠猜。
+        val data = response.data.asObjectOrNull() ?: return Result.failure(
+            Exception("资源中心回：status=${response.status ?: "-"} code=${response.code ?: "-"} message=${response.message ?: "-"}")
+        )
+
+        val videos = data.childArray("videoList").orEmpty().mapNotNull { item ->
+            val path = item.stringValue("videoPath", "videoUrl", "url").takeIf { it.isNotBlank() }
+                ?: return@mapNotNull null
+            AiRecordedVideo(
+                name = item.stringValue("videoName", "name")
+                    .ifBlank { "机位" + item.stringValue("videoCode") },
+                url = path,
+                sizeBytes = item.stringValue("videoSize").toLongOrNull() ?: 0L,
+            )
+        }.sortedByDescending { it.sizeBytes }
+
+        if (videos.isEmpty()) {
+            return Result.failure(Exception("学校这节还没转好：信息里有，但没有机位"))
+        }
+        return Result.success(videos)
+    }
+
+    /** A.I微课列表。字段名没实测过，所以按候选键取，一个都对不上就用整条 JSON 的前几个字符兜底 */
+    suspend fun getMicroLessons(courseId: String): Result<List<AiMicroLesson>> {
+        return try {
+            val auth = ensureSession()
+            val userName = fifSession.getUserName().orEmpty()
+            if (courseId.isBlank() || userName.isBlank()) return Result.failure(Exception("AI课堂身份不完整"))
+            val resp = withNetworkRetry("获取微课列表", AICLASS_RETRY_REQUEST_TIMEOUT_MS) {
+                api.getWeikeList(courseId, userName, "1", "50", auth)
+            }.getOrElse { error -> return Result.failure(error) }
+            val list = resp.data?.dataList.orEmpty().map { o ->
+                val name = listOf("weikeName", "name", "resourceName", "title", "courseName")
+                    .firstNotNullOfOrNull { k -> o.get(k)?.takeIf { !it.isJsonNull }?.asString?.takeIf { it.isNotBlank() } }
+                    ?: "微课"
+                val id = listOf("weikeId", "id", "resourceId")
+                    .firstNotNullOfOrNull { k -> o.get(k)?.takeIf { !it.isJsonNull }?.asString?.takeIf { it.isNotBlank() } }
+                    ?: name
+                val meta = listOf("createTime", "duration", "teacherName")
+                    .firstNotNullOfOrNull { k -> o.get(k)?.takeIf { !it.isJsonNull }?.asString?.takeIf { it.isNotBlank() } }
+                    ?: ""
+                AiMicroLesson(id = id, name = name, meta = meta)
+            }
+            Result.success(list)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 这门课下的小组。第一发 groupList 拿课程开了哪些小组教学活动，
+     * 再对每个活动补一发 getStudentGroupInfo，取我自己的组名、成员数和角色。
+     * 第二发挂了不牵连第一发：那一行照样列出来，只是组名回退成活动名、成员数和角色显示未知，
+     * 界面上「没有小组」和「请求失败」就还是两回事。
+     */
+    suspend fun getStudentGroups(courseId: String, teachClassId: String): Result<List<AiStudentGroup>> {
+        val auth = try {
+            ensureSession()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return Result.failure(Exception(mapError("获取小组列表", e), e))
+        }
+        // 抓包里这条口的 studentId 是 32 位成员 id，跟签到用的 8 位学号不是一个东西
+        val studentId = fifSession.getMemberUserId().orEmpty()
+        val schoolId = fifSession.getSchoolId().orEmpty()
+        if (teachClassId.isBlank() || studentId.isBlank()) {
+            return Result.failure(Exception("AI课堂身份不完整"))
+        }
+
+        val response = withNetworkRetry("获取小组列表", AICLASS_RETRY_REQUEST_TIMEOUT_MS) {
+            api.getGroupTeachingList(teachClassId, auth)
+        }.getOrElse { error -> return Result.failure(error) }
+
+        val activities = response.data.orEmpty()
+        if (activities.isEmpty()) return Result.success(emptyList())
+
+        val details = coroutineScope {
+            // 每个活动两发（成员 + 待办数），三个活动就是六发，全挤在课程页那一屏里。
+            // 待办数只有第一个组用得上（其余组要点开才看），所以只给第一组发。
+            activities.take(GROUP_DETAIL_FETCH_LIMIT).mapIndexed { index, activity ->
+                async {
+                    loadStudentGroupDetail(
+                        auth = auth,
+                        activity = activity,
+                        teachClassId = teachClassId,
+                        courseId = courseId,
+                        schoolId = schoolId,
+                        studentId = studentId,
+                        userName = fifSession.getUserName().orEmpty(),
+                        withTodo = index == 0,
+                    )
+                }
+            }.awaitAll()
+        }
+
+        val groups = activities.mapIndexed { index, activity ->
+            val detail = details.getOrNull(index)
+            val activityName = activity.stringValue("gName", "name", "groupName", "title")
+            AiStudentGroup(
+                id = activity.stringValue("id", "groupId").ifBlank { "group_$index" },
+                microGroupId = detail?.microGroupId.orEmpty(),
+                name = detail?.groupName.orEmpty().ifBlank { activityName },
+                activityName = activityName,
+                memberCount = detail?.memberCount ?: 0,
+                roleKnown = detail?.roleKnown ?: false,
+                isLeader = detail?.isLeader ?: false,
+                pendingHomework = detail?.pendingHomework,
+                pendingDiscuss = detail?.pendingDiscuss,
+                pendingVote = detail?.pendingVote,
+            )
+        }
+        return Result.success(groups)
+    }
+
+    /**
+     * 一个小组的讨论列表。microGroupId 就是 getStudentGroupInfo 里 microGroupInfo 的 gId，
+     * 没有它这条请求发不出去，直接当失败报给界面，不瞎猜别的键。
+     */
+    suspend fun getGroupDiscusses(microGroupId: String): Result<List<AiGroupDiscuss>> {
+        return try {
+            val auth = ensureSession()
+            val studentId = fifSession.getMemberUserId().orEmpty()
+            if (microGroupId.isBlank() || studentId.isBlank()) {
+                return Result.failure(Exception("小组标识不完整，打不开讨论"))
+            }
+
+            val response = withNetworkTimeout("获取小组讨论", AICLASS_PRIMARY_REQUEST_TIMEOUT_MS) {
+                api.getStudentSelfGroupDiscuss(microGroupId, studentId, auth)
+            }.getOrElse { error -> return Result.failure(error) }
+
+            // 抓到的那次是 data.studentDis = []，条目字段名一个都没见过，全靠候选键
+            val items = response.data.findJsonArray("studentDis", "discussList", "dataList", "list")
+            // 只记形状不记值：分不清「真没讨论」和「候选键没蒙对」的时候，这一行就是唯一证据
+            Log.i(
+                REPOSITORY_LOG_TAG,
+                "groupDiscussList status=${response.status} items=${items.size} shape=${response.data.jsonShape()}",
+            )
+            val discusses = items.mapIndexed { index, item ->
+                AiGroupDiscuss(
+                    id = item.stringValue("id", "discussId", "refDiscussId").ifBlank { "discuss_$index" },
+                    title = item.stringValue("title", "discussTitle", "topic", "name", "content"),
+                    meta = listOf(
+                        item.stringValue("createTime", "publishTime", "startTime", "updateTime"),
+                        item.stringValue("replyCount", "discussCount", "answerCount", "reNum", "num"),
+                    ).filter { it.isNotBlank() }.joinToString(" · "),
+                )
+            }
+            Result.success(discusses)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(Exception(mapError("获取小组讨论", e), e))
+        }
+    }
+
+    /**
+     * 展开一条组内讨论 = 安小信那个「看讨论」页。话题本体和回复串是两条口，一起发、互不牵连：
+     * 话题挂了回复照样显示，回复挂了话题照样显示，两条都没回才当失败报给界面。
+     * 这两条的 data 我们一次非空样本都没抓到（那次 studentDis 是空数组），字段名全是从 H5 源码里
+     * 读出来的用法 + 候选键，取不到就留空，绝不拿 id 冒充标题、也不猜状态含义。
+     */
+    suspend fun getGroupDiscussThread(
+        microGroupId: String,
+        groupId: String,
+        discussId: String,
+        fallback: AiGroupDiscuss,
+    ): Result<AiGroupDiscussThread> {
+        val auth = try {
+            ensureSession()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return Result.failure(Exception(mapError("打开小组讨论", e), e))
+        }
+        val studentId = fifSession.getMemberUserId().orEmpty()
+        if (microGroupId.isBlank() || discussId.isBlank() || studentId.isBlank()) {
+            return Result.failure(Exception("小组讨论标识不完整，打不开"))
+        }
+
+        val (detailResult, replyResult) = coroutineScope {
+            val detail = async {
+                withNetworkTimeout("小组讨论话题", AICLASS_PRIMARY_REQUEST_TIMEOUT_MS) {
+                    api.getGroupDiscussDetail(discussId, groupId, microGroupId, auth)
+                }
+            }
+            val replies = async {
+                withNetworkTimeout("小组讨论回复", AICLASS_PRIMARY_REQUEST_TIMEOUT_MS) {
+                    api.getGroupDiscussReplies(microGroupId, discussId, studentId, auth)
+                }
+            }
+            detail.await() to replies.await()
+        }
+
+        if (detailResult.isFailure && replyResult.isFailure) {
+            // 两条都挂：报话题那条的原因，它是这一屏的主体
+            val cause = detailResult.exceptionOrNull()
+            return Result.failure(
+                Exception(mapError("打开小组讨论", cause as? Exception ?: Exception(cause?.toString())), cause),
+            )
+        }
+
+        val topic = detailResult.getOrNull()?.data.asObjectOrNull()
+        val replyItems = replyResult.getOrNull()?.data
+            .findJsonArray("studentDis", "replyList", "discussList", "dataList", "list")
+        Log.i(
+            REPOSITORY_LOG_TAG,
+            "groupDiscussThread detail=${detailResult.getOrNull()?.data.jsonShape()} " +
+                "replies=${replyResult.getOrNull()?.data.jsonShape()} parsed=${replyItems.size}",
+        )
+
+        val messages = replyItems.mapIndexed { index, item ->
+            AiGroupMessage(
+                id = item.stringValue("id", "answerId", "replyId", "discussAnswerId").ifBlank { "reply_$index" },
+                author = item.stringValue("stuName", "studentName", "userName", "realName", "name"),
+                content = item.stringValue("discussContent", "answerContent", "content", "discussText", "replyContent"),
+                timeText = item.stringValue("createTime", "discussTime", "replyTime", "submitTime", "updateTime"),
+                isMine = studentId.isNotBlank() &&
+                    item.stringValue("studentId", "userId", "stuId") == studentId,
+                attachment = groupAttachmentLabel(item),
+            )
+        }
+
+        return Result.success(
+            AiGroupDiscussThread(
+                title = (topic?.stringValue("title", "discussTitle", "topic") ?: "").ifBlank { fallback.title },
+                topicText = topic?.stringValue("discussContent", "content", "answerContent", "discussText") ?: "",
+                topicAuthor = topic?.stringValue("stuName", "teacherName", "userName", "creatorName") ?: "",
+                topicTime = topic?.stringValue("createTime", "publishTime", "startTime", "discussTime") ?: "",
+                messages = messages,
+                repliesFailed = replyResult.isFailure,
+            )
+        )
+    }
+
+    /** 一条回复带的附件：接口给的是 fileName / fullUrl / fileType 这种组合，拼一个能看的标签就收 */
+    private fun groupAttachmentLabel(item: JsonObject): String {
+        val name = item.stringValue("fileName", "fileUrl", "fullUrl", "url", "filePath")
+        val type = item.stringValue("fileType", "suffix").uppercase()
+        return when {
+            name.isBlank() && type.isBlank() -> ""
+            name.isNotBlank() && type.isNotBlank() -> "$type · ${name.substringAfterLast('/', name)}"
+            name.isNotBlank() -> name.substringAfterLast('/')
+            else -> type
+        }
+    }
+
+    private data class StudentGroupDetail(
+        val microGroupId: String,
+        val groupName: String,
+        val memberCount: Int,
+        val roleKnown: Boolean,
+        val isLeader: Boolean,
+        val pendingHomework: Int?,
+        val pendingDiscuss: Int?,
+        val pendingVote: Int?,
+    )
+
+    /** 补一个小组活动的详情：任何一环拿不到就只缺哪块显示哪块未知，不往外抛 */
+    private suspend fun loadStudentGroupDetail(
+        auth: String,
+        activity: JsonObject,
+        teachClassId: String,
+        courseId: String,
+        schoolId: String,
+        studentId: String,
+        userName: String,
+        withTodo: Boolean,
+    ): StudentGroupDetail? {
+        val groupId = activity.stringValue("id", "groupId")
+        if (groupId.isBlank()) return null
+
+        val data = withNetworkTimeout("获取小组详情", AICLASS_SUPPLEMENT_REQUEST_TIMEOUT_MS) {
+            api.getStudentGroupInfo(
+                teachClassId = teachClassId,
+                studentId = studentId,
+                groupId = groupId,
+                auth = auth,
+            )
+        }.getOrElse { error ->
+            Log.w(REPOSITORY_LOG_TAG, "loadStudentGroupDetail: getStudentGroupInfo failed")
+            return null
+        }.data.asObjectOrNull()
+
+        val micro = data.childObject("microGroupInfo")
+        val members = data.childArray("groupList")
+        val microGroupId = micro?.stringValue("gId", "groupId", "id").orEmpty()
+
+        // 待办数这发纯粹是锦上添花，缺了不显示，也不影响这一行
+        val todo = if (!withTodo) {
+            null
+        } else {
+            withNetworkTimeout("获取小组待办", AICLASS_TIMETABLE_REQUEST_TIMEOUT_MS) {
+                api.getGroupTodoCount(
+                    microGroupId = microGroupId,
+                    schoolId = schoolId,
+                    teachClassId = teachClassId,
+                    studentId = studentId,
+                    courseId = courseId,
+                    groupId = groupId,
+                    auth = auth,
+                )
+            }.getOrNull()?.data.asObjectOrNull()
+        }
+
+        // 我是成员表里的哪一条：成员对象上抓到的键只有 id / stuNum 有可能对上我的身份，
+        // 拿手上的 32 位成员 id 和登录名去比；比不中就承认角色未知，不猜。
+        val mine = members?.firstOrNull { member ->
+            val keys = listOf(
+                member.stringValue("id", "studentId", "userId"),
+                member.stringValue("stuNum", "userName"),
+            )
+            keys.any { it.isNotBlank() && (it == studentId || it == userName) }
+        }
+
+        return StudentGroupDetail(
+            microGroupId = microGroupId,
+            // 组名先取我自己那个组的，microGroupInfo 里没有再退回活动名
+            groupName = micro?.stringValue("xName", "gName", "name", "groupName").orEmpty(),
+            // 成员数只认成员数组的长度；microGroupInfo 里那几个 xCount/xNum 没验过含义，不拿来充数
+            memberCount = members?.size ?: 0,
+            roleKnown = mine != null,
+            isLeader = mine.truthy("isLeader", "leader", "isGroupLeader"),
+            pendingHomework = todo.intOf("homeWorkNoCommit"),
+            pendingDiscuss = todo.intOf("discsussNoCommit", "discussNoCommit"),
+            pendingVote = todo.intOf("voteNoCommit"),
+        )
+    }
+
     suspend fun getQuizList(courseId: String): Result<List<AiQuiz>> {
         return try {
             val auth = ensureSession()
@@ -261,7 +818,7 @@ class AiClassRepository @Inject constructor(
             val publishPaperList = if (userId.isBlank()) {
                 emptyList()
             } else {
-                val publishResult = withNetworkTimeout("获取测验列表", AICLASS_PRIMARY_REQUEST_TIMEOUT_MS) {
+                val publishResult = withNetworkRetry("获取测验列表", AICLASS_RETRY_REQUEST_TIMEOUT_MS) {
                     api.getPublishPaperListOfStudent(
                         courseId = courseId,
                         studentId = studentId,
@@ -316,7 +873,7 @@ class AiClassRepository @Inject constructor(
         return try {
             val auth = ensureSession()
             val userName = fifSession.getUserName().orEmpty()
-            val resp = withNetworkTimeout("获取作业列表", AICLASS_PRIMARY_REQUEST_TIMEOUT_MS) {
+            val resp = withNetworkRetry("获取作业列表", AICLASS_RETRY_REQUEST_TIMEOUT_MS) {
                 api.listStudentHomework(
                     courseId = courseId,
                     teachClassId = teachClassId,
@@ -622,8 +1179,31 @@ class AiClassRepository @Inject constructor(
         }
     }
 
-    private suspend fun <T> withNetworkTimeout(
+    /**
+     * 只读请求的「挂了就再发一次」。学校这几发是间歇性挂死：2026-10-13 真机日志里
+     * `getPublishPaperListOfStudent` 20 秒一个字节都没回，紧跟着补发的 `getPaperInCourseInfo`
+     * 84 毫秒就 200 了。所以把「一次等 20 秒」换成「两次各等 10 秒」——
+     * 正常情况一样快，挂的情况不至于把整页拖住，也不会把 25 秒的外层余量吃光。
+     * **只给读操作用**，写操作失败一律不自动重试。
+     */
+    private suspend fun <T> withNetworkRetry(
         action: String,
+        timeoutMs: Long,
+        attempts: Int = 2,
+        block: suspend () -> T,
+    ): Result<T> {
+        var last: Result<T> = Result.failure(Exception("${action}超时，请稍后重试"))
+        repeat(attempts) { attempt ->
+            last = withNetworkTimeout(action, timeoutMs, block)
+            if (last.isSuccess) return last
+            if (attempt + 1 < attempts) {
+                Log.w(REPOSITORY_LOG_TAG, "$action 第 ${attempt + 1} 次没回，再发一次")
+            }
+        }
+        return last
+    }
+
+    private suspend fun <T> withNetworkTimeout(        action: String,
         timeoutMs: Long,
         block: suspend () -> T,
     ): Result<T> {
@@ -668,7 +1248,7 @@ class AiClassRepository @Inject constructor(
             return emptyList()
         }
 
-        val response = withNetworkTimeout("获取AI课堂课表", AICLASS_TIMETABLE_REQUEST_TIMEOUT_MS) {
+        val response = withNetworkRetry("获取AI课堂课表", AICLASS_TIMETABLE_REQUEST_TIMEOUT_MS) {
             api.getTimetableInfo(
                 schoolId = schoolId,
                 memberId = memberId,
@@ -688,8 +1268,107 @@ class AiClassRepository @Inject constructor(
     }
 }
 
-private fun String.previewForLog(maxLen: Int = 16): String {
-    if (isBlank()) return "<blank>"
+/**
+ * 服务端经常把 data 直接回成 null（不是缺字段，是显式 null）。
+ * Gson 的 JsonObject 适配器撞上 JsonNull 会抛一句 "Expected a JsonObject but was JsonNull"，
+ * 这句话还会把真正的 status/message 顶掉，界面上看到的就是一堆英文 —— 所以这些口一律收 JsonElement，
+ * 要对象就用这个函数取，取不到就当没数据，另想办法把信封上的话报出来。
+ */
+private fun com.google.gson.JsonElement?.asObjectOrNull(): JsonObject? =
+    this?.takeIf { it.isJsonObject }?.asJsonObject
+
+/** 取子对象，键不存在或不是对象都回 null，不抛 */
+private fun JsonObject?.childObject(key: String): JsonObject? {    val child = this?.get(key) ?: return null
+    return if (child.isJsonObject) child.asJsonObject else null
+}
+
+/** 取子数组里的对象元素，键不存在或不是数组回 null（null 和空数组在调用处都按「没拿到」处理） */
+private fun JsonObject?.childArray(key: String): List<JsonObject>? {
+    val child = this?.get(key) ?: return null
+    return if (child.isJsonArray) child.asJsonArray.jsonObjects() else null
+}
+
+private fun JsonArray.jsonObjects(): List<JsonObject> =
+    mapNotNull { if (it.isJsonObject) it.asJsonObject else null }
+
+/** 数字标志位：抓包只记到键名没记到类型，1 / "1" / true 都算真，取不出来算假 */
+private fun JsonObject?.truthy(vararg keys: String): Boolean {
+    val value = this?.let { owner ->
+        keys.firstNotNullOfOrNull { key -> owner.get(key)?.takeIf { !it.isJsonNull } }
+    } ?: return false
+    if (!value.isJsonPrimitive) return false
+    val primitive = value.asJsonPrimitive
+    return when {
+        primitive.isBoolean -> primitive.asBoolean
+        primitive.isNumber -> runCatching { primitive.asDouble != 0.0 }.getOrDefault(false)
+        else -> primitive.asString.trim().lowercase() in setOf("1", "true", "y", "yes")
+    }
+}
+
+private fun JsonObject?.intOf(vararg keys: String): Int? {
+    val owner = this ?: return null
+    return keys.firstNotNullOfOrNull { key ->
+        owner.get(key)?.takeIf { !it.isJsonNull && it.isJsonPrimitive }
+            ?.let { runCatching { it.asInt }.getOrNull() }
+    }
+}
+
+/** 列表可能直接是数组，也可能裹在 studentDis 这类键底下，深度限三层内按候选键找 */
+private fun JsonElement?.findJsonArray(vararg keys: String, depth: Int = 0): List<JsonObject> {
+    val node = this ?: return emptyList()
+    if (node.isJsonNull) return emptyList()
+    if (node.isJsonArray) return node.asJsonArray.jsonObjects()
+    if (!node.isJsonObject) return emptyList()
+
+    val obj = node.asJsonObject
+    for (key in keys) {
+        val child = obj.get(key) ?: continue
+        if (child.isJsonArray) return child.asJsonArray.jsonObjects()
+    }
+    if (depth >= 2) return emptyList()
+    for ((_, child) in obj.entrySet()) {
+        val found = child.findJsonArray(*keys, depth = depth + 1)
+        if (found.isNotEmpty()) return found
+    }
+    return emptyList()
+}
+
+/**
+ * 只报形状不报值：数组多长、对象有哪些键、原始值是数字还是字符串、字符串多长。
+ * 分不清「真的没有数据」和「候选键没蒙对」的时候，这一行是唯一证据。
+ * 长度截到 1200 字，logd 会把超长单条整条丢掉。
+ */
+private fun JsonElement?.jsonShape(depth: Int = 0): String {
+    val node = this ?: return "missing"
+    val shape = when {
+        node.isJsonNull -> "null"
+        node.isJsonArray -> {
+            val arr = node.asJsonArray
+            "array(n=${arr.size()})[" + arr.take(2).joinToString(",") { it.jsonShape(depth + 1) } + "]"
+        }
+        node.isJsonObject -> {
+            val obj = node.asJsonObject
+            if (depth >= 2) {
+                "object{${obj.keySet().joinToString(",")}}"
+            } else {
+                "object{" + obj.entrySet().joinToString(",") { (key, value) ->
+                    "$key=${value.jsonShape(depth + 1)}"
+                } + "}"
+            }
+        }
+        else -> {
+            val primitive = node.asJsonPrimitive
+            when {
+                primitive.isBoolean -> "bool"
+                primitive.isNumber -> "num"
+                else -> "str(${primitive.asString.length})"
+            }
+        }
+    }
+    return if (depth == 0) shape.take(1200) else shape
+}
+
+private fun String.previewForLog(maxLen: Int = 16): String {    if (isBlank()) return "<blank>"
     return if (length <= maxLen) this else take(maxLen) + "..."
 }
 

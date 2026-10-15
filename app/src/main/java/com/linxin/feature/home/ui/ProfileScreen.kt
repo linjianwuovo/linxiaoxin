@@ -67,7 +67,6 @@ fun ProfileScreen(
     onNavigateCheckin: () -> Unit,
     onNavigateAiClass: () -> Unit,
     onNavigateMore: () -> Unit,
-    onNavigateRouteSimulation: () -> Unit,
     onNavigateAbout: () -> Unit,
     onNavigateTheme: () -> Unit,
     onLogout: () -> Unit,
@@ -150,14 +149,6 @@ fun ProfileScreen(
                     title = stringResource(R.string.title_ai_class),
                     onClick = onNavigateAiClass,
                 )
-                if (uiState.advancedEnabled) {
-                    MenuDivider()
-                    ProfileMenuRow(
-                        icon = Icons.Outlined.Route,
-                        title = stringResource(R.string.title_route_mock),
-                        onClick = onNavigateRouteSimulation,
-                    )
-                }
                 MenuDivider()
                 ProfileMenuRow(
                     icon = Icons.Outlined.Apps,
