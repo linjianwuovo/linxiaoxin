@@ -115,13 +115,14 @@ class SportsRunService : android.app.Service() {
             else -> getString(R.string.ra_title_running)
         }
         val total = (engine.targetKm * 100).toInt().coerceAtLeast(1)
+        val speed = "%.1f".format(state.instantKmh)
         return LiveActivityRequest(
             key = KEY,
             channelId = AndroidPromotedBackend.CHANNEL_ID,
             title = distance + getString(R.string.ra_km),
-            content = getString(R.string.notif_run_line, timeText, "%.1f".format(state.speedKmh)),
-            // 胶囊那串系统只留得下十二个字，"0.52km·03:41" 正好占满
-            capsuleText = getString(R.string.notif_run_capsule, distance, timeText),
+            content = getString(R.string.notif_run_line, speed, timeText),
+            // 胶囊那串在米11 上被裁过，所以只放实时速度：「6.4km/h」七个字
+            capsuleText = getString(R.string.notif_run_capsule, speed),
             route = NotificationRoute(destination = Routes.RUNNING_ACTIVE),
             presentation = LiveActivityPresentation.Progress(
                 current = (state.distanceKm * 100).toInt().coerceIn(0, total),

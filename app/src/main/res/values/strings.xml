@@ -859,8 +859,8 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ra_done_short">本次运动低于0.8公里，故无效</string>
     <string name="ra_sim_on">模拟定位中</string>
     <string name="ra_wait_gps">正在获取 GPS</string>
-    <string name="notif_run_line">时长 %1$s · 速率 %2$s km/h</string>
-    <string name="notif_run_capsule">%1$skm·%2$s</string>
+    <string name="notif_run_line">实时 %1$s km/h · 时长 %2$s</string>
+    <string name="notif_run_capsule">%1$skm/h</string>
     <string name="ra_points">%1$d 个轨迹点</string>
     <string name="ra_uploading">正在提交这一场…</string>
     <string name="notif_room_line">地点：%1$s</string>

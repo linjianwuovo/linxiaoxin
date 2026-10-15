@@ -64,6 +64,10 @@ class SportsRunEngine @Inject constructor(
         val points: List<WgsPoint> = emptyList(),
         val simulating: Boolean = false,
         val waitingFix: Boolean = true,
+        /** 实时速度（km/h）：上一个点到这一个点之间算出来的，不是全程平均 */
+        val instantKmh: Double = 0.0,
+        val lastFixAt: Long = 0L,
+        val lastFixMeters: Double = 0.0,
         val error: String? = null,
     ) {
         val distanceKm: Double get() = meters / 1000.0
@@ -124,6 +128,7 @@ class SportsRunEngine @Inject constructor(
         _state.value = current.copy(
             paused = true,
             pausedAt = System.currentTimeMillis(),
+            instantKmh = 0.0,
         )
     }
 
@@ -259,10 +264,23 @@ class SportsRunEngine @Inject constructor(
         if (segment > JUMP_GUARD_METERS) return
 
         val accepted = if (last == null || segment < MIN_STEP_METERS) 0.0 else segment
+        val meters = current.meters + accepted
+        val now = System.currentTimeMillis()
+        // 这一段用了多久：第一次给点、或者中间断过 15 秒以上，就不算瞬时速度
+        val spanSeconds = if (current.lastFixAt <= 0L) 0L else (now - current.lastFixAt) / 1000L
+        val instant = if (spanSeconds in 1..15 && meters >= current.lastFixMeters) {
+            val raw = (meters - current.lastFixMeters) / spanSeconds.toDouble() * 3.6
+            if (current.instantKmh <= 0.0) raw else current.instantKmh * 0.5 + raw * 0.5
+        } else {
+            0.0
+        }
         _state.value = current.copy(
-            meters = current.meters + accepted,
+            meters = meters,
             points = (current.points + point).takeLast(MAX_POINTS),
             waitingFix = current.points.size < 2,
+            instantKmh = instant,
+            lastFixAt = now,
+            lastFixMeters = meters,
         )
     }
 
