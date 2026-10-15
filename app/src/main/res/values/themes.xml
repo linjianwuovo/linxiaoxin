@@ -1,7 +1,5 @@
 <resources>
     <style name="Theme.LinXin" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:enableOnBackInvokedCallback">true</item>
-
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <!-- StatusBar 图标明暗由 MainActivity 的 SystemBarStyle 在运行时决定，此处不再硬编码 -->
@@ -12,10 +10,4 @@
         <item name="android:windowSplashscreenContent">@drawable/splash_content</item>
     </style>
 
-    <!-- 关掉「预测性返回手势」时套这个主题：android:enableOnBackInvokedCallback 只能由
-         窗口在创建前定下来，manifest 那份是静态的，所以改成主题里给值、运行时换样式。
-         值为 false 时系统那套 predictive back 也不出，开关才算真的关掉。 -->
-    <style name="Theme.LinXin.NoBackPreview" parent="Theme.LinXin">
-        <item name="android:enableOnBackInvokedCallback">false</item>
-    </style>
 </resources>
