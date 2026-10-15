@@ -177,13 +177,17 @@ fun SportsStartScreen(
                     enabled = !uiState.isStarting,
                     modifier = Modifier.padding(horizontal = 20.dp),
                 )
-                LxSecondaryButton(
-                    text = uiState.armedRoute?.let {
-                        stringResource(R.string.ss_sim_armed, it.name, "%.0f".format(uiState.paceKmh))
-                    } ?: stringResource(R.string.ss_btn_sim_route),
-                    onClick = { showPicker = true },
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
+                // 模拟路线只在调试模式开着时给看：那是给我们自己验机用的，
+                // 平时不该让人在跑步页里看见一颗能改定位的按钮
+                if (uiState.advancedEnabled) {
+                    LxSecondaryButton(
+                        text = uiState.armedRoute?.let {
+                            stringResource(R.string.ss_sim_armed, it.name, "%.0f".format(uiState.paceKmh))
+                        } ?: stringResource(R.string.ss_btn_sim_route),
+                        onClick = { showPicker = true },
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
+                }
             }
         }
     }

@@ -3,6 +3,7 @@ package com.linxin.feature.sports.ui
 import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.linxin.core.settings.DeveloperPrefs
 import com.linxin.feature.sports.data.SportsRepository
 import com.linxin.feature.sports.data.SportsRouteStore
 import com.linxin.feature.sports.domain.RecordDetail
@@ -16,6 +17,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.YearMonth
@@ -33,6 +35,8 @@ data class StartUiState(
     val paceKmh: Double = 7.0,
     val isStarting: Boolean = false,
     val startError: String? = null,
+    /** 调试模式（设置里的「开发者选项」）没开就不给看到模拟路线那颗 */
+    val advancedEnabled: Boolean = false,
 )
 
 @HiltViewModel
@@ -41,6 +45,7 @@ class SportsStartViewModel @Inject constructor(
     private val routeStore: SportsRouteStore,
     private val engine: SportsRunEngine,
     private val application: Application,
+    private val developerPrefs: DeveloperPrefs,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(StartUiState())
@@ -48,6 +53,11 @@ class SportsStartViewModel @Inject constructor(
 
     init {
         reload()
+        viewModelScope.launch {
+            developerPrefs.isAdvancedEnabled.collectLatest { enabled ->
+                _uiState.update { it.copy(advancedEnabled = enabled) }
+            }
+        }
         viewModelScope.launch {
             routeStore.routes.collect { list ->
                 _uiState.update { state ->
