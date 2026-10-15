@@ -2,6 +2,7 @@ package com.linxin.feature.sports.ui
 
 import android.Manifest
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -51,6 +52,7 @@ import com.linxin.core.designsystem.component.LxButton
 import com.linxin.core.designsystem.component.LxCard
 import com.linxin.core.designsystem.component.LxDetailRow
 import com.linxin.core.designsystem.component.LxDialog
+import com.linxin.core.designsystem.component.LxDialogConfirmTone
 import com.linxin.core.designsystem.component.LxEmpty
 import com.linxin.core.designsystem.component.LxError
 import com.linxin.core.designsystem.component.LxFilterChip
@@ -298,6 +300,12 @@ fun SportsRunScreen(
     val finish by viewModel.finish.collectAsState()
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var locked by remember { mutableStateOf(false) }
+    // 退出和取消是两件事：退出只是离开这一屏（还在记着），取消才是把这一场丢掉
+    var showExitConfirm by remember { mutableStateOf(false) }
+    var showCancelConfirm by remember { mutableStateOf(false) }
+
+    // 跑着的时候，系统返回和边缘手势先问一句，别一划就没了这一屏
+    BackHandler(enabled = state.active) { showExitConfirm = true }
 
     LaunchedEffect(state.active, state.paused) {
         while (state.active) {
@@ -315,7 +323,7 @@ fun SportsRunScreen(
                     state.paused -> stringResource(R.string.ra_title_paused)
                     else -> stringResource(R.string.ra_title_running)
                 },
-                onBack = onBack,
+                onBack = { if (state.active) showExitConfirm = true else onBack() },
             )
         },
     ) { padding ->
@@ -419,6 +427,12 @@ fun SportsRunScreen(
                             )
                         }
                         Box(modifier = Modifier.weight(1f)) {
+                            LxSecondaryButton(
+                                text = stringResource(R.string.action_cancel),
+                                onClick = { showCancelConfirm = true },
+                            )
+                        }
+                        Box(modifier = Modifier.weight(1f)) {
                             if (state.paused) {
                                 LxButton(text = stringResource(R.string.ra_resume), onClick = viewModel::resume)
                             } else {
@@ -447,6 +461,42 @@ fun SportsRunScreen(
                 }
             }
         }
+    }
+
+    if (showExitConfirm) {
+        LxDialog(
+            title = stringResource(R.string.ra_exit_title),
+            message = stringResource(R.string.ra_exit_message),
+            confirmText = stringResource(R.string.ra_exit_confirm),
+            dismissText = stringResource(R.string.ra_exit_stay),
+            onDismissRequest = { showExitConfirm = false },
+            onDismiss = { showExitConfirm = false },
+            onConfirm = {
+                showExitConfirm = false
+                onBack()
+            },
+        )
+    }
+
+    if (showCancelConfirm) {
+        LxDialog(
+            title = stringResource(R.string.ra_cancel_title),
+            message = stringResource(
+                R.string.ra_cancel_message,
+                "%.2f".format(state.distanceKm),
+            ),
+            confirmText = stringResource(R.string.action_discard),
+            dismissText = stringResource(R.string.ra_cancel_keep),
+            onDismissRequest = { showCancelConfirm = false },
+            onDismiss = { showCancelConfirm = false },
+            onConfirm = {
+                showCancelConfirm = false
+                // 丢掉这一场 + 停掉前台服务，再退出这一屏；不碰服务器，一条都不交
+                viewModel.discardRun()
+                onBack()
+            },
+            confirmTone = LxDialogConfirmTone.Destructive,
+        )
     }
 }
 

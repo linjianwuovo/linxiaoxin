@@ -80,6 +80,9 @@ class SportsRunEngine @Inject constructor(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var session: RunSession? = null
+
+    /** 这一场的目标里程：流体云那条进度条按它算，没开场时按 1 公里 */
+    val targetKm: Double get() = session?.targetKm?.takeIf { it > 0.0 } ?: 1.0
     private var listener: LocationListener? = null
 
     /** 有没有真定位权限 */
