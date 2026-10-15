@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.linxin.core.auth.SessionManager
 import com.linxin.core.auth.TokenManager
-import com.linxin.core.settings.DeveloperPrefs
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,14 +18,12 @@ data class ProfileUiState(
     val userCode: String = "",
     val userName: String = "",
     val isLoggingOut: Boolean = false,
-    val advancedEnabled: Boolean = false,
 )
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val tokenManager: TokenManager,
     private val sessionManager: SessionManager,
-    private val developerPrefs: DeveloperPrefs,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -39,11 +36,6 @@ class ProfileViewModel @Inject constructor(
                     userCode = tokenManager.getUserCode().orEmpty(),
                     userName = tokenManager.getUserName().orEmpty(),
                 )
-            }
-        }
-        viewModelScope.launch {
-            developerPrefs.isAdvancedEnabled.collectLatest { enabled ->
-                _uiState.update { it.copy(advancedEnabled = enabled) }
             }
         }
     }

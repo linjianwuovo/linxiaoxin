@@ -20,8 +20,35 @@ private val LOGIN_STALE_MARKS = listOf(
     "会话失效",
 )
 
+/**
+ * 学校那边偶尔把自己后端的 Java 异常原文当「原因」回过来 ——
+ * 2026-10-13 真机上待办事务点开一条查寝类待办，详情接口回的 `result` 就是 `Index: 0, Size: 0`
+ * （它后端数组越界了），我们原样甩到界面上，用户只看到一串 Java 味儿的英文。
+ * 换成一句人话，把原文留在括号里 —— 原文还有用，判断是哪条接口挂了要靠它。
+ */
+private val SERVER_STACK_MARKS = listOf(
+    "Index:",
+    "Size:",
+    "Exception",
+    "NullPointer",
+    "at java.",
+    "at com.",
+    "at org.",
+)
+
+private const val SERVER_STACK_NOTICE = "这条详情学校那边没给数据（他们后端自己报的错）"
+
 fun failureReason(vararg candidates: String?, fallback: String): String =
-    loginStaleNotice(candidates.firstOrNull { !it.isNullOrBlank() }?.trim() ?: fallback)
+    loginStaleNotice(
+        humanizeServerReason(candidates.firstOrNull { !it.isNullOrBlank() }?.trim() ?: fallback),
+    )
+
+private fun humanizeServerReason(reason: String): String =
+    if (SERVER_STACK_MARKS.any { reason.contains(it, ignoreCase = true) }) {
+        "$SERVER_STACK_NOTICE（原文：$reason）"
+    } else {
+        reason
+    }
 
 /**
  * 单独拆出来是因为公告那套有自己的映射（`NewsRepository.mapError`），不经过 `failureReason` ——
@@ -44,9 +71,16 @@ fun loginStaleNotice(reason: String): String =
  * 连不上说「检查网络、可以关掉 VPN」，401 说「去重新登录」。
  * 我们自己抛的那些中文异常（带原因的）原样透出，不覆盖。
  */
-fun netFail(t: Throwable, fallback: String): Exception = Exception(netFailMessage(t, fallback), t)
+fun netFail(t: Throwable, fallback: String, campusOnlyHost: String? = null): Exception =
+    Exception(netFailMessage(t, fallback, campusOnlyHost), t)
 
-fun netFailMessage(t: Throwable, fallback: String): String {
+fun netFailMessage(t: Throwable, fallback: String, campusOnlyHost: String? = null): String {
+    // 体育那台（sports.aiit.edu.cn:8082）自己常挂：2026-10-14 15:5x 在米11 上现测，
+    // TCP 能连上、DNS 也正常，裸发一个 GET 要 40 秒才回，回的是 503 维护页 ——
+    // 我们客户端等不到那么久，先超时了。所以这句不许写成"检查网络/关 VPN"，那会把人往错方向带。
+    if (t is java.io.IOException && campusOnlyHost != null) {
+        return "体育服务器这会儿没应答（$campusOnlyHost 这台服务经常自己挂掉，不是你的网络）—— 过几分钟再点重试"
+    }
     (t as? retrofit2.HttpException)?.let { e ->
         return when {
             e.code() == 401 -> "登录已失效（401），去「我的」里重新登录一次"
