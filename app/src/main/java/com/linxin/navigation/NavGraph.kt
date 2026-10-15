@@ -210,9 +210,10 @@ fun LinXinNavHost(
             if (suppressTransitions) EnterTransition.None
             else fadeIn(NAV_IN_FADE) + slideInHorizontally(NAV_IN_SHIFT) { -it / 4 }
         },
+        // 退场那页只往右走，不再叠淡出：一边滑一边变浅看着像两张纸在换手
         popExitTransition = {
             if (suppressTransitions) ExitTransition.None
-            else fadeOut(NAV_OUT_FADE) + slideOutHorizontally(NAV_OUT_SHIFT) { it / 4 }
+            else slideOutHorizontally(NAV_OUT_SHIFT) { it / 4 }
         },
     ) {
         composable(
