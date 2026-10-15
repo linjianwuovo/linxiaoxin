@@ -97,6 +97,7 @@ class SportsRepository @Inject constructor(
                         exerciseId = extraId,
                         memberId = rules.memberId,
                         runningType = "1",
+                        targetKm = rules.singleMinKm,
                     )
                 )
             } else {
@@ -111,6 +112,7 @@ class SportsRepository @Inject constructor(
                         exerciseId = exerciseId,
                         memberId = SportsParse.startMemberOf(json).ifBlank { rules.memberId },
                         runningType = "1",
+                        targetKm = rules.singleMinKm,
                     )
                 )
             }
