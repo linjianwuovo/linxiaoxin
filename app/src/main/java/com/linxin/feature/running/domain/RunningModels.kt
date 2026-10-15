@@ -76,12 +76,6 @@ data class RunningSnapshot(
     val pointsAreBd09: Boolean = false,
 )
 
-data class SimConfig(
-    val distanceKm: Double,
-    val durationMinutes: Int,
-    val startTimeMillis: Long,
-)
-
 data class RunningResult(
     val success: Boolean,
     val message: String,

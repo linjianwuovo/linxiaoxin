@@ -47,19 +47,6 @@ data class WgsPoint(
     val atMillis: Long = System.currentTimeMillis(),
 )
 
-/** 自己画的路线模板（存在 filesDir 的 JSON 里） */
-data class SportsRoute(
-    val id: String,
-    val name: String,
-    val createdAtMillis: Long,
-    val updatedAtMillis: Long,
-    val distanceMeters: Double,
-    val points: List<WgsPoint>,
-) {
-    val distanceKm: Double get() = distanceMeters / 1000.0
-    val pointCount: Int get() = points.size
-}
-
 /** 跑完一场、准备上交的那一坨 */
 data class RunRecordDraft(
     val session: RunSession,
