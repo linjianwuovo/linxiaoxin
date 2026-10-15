@@ -73,9 +73,6 @@ class ThemePrefs @Inject constructor(
         private val KEY_GLASS_DISTORTION = floatPreferencesKey("glass_distortion")
         private val KEY_PREVIEW_BACK = booleanPreferencesKey("preview_back_gesture")
 
-        /** 主题要在窗口创建前定下来，那时 Hilt 字段还没注入，只能同步读这份小抄 */
-        const val SYNC_PREFS_NAME = "linxin_theme_sync"
-        const val SYNC_KEY_PREVIEW_BACK = "preview_back_gesture"
     }
 
     val settings: Flow<ThemeSettings> = context.themeDataStore.data.map { prefs ->
@@ -99,8 +96,6 @@ class ThemePrefs @Inject constructor(
 
     suspend fun setPreviewBackGesture(enabled: Boolean) {
         context.themeDataStore.edit { it[KEY_PREVIEW_BACK] = enabled }
-        context.getSharedPreferences(SYNC_PREFS_NAME, Context.MODE_PRIVATE)
-            .edit().putBoolean(SYNC_KEY_PREVIEW_BACK, enabled).apply()
     }
 
     suspend fun setMode(mode: ThemeMode) {
