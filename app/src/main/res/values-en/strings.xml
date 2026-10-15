@@ -70,7 +70,7 @@
     <string name="section_bar_material">Bottom bar material</string>
     <string name="section_motion">Motion</string>
     <string name="setting_preview_back">Predictive back gesture</string>
-    <string name="setting_preview_back_summary">When on, the app asks the system for the 44dp left edge and drives the swipe back itself: the page shrinks and blurs under your finger. The system caps how much it hands over and some ROMs ignore the request, so part of the edge may still belong to it. Turning it off gives the edge back. Applies immediately, no restart</string>
+    <string name="setting_preview_back_summary">This only covers our own layer: when on, an edge swipe shrinks and blurs the current page under your finger; when off there is no preview. The system still owns the very edge of the screen and no app can take it back (measured on HyperOS), so that swipe keeps the system animation. Applies immediately, no restart</string>
     <string name="bar_liquid">Liquid</string>
     <string name="bar_frosted">Frosted</string>
     <string name="bar_solid">Solid</string>
