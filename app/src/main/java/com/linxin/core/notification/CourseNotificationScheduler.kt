@@ -101,12 +101,11 @@ class CourseNotificationScheduler @Inject constructor(
             AppText.str(R.string.notif_started)
         }
 
-        // 胶囊上那 7 个字放"还剩几分钟"最有用（流体云/灵动岛那一小块地方就是这个用途）；
-        // 已经到点了再放教室，因为那时候要看的是"去哪个教室"。
-        val capsuleText = if (minutesUntilStart > 0) {
+        // 胶囊那一小块只有七个字的位置，放得下"还剩几分钟"就放不下教室。
+        // 2026-10-15 他要的是教室（"小流体云没有教室"）：分钟数展开卡片上本来就有，
+        // 教室只在胶囊里露一次，所以这一格给教室；读不到教室的课退回分钟数。
+        val capsuleText = shortenRoom(room).ifBlank {
             AppText.str(R.string.notif_capsule_minutes, minutesUntilStart)
-        } else {
-            shortenRoom(room)
         }
         // 实况卡片上「标题 / 副标题 / 内容」是三行：标题放科目，副标题放还剩几分钟，
         // 内容就放教室。之前内容也塞了"还剩几分钟"，结果卡片上连着两行一模一样，
