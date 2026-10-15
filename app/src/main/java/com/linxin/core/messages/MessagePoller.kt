@@ -4,6 +4,7 @@ import com.linxin.R
 import com.linxin.core.locale.AppText
 import com.linxin.feature.checkin.data.CheckinRepository
 import com.linxin.feature.holiday.data.HolidayRepository
+import com.linxin.feature.messages.data.MessagesRepository
 import com.linxin.feature.news.data.NewsRepository
 import com.linxin.navigation.Routes
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -13,7 +14,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * 消息轮询：一次拉三路数据，挑出没提醒过的发通知。
+ * 消息轮询：一次拉四路数据（公告 / 查寝 / 返校 / 消息中心），挑出没提醒过的发通知。
  *
  * 只读，不提交任何东西。三路都各自吞失败——某一路挂了不影响其它两路，
  * 也不要把失败记成"已提醒"，否则下次就永远不会再提醒了。
@@ -23,6 +24,7 @@ class MessagePoller @Inject constructor(
     private val newsRepository: NewsRepository,
     private val checkinRepository: CheckinRepository,
     private val holidayRepository: HolidayRepository,
+    private val messagesRepository: MessagesRepository,
     private val prefs: MessagePrefs,
     private val notifier: MessageNotifier,
 ) {
@@ -37,6 +39,7 @@ class MessagePoller @Inject constructor(
         if (settings.news) sent += emit(MessageTag.NEWS, awaitNew(), quiet = firstRun)
         if (settings.checkin) sent += emit(MessageTag.CHECKIN, awaitCheckin())
         if (settings.returnToSchool) sent += emit(MessageTag.RETURN, awaitReturn())
+        if (settings.msgCenter) sent += emit(MessageTag.MSG_CENTER, awaitMessages(), quiet = firstRun)
         return sent
     }
 
@@ -107,8 +110,28 @@ class MessagePoller @Inject constructor(
         }
     }
 
+    /**
+     * 消息中心那一栏（今日日程信息、审批通过…）。只推**未读**的，按服务端给的 id 去重；
+     * 首轮静默记 seen，不然一开开关就把存量消息一次性倒进通知栏。
+     */
+    private suspend fun awaitMessages(): List<MessageAlert> {
+        val page = messagesRepository.getMessages(page = 1).getOrNull() ?: return emptyList()
+        return page.items.filter { !it.read }.take(MSG_CENTER_MAX).map { item ->
+            MessageAlert(
+                tag = MessageTag.MSG_CENTER,
+                key = item.id,
+                title = item.title.ifBlank { AppText.str(R.string.msg_center_title) },
+                body = item.content.ifBlank { item.title },
+                route = Routes.MESSAGES,
+            )
+        }
+    }
+
     private companion object {
         /** 首轮冷启动时最新的一批公告会一次性涌进来，压到 3 条以免刷屏 */
         const val NEW_NEWS_MAX = 3
+
+        /** 消息中心一天能灌好几条日程提醒，一次最多推 3 条，别把通知栏占满 */
+        const val MSG_CENTER_MAX = 3
     }
 }

@@ -10,6 +10,47 @@ data class AiClassBaseResponse(
 )
 
 /** 学期列表响应 */
+/** A.I微课：data 是个分页对象，list 里每条字段名还没实测，先原样收着 */
+data class AiClassWeikeResponse(
+    val status: String?,
+    val message: String?,
+    val data: WeikePage?,
+) {
+    data class WeikePage(
+        val dataList: List<com.google.gson.JsonObject>?,
+        val total: Int?,
+    )
+}
+
+/** 课件资源列表：这一族接口的信封是 data/location/message/status，data 直接就是数组 */
+data class AiClassCoursewareResponse(
+    val status: String?,
+    val message: String?,
+    val data: List<CoursewareItem>?,
+) {
+    data class CoursewareItem(
+        val id: String?,
+        val resourceId: String?,
+        /** 点开课件那一发（viewCoursewareTeacher）要的 courseWareId，跟 resourceId 不是同一个值 */
+        val coursewareId: String?,
+        val resourceName: String?,
+        val fileType: String?,
+        val resourceUrl: String?,
+        val createTime: String?,
+        val lockState: Int?,
+        val isExamine: String?,
+    )
+}
+
+/** 消息未读数：这一发的 status 是数字，跟别的口不一样，照实声明 */
+data class AiClassUnreadResponse(
+    val status: Int?,
+    val message: String?,
+    val data: Int?,
+    val success: Boolean?,
+)
+
+
 data class AiClassTermResponse(
     val status: String?,
     val message: String?,
@@ -149,4 +190,83 @@ data class AiClassHomeworkUrlResponse(
     val status: Int?,
     val message: String?,
     val data: String?,
+)
+
+/**
+ * 小组教学活动列表：抓到的信封是 data(数组) + code/status/message/location。
+ * data 元素只记到键名没记到类型，原样收 JsonObject，由 Repository 按候选键取。
+ */
+data class AiClassGroupListResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: List<com.google.gson.JsonObject>?,
+)
+
+/** 小组成员与我所在小组：data 是对象，抓到的键是 groupList / microGroupInfo / isBind / groupScreenName */
+data class AiClassStudentGroupInfoResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: com.google.gson.JsonElement?,
+)
+
+/** 小组待办数：抓到的 data 是三个数字，discuss 那个键服务端拼成了 discsuss，按原样取 */
+data class AiClassGroupTodoResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: com.google.gson.JsonElement?,
+)
+
+/** 我的小组讨论：抓到的那次 data.studentDis 是空数组，条目字段名未知，先整个收着 */
+data class AiClassGroupDiscussResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: com.google.gson.JsonElement?,
+)
+
+/**
+ * 直录播列表：信封跟课件那族一样（data 直接是数组）。条目里 liveStatus / isNowPlay / isOpen
+ * 这几个键到底是 "1" 还是 1 还是 true 没记下来，所以原样收 JsonObject，取值时数字布尔字符串都能读进 String。
+ */
+data class AiClassLiveRecordListResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: List<com.google.gson.JsonObject>?,
+)
+
+/** 直录播周次：data 是对象，里面有 currentWeek 和 weekList（数组） */
+data class AiClassWeekListResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: com.google.gson.JsonElement?,
+)
+
+/** 课件详情 + 逐页渲染图：data 是对象，pages 是数组，类型没逐个记，整个收着按候选键取 */
+data class AiClassCoursewareDetailResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: com.google.gson.JsonElement?,
+)
+
+/** 换 Office 在线预览地址：这一发 data 直接是一条字符串地址 */
+data class AiClassPreviewUrlResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val data: String?,
+)
+
+/** 录播播放地址：data 是对象，videoList 是数组（一条一个机位），类型没逐个记，整个收着 */
+data class AiClassVideoClassInfoResponse(
+    val status: String?,
+    val code: String?,
+    val message: String?,
+    val success: Boolean?,
+    val data: com.google.gson.JsonElement?,
 )

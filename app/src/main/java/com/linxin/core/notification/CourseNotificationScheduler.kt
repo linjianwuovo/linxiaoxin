@@ -18,11 +18,18 @@ import javax.inject.Singleton
 @Singleton
 class CourseNotificationScheduler @Inject constructor(
     private val notifier: LiveActivityNotifier,
+    private val nextClass: NextClassWindowStore,
 ) {
     companion object {
         private const val KEY = "course_countdown"
+
+        /** 课前进度条按这 15 分钟算满：还有 15 分钟 = 0%，马上上课 = 100% */
+        private const val COUNTDOWN_WINDOW_MINUTES = 15
         private const val TRIGGER_MINUTES = 25L
         private const val DISMISS_AFTER_START_MINUTES = 5L
+
+        /** 系统在那颗胶囊上只留这么宽，超了自己先裁 */
+        private const val CAPSULE_LIMIT = 12
     }
 
     private var job: Job? = null
@@ -53,39 +60,106 @@ class CourseNotificationScheduler @Inject constructor(
 
         if (target == null) {
             notifier.cancel(KEY)
+            nextClass.clear()
             return
         }
 
         val startTime = SectionSchedule.startOf(target.startSection) ?: return
         val minutesUntilStart = ChronoUnit.MINUTES.between(now, startTime)
 
-        val (title, statusText) = if (minutesUntilStart > 0) {
-            target.name to AppText.str(R.string.notif_upcoming, minutesUntilStart.toString())
+        // 把「下一节几点开始、在哪个教室」交给后台那条链：前台进程一旦被系统收掉，
+        // 只有 worker 还能每分钟把这条通知的数字往下刷。2026-10-13 他锁屏看到的
+        // 「还有 23 分钟」挂了 22 分钟没动，就是因为刷的那个人已经死了。
+        nextClass.publish(target.startSection, target.name, target.room)
+        postCountdown(target.name, target.room, minutesUntilStart)
+    }
+
+    /**
+     * 后台 worker 每分钟调这个：读窗口里存的课名/教室/开始时间，重算还剩几分钟。
+     * 回 true = 这条还在显示窗口里，链继续；回 false = 不在窗口（或已经收掉）。
+     * 只认窗口里那一个时间戳，不重新拉课表 —— 后台不一定有登录态。
+     */
+    fun refreshCountdown(): Boolean {
+        val minutes = nextClass.signedMinutesUntilStart() ?: return false
+        val name = nextClass.courseName()
+        if (name.isBlank()) return false
+        return when {
+            minutes > TRIGGER_MINUTES -> false
+            minutes < -DISMISS_AFTER_START_MINUTES -> {
+                notifier.cancel(KEY)
+                nextClass.clear()
+                false
+            }
+            else -> {
+                postCountdown(name, nextClass.room(), minutes)
+                true
+            }
+        }
+    }
+
+    private fun postCountdown(name: String, room: String, minutesUntilStart: Long) {
+        val statusText = if (minutesUntilStart > 0) {
+            AppText.str(R.string.notif_upcoming, minutesUntilStart.toString())
         } else {
-            target.name to AppText.str(R.string.notif_started)
+            AppText.str(R.string.notif_started)
         }
 
-        val capsuleText = shortenRoom(target.room)
-        val content = AppText.str(R.string.notif_content, statusText, target.room)
-        val bigText = AppText.str(R.string.notif_content, statusText, target.room)
+        // 胶囊左边那格是系统画的应用图标，我们写不了字；能写的只有右边这一串，
+        // 而且只留得下七个字。所以"教室 + 还剩几分钟"要同时上，就得把教室压到
+        // 门牌号那四个字（"博文楼（A2）S301"→"S301"），拼成"S301·4分"正好七个字。
+        val capsuleText = capsuleLine(room, minutesUntilStart)
+        // 实况卡片上「标题 / 副标题 / 内容」是三行：标题放科目，副标题放还剩几分钟，
+        // 内容就放教室。之前内容也塞了"还剩几分钟"，结果卡片上连着两行一模一样，
+        // 教室一个字都没露出来。
+        val roomLine = AppText.str(
+            R.string.notif_room_line,
+            room.ifBlank { AppText.str(R.string.notif_room_unknown) },
+        )
+        val bigText = AppText.str(R.string.notif_content, statusText, room)
 
         val extras = Bundle().apply {
-            putString("courseName", target.name)
+            putString("courseName", name)
             putString("statusText", statusText)
-            putString("room", target.room)
+            putString("room", room)
             putString("bigText", bigText)
         }
 
         val request = LiveActivityRequest(
             key = KEY,
             channelId = KEY,
-            title = title,
-            content = statusText,
+            title = name,
+            content = roomLine,
             capsuleText = capsuleText,
             route = NotificationRoute(destination = Routes.AICLASS_HOME),
+            // 课前这段时间用进度条表达（离上课越近条越满）：实况更新那套模板吃的就是进度样式，
+            // 流体云要提升一条通知，用进度模板比用纯文本更容易被认出来
+            presentation = LiveActivityPresentation.Progress(
+                // minutesUntilStart 是分钟数（Long），换算成 0..15 的整数进度
+                current = ((COUNTDOWN_WINDOW_MINUTES - minutesUntilStart).toInt())
+                    .coerceIn(0, COUNTDOWN_WINDOW_MINUTES),
+                total = COUNTDOWN_WINDOW_MINUTES,
+                label = statusText,
+            ),
             extras = extras,
         )
         notifier.show(request)
+    }
+
+    /**
+     * 胶囊那一行：楼号 + 门牌 + 还剩几分钟（"A2S301·4分"），没教室就只给分钟，
+     * 已经开课了就只给教室。七个字那个数是早期自己拍的，系统其实给得下更宽，
+     * 现在放到十二个字，真被系统裁了再收。
+     */
+    private fun capsuleLine(room: String, minutesUntilStart: Long): String {
+        val matched = Regex("""[（(]([^）)]+)[）)]\s*([A-Za-z0-9-]+)""").find(room)
+        val place = matched?.let { it.groupValues[1] + it.groupValues[2] }
+            ?: Regex("""([A-Za-z0-9-]{3,})\s*$""").find(room)?.groupValues?.get(1)
+            ?: room.filter { it.isLetterOrDigit() }.take(6)
+        return when {
+            place.isBlank() -> AppText.str(R.string.notif_capsule_minutes, minutesUntilStart)
+            minutesUntilStart <= 0L -> place.take(CAPSULE_LIMIT)
+            else -> "$place·${minutesUntilStart}分".take(CAPSULE_LIMIT)
+        }
     }
 
     /**

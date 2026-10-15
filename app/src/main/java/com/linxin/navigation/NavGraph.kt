@@ -57,22 +57,18 @@ import com.linxin.feature.repair.ui.RepairFormScreen
 import com.linxin.feature.repair.ui.RepairScreen
 import com.linxin.feature.leave.ui.LeaveCreateScreen
 import com.linxin.feature.leave.ui.LeaveScreen
+import com.linxin.feature.messages.ui.MessagesScreen
 import com.linxin.feature.card.ui.CampusCardScreen
 import com.linxin.feature.login.ui.LoginScreen
 import com.linxin.feature.more.ui.MoreFeaturesScreen
 import com.linxin.feature.onboarding.ui.OnboardingScreen
-import com.linxin.feature.running.ui.RouteSimulationSettingsScreen
-import com.linxin.feature.running.ui.RouteTemplateDetailScreen
-import com.linxin.feature.running.ui.RouteTemplateListScreen
-import com.linxin.feature.running.ui.RouteTemplateRecordScreen
-import com.linxin.feature.running.ui.RouteTemplateViewModel
-import com.linxin.feature.running.ui.RunningActiveScreen
-import com.linxin.feature.running.ui.RunningHomeScreen
+import com.linxin.feature.sports.ui.SportsAppealsScreen
+import com.linxin.feature.sports.ui.SportsDetailScreen
+import com.linxin.feature.sports.ui.SportsRecordsScreen
+import com.linxin.feature.sports.ui.SportsRunScreen
+import com.linxin.feature.sports.ui.SportsStartScreen
 import com.linxin.feature.running.exercise.ui.ClubDetailScreen
 import com.linxin.feature.running.exercise.ui.ExerciseCheckScreen
-import com.linxin.feature.running.ui.RunningResultScreen
-import com.linxin.feature.running.ui.RunningSimScreen
-import com.linxin.feature.running.ui.RunningViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -323,79 +319,40 @@ fun LinXinNavHost(
             )
         }
 
-        // Running
-        composable(Routes.RUNNING_HOME) { backStackEntry ->
-            val homeEntry = remember(backStackEntry) { navController.getBackStackEntry(Routes.HOME) }
-            val runningViewModel: RunningViewModel = hiltViewModel(homeEntry)
-            RunningHomeScreen(
-                viewModel = runningViewModel,
+        // 体育·跑步（feature/sports，全部按抓包重写；旧的 feature/running 那一套已归档）
+        composable(Routes.RUNNING_HOME) {
+            SportsStartScreen(
                 onBack = { navController.popBackStack() },
-                onOpenClub = {
-                    navController.navigate(Routes.RUNNING_CLUB_DETAIL) {
-                        launchSingleTop = true
-                    }
-                },
-                onOpenActive = {
-                    navController.navigate(Routes.RUNNING_ACTIVE) {
-                        launchSingleTop = true
-                    }
-                },
-                onOpenSim = {
-                    navController.navigate(Routes.RUNNING_SIM) {
-                        launchSingleTop = true
-                    }
-                },
+                onOpenRun = { navController.navigate(Routes.RUNNING_ACTIVE) { launchSingleTop = true } },
+                onOpenRecords = { navController.navigate(Routes.SPORT_RECORDS) { launchSingleTop = true } },
             )
         }
-        composable(Routes.RUNNING_ACTIVE) { backStackEntry ->
-            val homeEntry = remember(backStackEntry) { navController.getBackStackEntry(Routes.HOME) }
-            val runningViewModel: RunningViewModel = hiltViewModel(homeEntry)
-            RunningActiveScreen(
-                viewModel = runningViewModel,
+        composable(Routes.RUNNING_ACTIVE) {
+            SportsRunScreen(
                 onBack = { navController.popBackStack() },
-                onNavigateResult = {
-                    navController.navigate(Routes.RUNNING_RESULT) {
-                        launchSingleTop = true
-                    }
-                },
+                onFinished = { navController.navigate(Routes.SPORT_RECORDS) { launchSingleTop = true } },
             )
         }
-        composable(Routes.RUNNING_SIM) { backStackEntry ->
-            val homeEntry = remember(backStackEntry) { navController.getBackStackEntry(Routes.HOME) }
-            val runningViewModel: RunningViewModel = hiltViewModel(homeEntry)
-            RunningSimScreen(
-                viewModel = runningViewModel,
+        composable(Routes.SPORT_RECORDS) {
+            SportsRecordsScreen(
                 onBack = { navController.popBackStack() },
-                onNavigateResult = {
-                    navController.navigate(Routes.RUNNING_RESULT) {
-                        launchSingleTop = true
-                    }
+                onOpenDetail = { checkId ->
+                    navController.navigate(Routes.sportRecordDetail(checkId)) { launchSingleTop = true }
                 },
+                onOpenAppeals = { navController.navigate(Routes.SPORT_MAINTAIN) { launchSingleTop = true } },
             )
         }
-        composable(Routes.RUNNING_RESULT) { backStackEntry ->
-            val homeEntry = remember(backStackEntry) { navController.getBackStackEntry(Routes.HOME) }
-            val runningViewModel: RunningViewModel = hiltViewModel(homeEntry)
-            RunningResultScreen(
-                viewModel = runningViewModel,
-                onBack = {
-                    navController.navigate(Routes.RUNNING_HOME) {
-                        popUpTo(Routes.RUNNING_HOME) { inclusive = true }
-                    }
-                },
-                onBackToRunning = {
-                    navController.navigate(Routes.RUNNING_HOME) {
-                        popUpTo(Routes.RUNNING_HOME) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                },
-                onBackToHome = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.HOME) { inclusive = false }
-                        launchSingleTop = true
-                    }
-                },
+        composable(
+            route = Routes.SPORT_RECORD_DETAIL,
+            arguments = listOf(navArgument("checkId") { type = NavType.StringType }),
+        ) {
+            SportsDetailScreen(
+                onBack = { navController.popBackStack() },
+                onOpenAppeals = { navController.navigate(Routes.SPORT_MAINTAIN) { launchSingleTop = true } },
             )
+        }
+        composable(Routes.SPORT_MAINTAIN) {
+            SportsAppealsScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.RUNNING_CLUB_DETAIL) {
             ClubDetailScreen(
@@ -415,73 +372,6 @@ fun LinXinNavHost(
             ),
         ) {
             ExerciseCheckScreen(
-                onBack = { navController.popBackStack() },
-            )
-        }
-
-        // Route Simulation (Phase 1)
-        composable(Routes.RUNNING_ROUTE_SETTINGS) { backStackEntry ->
-            val settingsEntry = remember(backStackEntry) {
-                // 离开本页的过渡动画里，SETTINGS 可能已经被弹出；直接 getBackStackEntry 会抛
-                // IllegalArgumentException 把整个应用带崩，取不到时退回用本页自己的 entry。
-                runCatching { navController.getBackStackEntry(Routes.RUNNING_ROUTE_SETTINGS) }
-                    .getOrDefault(backStackEntry)
-            }
-            val routeVm: RouteTemplateViewModel = hiltViewModel(settingsEntry)
-            RouteSimulationSettingsScreen(
-                viewModel = routeVm,
-                onBack = { navController.popBackStack() },
-                onOpenRecord = {
-                    navController.navigate(Routes.RUNNING_ROUTE_RECORD) { launchSingleTop = true }
-                },
-                onOpenList = {
-                    navController.navigate(Routes.RUNNING_ROUTE_LIST) { launchSingleTop = true }
-                },
-            )
-        }
-        composable(Routes.RUNNING_ROUTE_RECORD) { backStackEntry ->
-            val settingsEntry = remember(backStackEntry) {
-                // 离开本页的过渡动画里，SETTINGS 可能已经被弹出；直接 getBackStackEntry 会抛
-                // IllegalArgumentException 把整个应用带崩，取不到时退回用本页自己的 entry。
-                runCatching { navController.getBackStackEntry(Routes.RUNNING_ROUTE_SETTINGS) }
-                    .getOrDefault(backStackEntry)
-            }
-            val routeVm: RouteTemplateViewModel = hiltViewModel(settingsEntry)
-            RouteTemplateRecordScreen(
-                viewModel = routeVm,
-                onBack = { navController.popBackStack() },
-            )
-        }
-        composable(Routes.RUNNING_ROUTE_LIST) { backStackEntry ->
-            val settingsEntry = remember(backStackEntry) {
-                // 离开本页的过渡动画里，SETTINGS 可能已经被弹出；直接 getBackStackEntry 会抛
-                // IllegalArgumentException 把整个应用带崩，取不到时退回用本页自己的 entry。
-                runCatching { navController.getBackStackEntry(Routes.RUNNING_ROUTE_SETTINGS) }
-                    .getOrDefault(backStackEntry)
-            }
-            val routeVm: RouteTemplateViewModel = hiltViewModel(settingsEntry)
-            RouteTemplateListScreen(
-                viewModel = routeVm,
-                onBack = { navController.popBackStack() },
-                onOpenDetail = { id ->
-                    navController.navigate(Routes.runningRouteDetail(id)) { launchSingleTop = true }
-                },
-            )
-        }
-        composable(
-            route = Routes.RUNNING_ROUTE_DETAIL,
-            arguments = listOf(navArgument("templateId") { type = NavType.StringType }),
-        ) { backStackEntry ->
-            val settingsEntry = remember(backStackEntry) {
-                // 离开本页的过渡动画里，SETTINGS 可能已经被弹出；直接 getBackStackEntry 会抛
-                // IllegalArgumentException 把整个应用带崩，取不到时退回用本页自己的 entry。
-                runCatching { navController.getBackStackEntry(Routes.RUNNING_ROUTE_SETTINGS) }
-                    .getOrDefault(backStackEntry)
-            }
-            val routeVm: RouteTemplateViewModel = hiltViewModel(settingsEntry)
-            RouteTemplateDetailScreen(
-                viewModel = routeVm,
-                templateId = backStackEntry.arguments?.getString("templateId") ?: "",
                 onBack = { navController.popBackStack() },
             )
         }
@@ -522,11 +412,20 @@ fun LinXinNavHost(
         }
 
         // 请假（只读）
+        // 消息中心：底栏那个 tab 已经常驻一份，这一份是给通知点进来用的独立页
+        composable(Routes.MESSAGES) {
+            MessagesScreen(onBack = { navController.popBackStack() })
+        }
+
         composable(Routes.LEAVE_LIST) {
             LeaveScreen(
                 onBack = { navController.popBackStack() },
                 onCreate = {
                     navController.navigate(Routes.LEAVE_CREATE) { launchSingleTop = true }
+                },
+                // 查寝类待办点一下就进我们自己的查寝页，不去学校那个 H5
+                onOpenCheckin = {
+                    navController.navigate(Routes.CHECKIN_LIST) { launchSingleTop = true }
                 },
             )
         }

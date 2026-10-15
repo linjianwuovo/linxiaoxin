@@ -4,7 +4,6 @@ import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,20 +20,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.Switch
-import top.yukonga.miuix.kmp.basic.SwitchDefaults
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -44,14 +37,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.linxin.R
 import com.linxin.core.designsystem.component.LxCard
-import com.linxin.core.designsystem.component.LxDialog
-import com.linxin.core.designsystem.component.LxDialogConfirmTone
 import com.linxin.core.designsystem.component.LxTopBar
-import com.linxin.core.designsystem.theme.LxCream
 import com.linxin.core.designsystem.theme.LxInk
 import com.linxin.core.designsystem.theme.LxInkMuted
-import com.linxin.core.designsystem.theme.LxSand
-import com.linxin.core.designsystem.theme.LxSandDeep
 import com.linxin.core.designsystem.theme.LxTerra
 
 @Composable
@@ -61,7 +49,6 @@ fun AboutScreen(
     viewModel: AboutViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var showConfirmDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -81,38 +68,9 @@ fun AboutScreen(
             Spacer(modifier = Modifier.height(22.dp))
 
             LxCard {
-                Column {
-                    DeveloperToggleRow(
-                        enabled = uiState.advancedEnabled,
-                        onCheckedChange = { checked ->
-                            if (checked && !uiState.advancedEnabled) {
-                                showConfirmDialog = true
-                            } else if (!checked) {
-                                viewModel.setAdvancedEnabled(false)
-                            }
-                        },
-                    )
-                    CardDivider()
-                    GitHubRow()
-                }
+                Column { GitHubRow() }
             }
         }
-    }
-
-    if (showConfirmDialog) {
-        LxDialog(
-            title = "启用调试功能",
-            message = "开启后将显示\"模拟提交\"与\"路线模拟\"入口。此类功能仅供开发调试，生成的数据为模拟结果，不代表真实跑步记录，请勿用于日常考核。",
-            confirmText = "确定",
-            dismissText = "取消",
-            onDismissRequest = { showConfirmDialog = false },
-            onDismiss = { showConfirmDialog = false },
-            onConfirm = {
-                showConfirmDialog = false
-                viewModel.setAdvancedEnabled(true)
-            },
-            confirmTone = LxDialogConfirmTone.Destructive,
-        )
     }
 }
 
@@ -176,34 +134,6 @@ private fun BrandCard(versionName: String) {
 }
 
 @Composable
-private fun DeveloperToggleRow(
-    enabled: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 18.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(
-            text = stringResource(R.string.ui_002),
-            fontSize = 15.sp,
-            color = LxInk,
-            modifier = Modifier.weight(1f),
-        )
-        Switch(
-            checked = enabled,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.switchColors(
-                uncheckedTrackColor = LxSandDeep,
-            ),
-        )
-    }
-}
-
-@Composable
 private fun GitHubRow() {
     val context = LocalContext.current
     Row(
@@ -229,15 +159,4 @@ private fun GitHubRow() {
             color = LxInkMuted,
         )
     }
-}
-
-@Composable
-private fun CardDivider() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 18.dp)
-            .height(1.dp)
-            .background(LxSand),
-    )
 }

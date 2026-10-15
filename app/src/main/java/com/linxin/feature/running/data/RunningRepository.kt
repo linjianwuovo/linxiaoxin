@@ -7,13 +7,16 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.linxin.core.auth.TokenManager
 import com.linxin.core.location.CoordinateConverter
+import com.linxin.feature.running.domain.ClubSummary
+import com.linxin.feature.running.domain.MaintainPage
+import com.linxin.feature.running.domain.RunDetail
+import com.linxin.feature.running.domain.RunRecordPage
+import com.linxin.feature.running.domain.RunTotals
 import com.linxin.feature.running.domain.RunningDashboard
 import com.linxin.feature.running.domain.RunningResult
 import com.linxin.feature.running.domain.RunningSnapshot
 import com.linxin.feature.running.domain.RunningStartInfo
-import com.linxin.feature.running.domain.SimConfig
 import com.linxin.feature.running.domain.TrackPoint
-import com.linxin.feature.running.domain.TrajectoryGenerator
 import dagger.hilt.android.scopes.ViewModelScoped
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -32,6 +35,9 @@ class RunningRepository @Inject constructor(
     private val encryption: RunningEncryption,
 ) {
 
+    /** 官方每条查询都带 grade（"大一大二学生"这种），首页那条 checkDsStudent 拿一次就够，缓存住别每条都问 */
+    private var cachedGrade: String? = null
+
     suspend fun getDashboard(): Result<RunningDashboard> {
         return try {
             val params = sportsAuthParams()
@@ -46,6 +52,7 @@ class RunningRepository @Inject constructor(
 
                 val studentTypeLabel = studentTypeJson.lookupString("result", "msg")
                     .ifBlank { "学生类型未识别" }
+                cachedGrade = studentTypeJson.lookupString("result", "msg").ifBlank { null }
 
                 // 大一大二并行拉课外跑步进度 + 俱乐部摘要（按接口独立降级，失败不互相牵连）
                 val isJunior = SportsGradeMapper.isJuniorGrade(studentTypeLabel)
@@ -57,10 +64,22 @@ class RunningRepository @Inject constructor(
                 } else {
                     null
                 }
+                val termDeferred = async { runCatching { api.getCurrentTerm(params) }.getOrNull() }
                 val extraJson = extraDeferred?.await()
                 val extraDetailJson = detailDeferred?.await()
                 val extraDetail = SportsGradeMapper.parseExtraDetail(extraDetailJson)
                 val clubSummary = SportsGradeMapper.parseClubSummary(clubDeferred?.await())
+                // 学期标题：官方那屏顶上「2026-2027-1 学期」是 currentTerm.do 拼出来的
+                val termJson = termDeferred.await()
+                val termYear = termJson?.let { it.lookupString("XN") }
+                    .orEmpty()
+                val termNo = termJson?.let { it.lookupString("XQ") }.orEmpty()
+                val termTitle = if (termYear.isNotBlank()) {
+                    val nextYear = (termYear.toIntOrNull() ?: 0) + 1
+                    "$termYear-$nextYear-${termNo.ifBlank { "1" }}"
+                } else {
+                    ""
+                }
 
                 val startIndexCompletedKm = dashboardJson.lookupDouble("completedKM", "dsTaskMile")
                 val startIndexTargetKm = dashboardJson.lookupDouble("dsTaskThreshold", "totalTaskThreshold")
@@ -118,11 +137,18 @@ class RunningRepository @Inject constructor(
                         dsFlag = dashboardJson.lookupBoolean("dsFlag", "taskFlag"),
                         studentTypeLabel = studentTypeLabel,
                         clubSummary = clubSummary,
+                        maxDayKm = extraDetail.maxDayMileKm,
+                        minSpeedKmh = extraDetail.minSpeedKmh,
+                        maxSpeedKmh = extraDetail.maxSpeedKmh,
+                        termStart = extraDetail.startDate,
+                        termEnd = extraDetail.endDate,
+                        todayDate = extraDetail.todayDate,
+                        termTitle = termTitle,
                     )
                 )
             }
         } catch (e: Exception) {
-            Result.failure(netFail(e, "获取跑步首页失败"))
+            Result.failure(netFail(e, "获取跑步首页失败", campusOnlyHost = SPORTS_HOST))
         }
     }
 
@@ -134,7 +160,7 @@ class RunningRepository @Inject constructor(
             clubJson.requireSportsSuccess("获取俱乐部详情失败")
             Result.success(ClubDetailMapper.parseTasks(clubJson))
         } catch (e: Exception) {
-            Result.failure(netFail(e, "获取俱乐部详情失败"))
+            Result.failure(netFail(e, "获取俱乐部详情失败", campusOnlyHost = SPORTS_HOST))
         }
     }
 
@@ -153,7 +179,7 @@ class RunningRepository @Inject constructor(
                 ?.get("hasResult")?.takeUnless { it.isJsonNull }?.asString.orEmpty()
             Result.success(hasResult.equals("YES", ignoreCase = true))
         } catch (e: Exception) {
-            Result.failure(netFail(e, "查询打卡结果失败"))
+            Result.failure(netFail(e, "查询打卡结果失败", campusOnlyHost = SPORTS_HOST))
         }
     }
 
@@ -195,7 +221,7 @@ class RunningRepository @Inject constructor(
                 )
             )
         } catch (e: Exception) {
-            Result.failure(netFail(e, "开始跑步失败"))
+            Result.failure(netFail(e, "开始跑步失败", campusOnlyHost = SPORTS_HOST))
         }
     }
 
@@ -216,36 +242,6 @@ class RunningRepository @Inject constructor(
                 mixOnceMileKm = extraDetail.mixOnceMileKm,
             )
         )
-    }
-
-    suspend fun submitSimulation(
-        config: SimConfig,
-        overridePoints: List<TrackPoint>? = null,
-        overrideIsBd09: Boolean = false,
-    ): Result<RunningResult> {
-        return try {
-            val startInfo = startRunning().getOrElse { return Result.failure(it) }
-            val trajectory: List<TrackPoint>
-            val isBd09: Boolean
-            if (overridePoints != null && overridePoints.size >= 2) {
-                trajectory = overridePoints
-                isBd09 = overrideIsBd09
-            } else {
-                trajectory = TrajectoryGenerator.generate(config)
-                isBd09 = true
-            }
-            val snapshot = RunningSnapshot(
-                startInfo = startInfo,
-                startTimeMillis = config.startTimeMillis,
-                durationSeconds = config.durationMinutes * 60L,
-                distanceMeters = config.distanceKm * 1000.0,
-                points = trajectory,
-                pointsAreBd09 = isBd09,
-            )
-            uploadSnapshot(snapshot)
-        } catch (e: Exception) {
-            Result.failure(netFail(e, "模拟提交失败"))
-        }
     }
 
     suspend fun uploadTrackedRun(snapshot: RunningSnapshot): Result<RunningResult> =
@@ -284,7 +280,7 @@ class RunningRepository @Inject constructor(
             )
 
             val encryptedList = encryption.encryptUploadPayload(payload)
-            val response = api.uploadRunningRecord(encryptedList)
+            val response = api.uploadRunningRecord(encryptedList, uploadAuthParams())
             val resultCode = response.lookupString("result")
             val uploadId = response.lookupString("id")
             val success = resultCode.equals("OK", ignoreCase = true) && uploadId.isValidUploadId()
@@ -313,8 +309,101 @@ class RunningRepository @Inject constructor(
                 )
             )
         } catch (e: Exception) {
-            Result.failure(netFail(e, "上传跑步记录失败"))
+            Result.failure(netFail(e, "上传跑步记录失败", campusOnlyHost = SPORTS_HOST))
         }
+    }
+
+    /**
+     * 运动记录列表。`queryType` 是**页签序号**不是状态枚举：0 全部 / 1 自主练习 / 2 课外锻炼 / 3 团体课，
+     * 官方那一屏连着发 0~3 四次就是这个原因。`queryDate` 形如 `2026-10`。
+     */
+    suspend fun runRecords(
+        queryDate: String,
+        queryType: Int,
+        pageNum: Int = 1,
+        pageSize: Int = 20,
+    ): Result<RunRecordPage> = try {
+        val json = api.getCheckList(
+            gradeParams() + linkedMapOf(
+                "pageNum" to pageNum.toString(),
+                "pageSize" to pageSize.toString(),
+                "queryDate" to queryDate,
+                "queryType" to queryType.toString(),
+            )
+        )
+        json.requireSportsSuccess("获取运动记录失败")
+        Result.success(RunningRecordMapper.records(json))
+    } catch (e: Exception) {
+        Result.failure(netFail(e, "获取运动记录失败", campusOnlyHost = SPORTS_HOST))
+    }
+
+    /** 列表顶上那几格汇总 */
+    suspend fun runTotals(): Result<RunTotals> = try {
+        val json = api.getTotalInfo(gradeParams())
+        json.requireSportsSuccess("获取运动汇总失败")
+        Result.success(RunningRecordMapper.totals(json))
+    } catch (e: Exception) {
+        Result.failure(netFail(e, "获取运动汇总失败", campusOnlyHost = SPORTS_HOST))
+    }
+
+    /** 单条明细：判无效的那句「说明」只有这条给 */
+    suspend fun runDetail(checkId: String): Result<RunDetail> = try {
+        val json = api.getExtraCheck(gradeParams() + ("checkId" to checkId))
+        json.requireSportsSuccess("获取运动明细失败")
+        Result.success(RunningRecordMapper.detail(json, checkId))
+    } catch (e: Exception) {
+        Result.failure(netFail(e, "获取运动明细失败", campusOnlyHost = SPORTS_HOST))
+    }
+
+    /** 考勤维护记录：`auditState` 空串=全部、0 处理中、1 同意、2 驳回 */
+    suspend fun maintainRecords(
+        queryDate: String,
+        queryType: Int,
+        auditState: String,
+        pageNum: Int = 1,
+        pageSize: Int = 20,
+    ): Result<MaintainPage> = try {
+        val json = api.getApplyRecordList(
+            gradeParams() + linkedMapOf(
+                "pageNum" to pageNum.toString(),
+                "pageSize" to pageSize.toString(),
+                "queryDate" to queryDate,
+                "queryType" to queryType.toString(),
+                "auditState" to auditState,
+            )
+        )
+        json.requireSportsSuccess("获取维护记录失败")
+        Result.success(RunningRecordMapper.maintain(json, queryType))
+    } catch (e: Exception) {
+        Result.failure(netFail(e, "获取维护记录失败", campusOnlyHost = SPORTS_HOST))
+    }
+
+    /**
+     * 官方原生上传那条带的五个表单字段（`upLoadSport` 里逐条 add 出来的）。
+     * appId 是它自己写死的一串 1，不是设备号也不是密钥，照抄。
+     */
+    private suspend fun uploadAuthParams(): Map<String, String> {
+        val accessToken = tokenManager.getAccessToken().orEmpty()
+        val userCode = tokenManager.getUserCode().orEmpty()
+        val userName = tokenManager.getUserName().orEmpty()
+        return linkedMapOf(
+            "access_token" to accessToken,
+            "_userCode" to userCode,
+            "userId" to userCode,
+            "_userName" to userName,
+            "appId" to SPORTS_APP_ID,
+        )
+    }
+
+    /** 查询类接口：公共参数 + 年级（官方每条都带 grade，我们缓存一下首页那条的返回值） */
+    private suspend fun gradeParams(): Map<String, String> {
+        val base = sportsAuthParams()
+        val grade = cachedGrade ?: runCatching {
+            api.checkDsStudent(base).lookupString("result", "msg")
+                .takeIf { it.isNotBlank() }
+                .also { cachedGrade = it }
+        }.getOrNull()
+        return if (grade.isNullOrBlank()) base else base + ("grade" to grade)
     }
 
     private suspend fun sportsAuthParams(): Map<String, String> {
@@ -447,3 +536,9 @@ class RunningRepository @Inject constructor(
         private val FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.CHINA)
     }
 }
+
+/** 体育那台机只有校内网能到，报错时要把它点名 */
+private const val SPORTS_HOST = "sports.aiit.edu.cn:8082"
+
+/** 官方原生上传里写死的那个 appId（`upLoadSport` 里就是 32 个 1，不是设备号） */
+private const val SPORTS_APP_ID = "11111111111111111111111111111111"

@@ -39,7 +39,7 @@
         </activity>
 
         <service
-            android:name=".feature.running.service.RunTrackingService"
+            android:name=".feature.sports.service.SportsRunService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="location" />

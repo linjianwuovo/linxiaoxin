@@ -20,18 +20,21 @@ object Routes {
 
     // News 公告
     const val NEWS_DETAIL = "news/detail/{newsId}"
+
+    // 消息中心（通知点进来落这一页，底栏那个 tab 是同一块内容）
+    const val MESSAGES = "messages/list"
     fun newsDetail(newsId: String) = "news/detail/${Uri.encode(newsId)}"
 
     // Running
     const val RUNNING_HOME = "running/home"
     const val RUNNING_ACTIVE = "running/active"
-    const val RUNNING_SIM = "running/sim"
-    const val RUNNING_RESULT = "running/result"
-    const val RUNNING_ROUTE_SETTINGS = "running/route/settings"
-    const val RUNNING_ROUTE_RECORD = "running/route/record"
-    const val RUNNING_ROUTE_LIST = "running/route/list"
-    const val RUNNING_ROUTE_DETAIL = "running/route/detail/{templateId}"
-    fun runningRouteDetail(templateId: String) = "running/route/detail/$templateId"
+    /** 运动记录（官方 /motionRecord） */
+    const val SPORT_RECORDS = "sport/records"
+    /** 运动明细（官方 /runDetail），带记录 id */
+    const val SPORT_RECORD_DETAIL = "sport/record/{checkId}"
+    fun sportRecordDetail(checkId: String) = "sport/record/${Uri.encode(checkId)}"
+    /** 考勤维护记录（官方 /attendRecord） */
+    const val SPORT_MAINTAIN = "sport/maintain"
 
     // Running - 大二俱乐部 / 锻炼考勤
     const val RUNNING_CLUB_DETAIL = "running/club"

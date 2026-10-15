@@ -25,6 +25,8 @@ data class MessageSettings(
     val news: Boolean = true,
     val checkin: Boolean = true,
     val returnToSchool: Boolean = true,
+    /** 消息中心那一栏（今日日程信息、审批通过…）要不要推 */
+    val msgCenter: Boolean = true,
     val lastRunAt: Long = 0L,
 )
 
@@ -42,6 +44,7 @@ class MessagePrefs @Inject constructor(
             news = p[KEY_NEWS] ?: true,
             checkin = p[KEY_CHECKIN] ?: true,
             returnToSchool = p[KEY_RETURN] ?: true,
+            msgCenter = p[KEY_MSG_CENTER] ?: true,
             lastRunAt = p[KEY_LAST_RUN] ?: 0L,
         )
     }
@@ -57,6 +60,7 @@ class MessagePrefs @Inject constructor(
         val key = when (tag) {
             MessageTag.NEWS -> KEY_NEWS
             MessageTag.CHECKIN -> KEY_CHECKIN
+            MessageTag.MSG_CENTER -> KEY_MSG_CENTER
             else -> KEY_RETURN
         }
         store.edit { it[key] = value }
@@ -97,6 +101,7 @@ class MessagePrefs @Inject constructor(
         val KEY_NEWS = booleanPreferencesKey("src_news")
         val KEY_CHECKIN = booleanPreferencesKey("src_checkin")
         val KEY_RETURN = booleanPreferencesKey("src_return")
+        val KEY_MSG_CENTER = booleanPreferencesKey("src_msg_center")
         val KEY_LAST_RUN = longPreferencesKey("last_run_at")
         val KEY_READ_IDS = stringPreferencesKey("read_ids")
 
@@ -118,6 +123,7 @@ object MessageTag {
     const val NEWS = "news"
     const val CHECKIN = "checkin"
     const val RETURN = "return"
+    const val MSG_CENTER = "msg_center"
 }
 
 /** 一条待发送的提醒。[key] 用来去重，[route] 是点进去的导航目的地。 */
