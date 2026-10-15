@@ -34,13 +34,13 @@
 
 ## 安装
 
-> 正式版安装包在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.4.0)：
-> `linxiaoxin-1.4.0.apk`（正式签名，minSdk 26 / Android 8.0+，arm64-v8a），
-> 下载直链 https://github.com/linjianwuovo/linxiaoxin/raw/apk/linxiaoxin-1.4.0.apk ，
-> md5 `211c22ddbab6a6d973d65bc1b7d0542c`。
-> 带调试功能的测试包在同一支的 `apk` 分支上（当前是 `1.3.9-beta50`）：
-> https://github.com/linjianwuovo/linxiaoxin/raw/apk/linxiaoxin-1.3.9-beta50.apk ，
-> md5 `275a52fd63f4d4017e7549fbbe94cc30`。
+> 正式版安装包在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.4.1)：
+> `linxiaoxin-1.4.1.apk`（正式签名，minSdk 26 / Android 8.0+，arm64-v8a），
+> 下载直链 https://github.com/linjianwuovo/linxiaoxin/raw/apk/linxiaoxin-1.4.1.apk ，
+> md5 `5f6afd9c5987c244ea897647e1ce5fec`。
+> 带调试功能的测试包在同一支的 `apk` 分支上（当前是 `1.3.9-beta51`）：
+> https://github.com/linjianwuovo/linxiaoxin/raw/apk/linxiaoxin-1.3.9-beta51.apk ，
+> md5 `a17b484127968742d29e913d6f76124d`。
 > **v1.3.7 及更早的包是 Android 调试 key 签的，1.3.8 起换成正式签名，两者不能互相覆盖安装**：
 > 装 1.3.8 要先卸载旧包，登录态会丢；1.3.9 起各版都是同一把钥匙，直接覆盖安装就行。
 > 应用显示名从 v1.3.7 起是「安大信」，包名仍是 `com.linxin`，历史 release 的包名也照旧。
