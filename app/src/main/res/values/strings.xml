@@ -846,6 +846,13 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ra_resume">开始</string>
     <string name="ra_finish">结束</string>
     <string name="ra_lock_hint">长按可解锁</string>
+    <string name="ra_exit_title">退出运动页面？</string>
+    <string name="ra_exit_message">跑步还在继续记录，点通知栏那一条就能回来。要丢掉这一场，按「取消」。</string>
+    <string name="ra_exit_confirm">退出</string>
+    <string name="ra_exit_stay">留在这儿</string>
+    <string name="ra_cancel_title">取消本次运动？</string>
+    <string name="ra_cancel_message">这一场 %1$s 公里不会提交，取消之后找不回来。</string>
+    <string name="ra_cancel_keep">继续跑</string>
     <string name="ra_lock">锁定界面</string>
     <string name="ra_unlock">解锁</string>
     <string name="ra_done_ok">辛苦了，请继续加油！</string>
