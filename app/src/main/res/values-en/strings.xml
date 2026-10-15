@@ -70,7 +70,7 @@
     <string name="section_bar_material">Bottom bar material</string>
     <string name="section_motion">Motion</string>
     <string name="setting_preview_back">Predictive back gesture</string>
-    <string name="setting_preview_back_summary">When on, swiping back previews the previous page under your finger; when off it just returns. Back-arrow transitions are untouched, and swipes from the very screen edge belong to the system</string>
+    <string name="setting_preview_back_summary">When on, an edge swipe shrinks and blurs the current page under your finger. Turning it off stops both our preview and the system predictive back, leaving only the plain ~300 ms pop. The screen restarts once when you flip it; back-arrow transitions are untouched</string>
     <string name="bar_liquid">Liquid</string>
     <string name="bar_frosted">Frosted</string>
     <string name="bar_solid">Solid</string>

@@ -1,5 +1,7 @@
 <resources>
     <style name="Theme.LinXin" parent="android:Theme.Material.NoActionBar">
+        <item name="android:enableOnBackInvokedCallback">true</item>
+
         <item name="android:forceDarkAllowed">false</item>
     </style>
 </resources>
