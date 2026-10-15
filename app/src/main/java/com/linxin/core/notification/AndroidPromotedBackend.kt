@@ -35,7 +35,7 @@ class AndroidPromotedBackend : LiveActivityBackend {
         const val CHANNEL_ID = "linxin_live_promoted"
 
         /** 状态栏胶囊上系统只留得下几个字，多给也是被裁，这里先自己裁掉 */
-        private const val CAPSULE_MAX_CHARS = 7
+        private const val CAPSULE_MAX_CHARS = 12
     }
 
     override fun build(context: Context, request: LiveActivityRequest, notificationId: Int): Notification {
