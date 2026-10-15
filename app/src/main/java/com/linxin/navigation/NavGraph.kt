@@ -12,7 +12,6 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -78,11 +77,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
-// 淡入淡出和位移各要一条：tween 的类型一个是 Float 一个是 Int，合不成一条
-private val NAV_IN_FADE: FiniteAnimationSpec<Float> = tween(420, easing = FastOutSlowInEasing)
-private val NAV_IN_SHIFT: FiniteAnimationSpec<IntOffset> = tween(420, easing = FastOutSlowInEasing)
-private val NAV_OUT_FADE: FiniteAnimationSpec<Float> = tween(320, easing = LinearOutSlowInEasing)
-private val NAV_OUT_SHIFT: FiniteAnimationSpec<IntOffset> = tween(320, easing = LinearOutSlowInEasing)
+// 推入推出共用一条 spec：同一条曲线、同一个时长，只是方向反过来。
+// 不再叠淡入淡出，也不再有四分之一屏那种"半推半就"的距离。
+private val NAV_PUSH: FiniteAnimationSpec<IntOffset> = tween(420, easing = FastOutSlowInEasing)
 
 @Composable
 fun LinXinNavHost(
@@ -195,25 +192,19 @@ fun LinXinNavHost(
                 }
             else androidx.compose.ui.Modifier
         ),
-        // 页面转场的时长和曲线就这一处，别在 composable 里各写一份。
-        // 进 420ms 用 FastOutSlowIn（起步快、落位软），出 320ms 用 LinearOutSlowIn
-        // （先匀速再收，比原来 200ms 那条干脆的收尾看着慢半拍但不拖）。
+        // 二级界面整页从右边推进来（走满一屏宽），底下那页一动不动；返回就是倒放。
         enterTransition = {
             if (suppressTransitions) EnterTransition.None
-            else fadeIn(NAV_IN_FADE) + slideInHorizontally(NAV_IN_SHIFT) { it / 4 }
+            else slideInHorizontally(NAV_PUSH) { it }
         },
         exitTransition = {
             if (suppressTransitions) ExitTransition.None
-            else fadeOut(NAV_OUT_FADE)
+            else ExitTransition.None
         },
-        // 返回时底下那页不动也不淡入，只有上面那页往右走：两页同时反向位移还叠淡出，
-        // 中间会透出窗口底色，看着就是"闪一下白"。抓过 3000ms 的慢放帧确认过。
         popEnterTransition = { EnterTransition.None },
-        // 退场就是进场倒过来放：同一条 spec（420ms、FastOutSlowIn）、同样四分之一屏宽，
-        // 方向反过来往右走。淡出按他上一条要求没加回来。
         popExitTransition = {
             if (suppressTransitions) ExitTransition.None
-            else slideOutHorizontally(NAV_IN_SHIFT) { it / 4 }
+            else slideOutHorizontally(NAV_PUSH) { it }
         },
     ) {
         composable(
