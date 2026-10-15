@@ -9,6 +9,10 @@ import android.os.Build
 import android.widget.Toast
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -73,6 +77,12 @@ import com.linxin.feature.running.exercise.ui.ExerciseCheckScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+
+// 淡入淡出和位移各要一条：tween 的类型一个是 Float 一个是 Int，合不成一条
+private val NAV_IN_FADE: FiniteAnimationSpec<Float> = tween(420, easing = FastOutSlowInEasing)
+private val NAV_IN_SHIFT: FiniteAnimationSpec<IntOffset> = tween(420, easing = FastOutSlowInEasing)
+private val NAV_OUT_FADE: FiniteAnimationSpec<Float> = tween(320, easing = LinearOutSlowInEasing)
+private val NAV_OUT_SHIFT: FiniteAnimationSpec<IntOffset> = tween(320, easing = LinearOutSlowInEasing)
 
 @Composable
 fun LinXinNavHost(
@@ -185,21 +195,24 @@ fun LinXinNavHost(
                 }
             else androidx.compose.ui.Modifier
         ),
+        // 页面转场的时长和曲线就这一处，别在 composable 里各写一份。
+        // 进 420ms 用 FastOutSlowIn（起步快、落位软），出 320ms 用 LinearOutSlowIn
+        // （先匀速再收，比原来 200ms 那条干脆的收尾看着慢半拍但不拖）。
         enterTransition = {
             if (suppressTransitions) EnterTransition.None
-            else fadeIn(tween(300)) + slideInHorizontally(tween(300)) { it / 4 }
+            else fadeIn(NAV_IN_FADE) + slideInHorizontally(NAV_IN_SHIFT) { it / 4 }
         },
         exitTransition = {
             if (suppressTransitions) ExitTransition.None
-            else fadeOut(tween(200))
+            else fadeOut(NAV_OUT_FADE)
         },
         popEnterTransition = {
             if (suppressTransitions) EnterTransition.None
-            else fadeIn(tween(300)) + slideInHorizontally(tween(300)) { -it / 4 }
+            else fadeIn(NAV_IN_FADE) + slideInHorizontally(NAV_IN_SHIFT) { -it / 4 }
         },
         popExitTransition = {
             if (suppressTransitions) ExitTransition.None
-            else fadeOut(tween(200)) + slideOutHorizontally(tween(200)) { it / 4 }
+            else fadeOut(NAV_OUT_FADE) + slideOutHorizontally(NAV_OUT_SHIFT) { it / 4 }
         },
     ) {
         composable(
