@@ -81,6 +81,11 @@ cd linxiaoxin
 ./gradlew assembleDebug
 ```
 
+字体那 20MB 的 `app/src/main/res/font/misans_vf.ttf` 被 `.gitignore` 挡在仓库外（仓库里只有引用它的
+五个 `misans_w*.xml`），所以光 clone 会在资源链接那一步报 `resource font/misans_vf not found`。
+两条路：去小米官网下 MiSans VF 把这个文件放回那个路径，或者直接下仓库 `apk` 分支上的源码包
+`linxiaoxin-1.4.2-src.zip`，那份是连字体一起打的、解压就能编。
+
 编 release 需要你自己的签名钥匙：在仓库根放一个 `keystore.properties`（已 gitignore），
 `storeFile` 指向密钥库文件。没有它编出来的是 `app-release-unsigned.apk`。
 密钥库本身和口令永远不进仓库。
