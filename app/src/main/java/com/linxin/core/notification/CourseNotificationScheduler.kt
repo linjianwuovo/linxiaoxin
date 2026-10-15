@@ -29,7 +29,7 @@ class CourseNotificationScheduler @Inject constructor(
         private const val DISMISS_AFTER_START_MINUTES = 5L
 
         /** 系统在那颗胶囊上只留这么宽，超了自己先裁 */
-        private const val CAPSULE_LIMIT = 7
+        private const val CAPSULE_LIMIT = 12
     }
 
     private var job: Job? = null
@@ -146,18 +146,19 @@ class CourseNotificationScheduler @Inject constructor(
     }
 
     /**
-     * 胶囊那一行：有教室就「门牌号·还剩几分钟」，没教室就只给分钟，
-     * 已经开课了就只给教室。整行裁到七个字，多出来的系统也会裁，先自己裁好。
+     * 胶囊那一行：楼号 + 门牌 + 还剩几分钟（"A2S301·4分"），没教室就只给分钟，
+     * 已经开课了就只给教室。七个字那个数是早期自己拍的，系统其实给得下更宽，
+     * 现在放到十二个字，真被系统裁了再收。
      */
     private fun capsuleLine(room: String, minutesUntilStart: Long): String {
-        val door = Regex("""[（(]([^）)]+)[）)]\s*([A-Za-z0-9-]+)""").find(room)
-            ?.let { it.groupValues[2] }
+        val matched = Regex("""[（(]([^）)]+)[）)]\s*([A-Za-z0-9-]+)""").find(room)
+        val place = matched?.let { it.groupValues[1] + it.groupValues[2] }
             ?: Regex("""([A-Za-z0-9-]{3,})\s*$""").find(room)?.groupValues?.get(1)
-            ?: room.filter { it.isLetterOrDigit() }.take(4)
+            ?: room.filter { it.isLetterOrDigit() }.take(6)
         return when {
-            door.isBlank() -> AppText.str(R.string.notif_capsule_minutes, minutesUntilStart)
-            minutesUntilStart <= 0L -> door.take(CAPSULE_LIMIT)
-            else -> "$door·${minutesUntilStart}分".take(CAPSULE_LIMIT)
+            place.isBlank() -> AppText.str(R.string.notif_capsule_minutes, minutesUntilStart)
+            minutesUntilStart <= 0L -> place.take(CAPSULE_LIMIT)
+            else -> "$place·${minutesUntilStart}分".take(CAPSULE_LIMIT)
         }
     }
 
