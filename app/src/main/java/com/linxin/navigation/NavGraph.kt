@@ -209,10 +209,11 @@ fun LinXinNavHost(
         // 返回时底下那页不动也不淡入，只有上面那页往右走：两页同时反向位移还叠淡出，
         // 中间会透出窗口底色，看着就是"闪一下白"。抓过 3000ms 的慢放帧确认过。
         popEnterTransition = { EnterTransition.None },
-        // 退场那页只往右走，不再叠淡出：一边滑一边变浅看着像两张纸在换手
+        // 退场就是进场倒过来放：同一条 spec（420ms、FastOutSlowIn）、同样四分之一屏宽，
+        // 方向反过来往右走。淡出按他上一条要求没加回来。
         popExitTransition = {
             if (suppressTransitions) ExitTransition.None
-            else slideOutHorizontally(NAV_OUT_SHIFT) { it / 4 }
+            else slideOutHorizontally(NAV_IN_SHIFT) { it / 4 }
         },
     ) {
         composable(
