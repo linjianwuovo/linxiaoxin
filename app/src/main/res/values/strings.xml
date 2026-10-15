@@ -70,7 +70,7 @@
     <string name="section_bar_material">底栏材质</string>
     <string name="section_motion">动效</string>
     <string name="setting_preview_back">预测性返回手势</string>
-    <string name="setting_preview_back_summary">开启后，侧滑返回会通过手势动画预测返回；关闭则直接返回上一页。点返回箭头的转场不受影响，贴屏幕最边那一下由系统处理</string>
+    <string name="setting_preview_back_summary">开启后，从左边侧滑返回时当前页会跟着手指缩下去并模糊。关掉之后应用自己那层预示和系统那套 predictive back 一起关，只剩一下普通的返回转场（约 300 毫秒）。切换会重启一次界面才生效，点返回箭头的转场不受影响</string>
     <string name="bar_liquid">液态玻璃</string>
     <string name="bar_frosted">毛玻璃</string>
     <string name="bar_solid">纯色</string>

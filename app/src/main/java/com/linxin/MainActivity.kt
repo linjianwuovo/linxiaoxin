@@ -18,6 +18,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +38,7 @@ import com.linxin.navigation.ShortcutTarget
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import android.content.res.Resources
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -55,6 +57,23 @@ class MainActivity : ComponentActivity() {
     private var dormShortcutResolved by mutableStateOf(false)
     private var pendingNotificationRoute by mutableStateOf<String?>(null)
     private var pendingCrashLog: String? = null
+
+    /** 本次窗口创建时预示是开着还是关着：主题只能在窗口取样式前定下来，换了值要重建一次才生效 */
+    private var previewBackAtCreate = true
+
+    override fun onApplyThemeResource(theme: Resources.Theme, resid: Int, last: Boolean) {
+        // 这个钩子比 onCreate 早，是运行时换主题唯一靠得住的位置。
+        // 关掉预示必须连系统那套 predictive back 一起关：manifest 的开关是静态的，
+        // 以前只摘自己那层，系统自己的预示照样出，看着就是"开关没反应"。
+        val enabled = getSharedPreferences(ThemePrefs.SYNC_PREFS_NAME, MODE_PRIVATE)
+            .getBoolean(ThemePrefs.SYNC_KEY_PREVIEW_BACK, true)
+        previewBackAtCreate = enabled
+        super.onApplyThemeResource(
+            theme,
+            if (enabled) R.style.Theme_LinXin else R.style.Theme_LinXin_NoBackPreview,
+            last,
+        )
+    }
 
     // 应用内开屏放行标志：数据就绪(或超时)且满足最短展示时长后置 true，开屏随之淡出
     private var splashReleased by mutableStateOf(false)
@@ -109,9 +128,20 @@ class MainActivity : ComponentActivity() {
             // 语言用同步读到的值做起点：否则第一帧按 FOLLOW_SYSTEM 组合，
             // 读到真值后再刷一遍，会看到中文闪成英文。
             val startLanguage = runBlocking { themePrefs.currentLanguage() }
+            // 起点用窗口创建时那份值：直接用 ThemeSettings 的默认 true，会让"本来就关着的"
+            // 第一帧被当成刚改动过，跟着 recreate，死循环
             val settings by themePrefs.settings.collectAsState(
-                initial = ThemeSettings(language = startLanguage),
+                initial = ThemeSettings(
+                    language = startLanguage,
+                    previewBackGesture = previewBackAtCreate,
+                ),
             )
+            LaunchedEffect(settings.previewBackGesture) {
+                if (settings.previewBackGesture == previewBackAtCreate) return@LaunchedEffect
+                previewBackAtCreate = settings.previewBackGesture
+                // 换主题必须重建窗口，闪一下就当是生效的代价
+                recreate()
+            }
             val systemDark = isSystemInDarkTheme()
             val darkTheme = when (settings.mode) {
                 ThemeMode.SYSTEM -> systemDark
