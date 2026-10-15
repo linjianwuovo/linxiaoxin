@@ -138,7 +138,6 @@ class MainActivity : ComponentActivity() {
             ) {
                 // 语言在组合内换 Resources，不重启进程，所以切换不闪开屏。见 ProvideAppLanguage。
                 ProvideAppLanguage(language = settings.language) {
-                    LxClaimLeftEdge(previewOn = settings.previewBackGesture)
                     Box(Modifier.fillMaxSize()) {
                     LinXinNavHost(
                         sessionManager = sessionManager,
@@ -224,28 +223,3 @@ class MainActivity : ComponentActivity() {
         private const val SPLASH_MIN_MS = 700L
     }
 }
-
-/**
- * 开着预示的时候，把左边缘从系统手里要回来。
- *
- * 之前那颗开关"关了没反应"，是因为手指从最边上下滑那一下被 HyperOS 的返回手势先抢走，
- * 我们那层 44dp 热区根本收不到。`setSystemGestureExclusionRects` 就是应用向系统申请
- * "这条边别当返回手势用"，AOSP 会静默裁掉超出上限的部分（上限查不到，只能装机划一下看要回来没有）。
- * 关掉预示就把边还回去，让系统自己处理。
- */
-@androidx.compose.runtime.Composable
-private fun LxClaimLeftEdge(previewOn: Boolean) {
-    val view = androidx.compose.ui.platform.LocalView.current
-    val density = androidx.compose.ui.platform.LocalDensity.current.density
-    val edgePx = (EDGE_CLAIM_DP * density).toInt().coerceAtLeast(1)
-    androidx.compose.runtime.SideEffect {
-        if (android.os.Build.VERSION.SDK_INT < 29) return@SideEffect
-        view.systemGestureExclusionRects = if (previewOn && view.height > 0) {
-            listOf(android.graphics.Rect(0, 0, edgePx, view.height))
-        } else {
-            emptyList()
-        }
-    }
-}
-
-private const val EDGE_CLAIM_DP = 44f
