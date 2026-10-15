@@ -63,11 +63,6 @@
 直链 https://github.com/linjianwuovo/linxiaoxin/raw/apk/linxiaoxin-1.4.1.apk ，
 md5 `5f6afd9c5987c244ea897647e1ce5fec`。
 
-调试版（带模拟提交、路线模拟、网络抓包这些开发用的入口）在
-[v1.3.9-beta51](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.3.9-beta51) 那条 release 上，
-当前最新是 `1.3.9-beta52`：https://github.com/linjianwuovo/linxiaoxin/raw/apk/linxiaoxin-1.3.9-beta52.apk ，
-md5 `a517003986020f44a543419b18c34f28`。安装包都放在仓库的 `apk` 分支上，`releases/latest` 始终指向正式版。
-
 v1.3.7 及更早的包是 Android 调试 key 签的，1.3.8 起换成正式签名，两者不能互相覆盖安装：
 装 1.3.8 之后版本要先卸载旧包，登录态会丢。1.3.9 起各版都是同一把钥匙，直接覆盖安装就行。
 
