@@ -1,18 +1,20 @@
 package com.linxin.feature.sports.service
 
-import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
-import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.linxin.R
+import com.linxin.core.notification.AndroidPromotedBackend
+import com.linxin.core.notification.LiveActivityNotifier
+import com.linxin.core.notification.LiveActivityPresentation
+import com.linxin.core.notification.LiveActivityRequest
+import com.linxin.core.notification.NotificationRoute
 import com.linxin.feature.sports.domain.RunSession
 import com.linxin.feature.sports.domain.SportsRoute
+import com.linxin.navigation.Routes
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +27,9 @@ import javax.inject.Inject
  * 前台服务：把这一场跑完的过程保住（锁屏、切后台都不掉点），
  * 通知栏那条就是官方那三样：公里、时长、速率。
  *
+ * 通知走 `LiveActivityNotifier` 那套门面 —— 能被系统提升成实况通知（流体云 / 实时岛）的
+ * 就提升，提升不了的自动退回常驻通知，卡片上三行内容一个字不少。
+ *
  * 引擎是单例，界面直接读它的 StateFlow；服务只负责"别被系统杀掉 + 让人看得见进度"。
  */
 @AndroidEntryPoint
@@ -33,10 +38,14 @@ class SportsRunService : android.app.Service() {
     @Inject
     lateinit var engine: SportsRunEngine
 
+    @Inject
+    lateinit var notifier: LiveActivityNotifier
+
     override fun onBind(intent: Intent?): android.os.IBinder? = null
 
     override fun onDestroy() {
         jobScope.cancel()
+        notifier.cancel(KEY)
         super.onDestroy()
     }
 
@@ -44,6 +53,7 @@ class SportsRunService : android.app.Service() {
         when (intent?.action) {
             ACTION_STOP -> {
                 stopForeground(true)
+                notifier.cancel(KEY)
                 stopSelf()
                 return START_NOT_STICKY
             }
@@ -56,19 +66,22 @@ class SportsRunService : android.app.Service() {
     }
 
     private fun startOwnForeground() {
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            manager.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "跑步", NotificationManager.IMPORTANCE_LOW)
-            )
-        }
+        retireLegacyChannel()
         // Android 14 (API 34) 起前台服务必须声明类型
-        val flags = if (Build.VERSION.SDK_INT >= 34) {
+        val type = if (Build.VERSION.SDK_INT >= 34) {
             ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
         } else {
             0
         }
-        ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotification("0.00 公里"), flags)
+        val request = requestFor(engine.state.value)
+        ServiceCompat.startForeground(this, notifier.idFor(request), notifier.buildInitial(request), type)
+    }
+
+    /** 老版本这条挂在自建渠道「跑步」上，换门面之后那个渠道成孤儿，删掉别留在设置里 */
+    private fun retireLegacyChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        getSystemService(NotificationManager::class.java)
+            .deleteNotificationChannel(LEGACY_CHANNEL_ID)
     }
 
     private val jobScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -78,36 +91,52 @@ class SportsRunService : android.app.Service() {
             engine.state.collect { state ->
                 if (!state.active) {
                     stopForeground(true)
+                    notifier.cancel(KEY)
                     stopSelf()
                     return@collect
                 }
-                val seconds = state.elapsedSeconds()
-                val text = "%.2f 公里 · %02d:%02d".format(state.distanceKm, seconds / 60, seconds % 60)
-                (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
-                    .notify(NOTIFICATION_ID, buildNotification(text))
+                notifier.show(requestFor(state))
             }
         }
     }
 
-    private fun buildNotification(text: String): Notification {
-        val open = packageManager.getLaunchIntentForPackage(packageName)
-        val pending = open?.let {
-            PendingIntent.getActivity(this, 0, it, PendingIntent.FLAG_IMMUTABLE)
+    /**
+     * 卡片三行照官方那一屏排：大字那行给公里数，副标题给状态，内容给时长和速率。
+     * 进度条按"这一场要跑够几公里"走，那个数是服务器下发的 mixOnceMile，不是我们拍的。
+     */
+    private fun requestFor(state: SportsRunEngine.State): LiveActivityRequest {
+        val seconds = state.elapsedSeconds()
+        val distance = "%.2f".format(state.distanceKm)
+        val timeText = "%02d:%02d".format(seconds / 60, seconds % 60)
+        val label = when {
+            state.simulating -> getString(R.string.ra_sim_on)
+            state.paused -> getString(R.string.ra_title_paused)
+            state.waitingFix -> getString(R.string.ra_wait_gps)
+            else -> getString(R.string.ra_title_running)
         }
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification_linxin)
-            .setContentTitle(getString(R.string.ra_title_running))
-            .setContentText(text)
-            .setOngoing(true)
-            .setSilent(true)
-            .setContentIntent(pending)
-            .build()
+        val total = (engine.targetKm * 100).toInt().coerceAtLeast(1)
+        return LiveActivityRequest(
+            key = KEY,
+            channelId = AndroidPromotedBackend.CHANNEL_ID,
+            title = distance + getString(R.string.ra_km),
+            content = getString(R.string.notif_run_line, timeText, "%.1f".format(state.speedKmh)),
+            // 胶囊那串系统只留得下十二个字，"0.52km·03:41" 正好占满
+            capsuleText = getString(R.string.notif_run_capsule, distance, timeText),
+            route = NotificationRoute(destination = Routes.RUNNING_ACTIVE),
+            presentation = LiveActivityPresentation.Progress(
+                current = (state.distanceKm * 100).toInt().coerceIn(0, total),
+                total = total,
+                label = label,
+            ),
+        )
     }
 
     companion object {
         const val ACTION_STOP = "com.linxin.sports.STOP"
-        private const val CHANNEL_ID = "sports_run"
-        private const val NOTIFICATION_ID = 4201
+
+        /** 门面内部按 key 映射通知 id，这里不再自己写死一个 id */
+        private const val KEY = "sports_run"
+        private const val LEGACY_CHANNEL_ID = "sports_run"
 
         fun start(context: Context) {
             val intent = Intent(context, SportsRunService::class.java)

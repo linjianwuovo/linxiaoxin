@@ -849,6 +849,8 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ra_done_short">Under 0.8 km, this run is invalid</string>
     <string name="ra_sim_on">Simulating</string>
     <string name="ra_wait_gps">Getting GPS</string>
+    <string name="notif_run_line">Time %1$s · Speed %2$s km/h</string>
+    <string name="notif_run_capsule">%1$skm·%2$s</string>
     <string name="ra_points">%1$d points</string>
     <string name="ra_uploading">Uploading this run...</string>
     <string name="notif_room_line">Room: %1$s</string>

@@ -35,6 +35,8 @@ data class RunSession(
     val exerciseId: String,
     val memberId: String,
     val runningType: String = "1",
+    /** 这一场要跑够多少公里才算有效（服务器下发的 mixOnceMile），流体云那条进度条照它走 */
+    val targetKm: Double = 1.0,
     val startedAtMillis: Long = System.currentTimeMillis(),
 )
 
