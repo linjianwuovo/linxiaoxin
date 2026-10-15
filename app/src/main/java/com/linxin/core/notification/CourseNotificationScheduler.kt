@@ -27,6 +27,9 @@ class CourseNotificationScheduler @Inject constructor(
         private const val COUNTDOWN_WINDOW_MINUTES = 15
         private const val TRIGGER_MINUTES = 25L
         private const val DISMISS_AFTER_START_MINUTES = 5L
+
+        /** 系统在那颗胶囊上只留这么宽，超了自己先裁 */
+        private const val CAPSULE_LIMIT = 7
     }
 
     private var job: Job? = null
@@ -101,12 +104,10 @@ class CourseNotificationScheduler @Inject constructor(
             AppText.str(R.string.notif_started)
         }
 
-        // 胶囊那一小块只有七个字的位置，放得下"还剩几分钟"就放不下教室。
-        // 2026-10-15 他要的是教室（"小流体云没有教室"）：分钟数展开卡片上本来就有，
-        // 教室只在胶囊里露一次，所以这一格给教室；读不到教室的课退回分钟数。
-        val capsuleText = shortenRoom(room).ifBlank {
-            AppText.str(R.string.notif_capsule_minutes, minutesUntilStart)
-        }
+        // 胶囊左边那格是系统画的应用图标，我们写不了字；能写的只有右边这一串，
+        // 而且只留得下七个字。所以"教室 + 还剩几分钟"要同时上，就得把教室压到
+        // 门牌号那四个字（"博文楼（A2）S301"→"S301"），拼成"S301·4分"正好七个字。
+        val capsuleText = capsuleLine(room, minutesUntilStart)
         // 实况卡片上「标题 / 副标题 / 内容」是三行：标题放科目，副标题放还剩几分钟，
         // 内容就放教室。之前内容也塞了"还剩几分钟"，结果卡片上连着两行一模一样，
         // 教室一个字都没露出来。
@@ -142,6 +143,22 @@ class CourseNotificationScheduler @Inject constructor(
             extras = extras,
         )
         notifier.show(request)
+    }
+
+    /**
+     * 胶囊那一行：有教室就「门牌号·还剩几分钟」，没教室就只给分钟，
+     * 已经开课了就只给教室。整行裁到七个字，多出来的系统也会裁，先自己裁好。
+     */
+    private fun capsuleLine(room: String, minutesUntilStart: Long): String {
+        val door = Regex("""[（(]([^）)]+)[）)]\s*([A-Za-z0-9-]+)""").find(room)
+            ?.let { it.groupValues[2] }
+            ?: Regex("""([A-Za-z0-9-]{3,})\s*$""").find(room)?.groupValues?.get(1)
+            ?: room.filter { it.isLetterOrDigit() }.take(4)
+        return when {
+            door.isBlank() -> AppText.str(R.string.notif_capsule_minutes, minutesUntilStart)
+            minutesUntilStart <= 0L -> door.take(CAPSULE_LIMIT)
+            else -> "$door·${minutesUntilStart}分".take(CAPSULE_LIMIT)
+        }
     }
 
     /**
