@@ -108,7 +108,13 @@ class CourseNotificationScheduler @Inject constructor(
         } else {
             shortenRoom(room)
         }
-        val content = AppText.str(R.string.notif_content, statusText, room)
+        // 实况卡片上「标题 / 副标题 / 内容」是三行：标题放科目，副标题放还剩几分钟，
+        // 内容就放教室。之前内容也塞了"还剩几分钟"，结果卡片上连着两行一模一样，
+        // 教室一个字都没露出来。
+        val roomLine = AppText.str(
+            R.string.notif_room_line,
+            room.ifBlank { AppText.str(R.string.notif_room_unknown) },
+        )
         val bigText = AppText.str(R.string.notif_content, statusText, room)
 
         val extras = Bundle().apply {
@@ -122,7 +128,7 @@ class CourseNotificationScheduler @Inject constructor(
             key = KEY,
             channelId = KEY,
             title = name,
-            content = statusText,
+            content = roomLine,
             capsuleText = capsuleText,
             route = NotificationRoute(destination = Routes.AICLASS_HOME),
             // 课前这段时间用进度条表达（离上课越近条越满）：实况更新那套模板吃的就是进度样式，

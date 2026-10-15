@@ -851,4 +851,6 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ra_wait_gps">Getting GPS</string>
     <string name="ra_points">%1$d points</string>
     <string name="ra_uploading">Uploading this run...</string>
+    <string name="notif_room_line">Room: %1$s</string>
+    <string name="notif_room_unknown">Room TBD</string>
 </resources>

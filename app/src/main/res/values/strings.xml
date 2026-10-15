@@ -854,4 +854,6 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ra_wait_gps">正在获取 GPS</string>
     <string name="ra_points">%1$d 个轨迹点</string>
     <string name="ra_uploading">正在提交这一场…</string>
+    <string name="notif_room_line">地点：%1$s</string>
+    <string name="notif_room_unknown">教室待定</string>
 </resources>
