@@ -20,7 +20,6 @@
     <string name="title_news_detail">公告详情</string>
     <string name="title_about">关于安大信</string>
     <string name="title_labor">劳动教育</string>
-    <string name="title_route_template">录制模板</string>
     <string name="title_scan_checkin">扫码签到</string>
     <string name="title_more_functions">更多功能</string>
     <string name="title_dorm_checkin">查寝签到</string>
@@ -807,8 +806,8 @@ Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="ra_done_ok">辛苦了，请继续加油！</string>
     <string name="ra_done_short">本次运动低于0.8公里，故无效</string>
     <string name="ra_wait_gps">正在获取 GPS</string>
-    <string name="notif_run_line">时长 %1$s · 速率 %2$s km/h</string>
-    <string name="notif_run_capsule">%1$skm·%2$s</string>
+    <string name="notif_run_line">实时 %1$s km/h · 时长 %2$s</string>
+    <string name="notif_run_capsule">%1$skm/h</string>
     <string name="ra_points">%1$d 个轨迹点</string>
     <string name="ra_uploading">正在提交这一场…</string>
     <string name="notif_room_line">地点：%1$s</string>
