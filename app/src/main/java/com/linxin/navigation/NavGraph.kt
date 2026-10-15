@@ -206,10 +206,9 @@ fun LinXinNavHost(
             if (suppressTransitions) ExitTransition.None
             else fadeOut(NAV_OUT_FADE)
         },
-        popEnterTransition = {
-            if (suppressTransitions) EnterTransition.None
-            else fadeIn(NAV_IN_FADE) + slideInHorizontally(NAV_IN_SHIFT) { -it / 4 }
-        },
+        // 返回时底下那页不动也不淡入，只有上面那页往右走：两页同时反向位移还叠淡出，
+        // 中间会透出窗口底色，看着就是"闪一下白"。抓过 3000ms 的慢放帧确认过。
+        popEnterTransition = { EnterTransition.None },
         // 退场那页只往右走，不再叠淡出：一边滑一边变浅看着像两张纸在换手
         popExitTransition = {
             if (suppressTransitions) ExitTransition.None
