@@ -55,7 +55,14 @@ class SportsStartViewModel @Inject constructor(
         reload()
         viewModelScope.launch {
             developerPrefs.isAdvancedEnabled.collectLatest { enabled ->
-                _uiState.update { it.copy(advancedEnabled = enabled) }
+                // 关掉调试模式顺手把挑好的线撤掉：不然界面上看不见，
+                // 点开始运动却还在按那条线喂点
+                _uiState.update {
+                    it.copy(
+                        advancedEnabled = enabled,
+                        armedRoute = if (enabled) it.armedRoute else null,
+                    )
+                }
             }
         }
         viewModelScope.launch {
