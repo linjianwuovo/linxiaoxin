@@ -122,7 +122,7 @@ fun AboutScreen(
     if (showConfirmDialog) {
         LxDialog(
             title = "启用调试功能",
-            message = "开启后跑步页会出现「模拟路线」：按你画的线往自己进程里喂点，交上去的记录照样进学校系统。仅供自己调试，别拿它当日常考核。",
+            message = "调试功能内的所有功能仅供开发者调试，不允许通过其中任何功能进行滥用行为，所有责任由使用者自己承担。",
             confirmText = "确定",
             dismissText = "取消",
             onDismissRequest = { showConfirmDialog = false },
