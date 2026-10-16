@@ -9,7 +9,10 @@ import android.os.Build
 import android.widget.Toast
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -23,10 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -36,7 +36,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.linxin.core.auth.SessionManager
-import com.linxin.core.compat.rememberLxBackMotion
 import com.linxin.core.designsystem.component.LxLoading
 import com.linxin.feature.aiclass.ui.AiClassHomeScreen
 import com.linxin.feature.aiclass.ui.AiClassCourseDetailScreen
@@ -73,6 +72,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
+// 推入推出共用一条 spec：同一条曲线、同一个时长，只是方向反过来
+private val NAV_PUSH: FiniteAnimationSpec<IntOffset> = tween(420, easing = FastOutSlowInEasing)
+
 @Composable
 fun LinXinNavHost(
     sessionManager: SessionManager,
@@ -81,8 +83,6 @@ fun LinXinNavHost(
     pendingDormTaskId: String? = null,
     isDormShortcutResolved: Boolean = false,
     pendingNotificationRoute: String? = null,
-    /** 主题页「动效 → 侧滑返回预示」的开关 */
-    previewBackGesture: Boolean = true,
     onShortcutConsumed: () -> Unit = {},
 ) {
     // 合并 onboarded + loggedIn 两态决定起始页
@@ -153,52 +153,19 @@ fun LinXinNavHost(
         currentOnShortcutConsumed()
     }
 
-    val back = rememberLxBackMotion(navController, previewBackGesture)
-    val backProgress = back.progress
-    // 模糊单独一条进度：和手势进度反着走，一接管就糊满、随划出距离收到 0（见 rememberLxBackMotion）
-    val blurProgress = back.blurProgress
-
     NavHost(
         navController = navController,
         startDestination = resolvedStartRoute,
-        // 侧滑返回时整页跟着手势缩下去，见 rememberLxBackMotion 的注释。
-        // 没手势的时候不加 graphicsLayer：常驻一层图层会改变子树的重绘边界，
-        // 边缘手势的 pointerInput 则必须一直挂着，不能在这上面做条件，否则拖到一半会断。
-        modifier = back.modifier.then(
-            if (backProgress > 0f || blurProgress > 0f) androidx.compose.ui.Modifier
-                // 返回模糊：用 androidx 的 Modifier.blur（Apache-2.0），Android 12 以下自动不生效。
-                // 走 blurProgress：拖到哪儿糊到哪儿，松手返回之后上一页出场时再带一把模糊收干净，
-                // 这样快滑、点返回箭头、系统手势那几种都能看见糊，不然峰值只停两三帧等于没有。
-                .blur(
-                    // blurProgress 是反的：一接管手势就满，随划出去的距离线性收到 0
-                    radius = (com.linxin.core.compat.LX_BACK_BLUR_MAX_DP * blurProgress).dp,
-                    edgeTreatment = BlurredEdgeTreatment.Unbounded,
-                )
-                .graphicsLayer {
-                    // 缩到 0.85 / 淡到 0.75 / 左移 8% 屏宽：Material 侧滑返回的惯例量级。
-                    // 我们只画当前这一页，画不出上一页，所以位移给得小；曲线和时长在 rememberLxBackMotion 里
-                    scaleX = 1f - 0.15f * backProgress
-                    scaleY = 1f - 0.15f * backProgress
-                    alpha = 1f - 0.25f * backProgress
-                    translationX = -size.width * 0.08f * backProgress
-                }
-            else androidx.compose.ui.Modifier
-        ),
+        // 二级界面整页从右边推进来（走满一屏宽），底下那页一动不动；返回就是倒放
         enterTransition = {
             if (suppressTransitions) EnterTransition.None
-            else fadeIn(tween(300)) + slideInHorizontally(tween(300)) { it / 4 }
+            else slideInHorizontally(NAV_PUSH) { it }
         },
-        exitTransition = {
-            if (suppressTransitions) ExitTransition.None
-            else fadeOut(tween(200))
-        },
-        popEnterTransition = {
-            if (suppressTransitions) EnterTransition.None
-            else fadeIn(tween(300)) + slideInHorizontally(tween(300)) { -it / 4 }
-        },
+        exitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
         popExitTransition = {
             if (suppressTransitions) ExitTransition.None
-            else fadeOut(tween(200)) + slideOutHorizontally(tween(200)) { it / 4 }
+            else slideOutHorizontally(NAV_PUSH) { it }
         },
     ) {
         composable(
