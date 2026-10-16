@@ -60,6 +60,18 @@ private const val UNLOCK_GAP_MS = 1500L
 
 // 小红书主页的分享短链：装了小红书 App 会直接跳到 App 里，没装就走浏览器
 private const val XHS_LINK = "https://xhslink.cn/o/2WLa4prWUT3"
+private const val XHS_PACKAGE = "com.xingin.xhs"
+
+/** 指名让小红书来接这条链接；它不认领原样就把 .cn 换成 .com 再问一次。接了返回 true。 */
+private fun openInXiaohongshu(context: android.content.Context, url: String): Boolean {
+    for (u in listOf(url, url.replace("://xhslink.cn/", "://xhslink.com/"))) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(u)).setPackage(XHS_PACKAGE)
+        if (intent.resolveActivity(context.packageManager) != null &&
+            runCatching { context.startActivity(intent); true }.getOrDefault(false)
+        ) return true
+    }
+    return false
+}
 
 @Composable
 fun AboutScreen(
@@ -306,9 +318,15 @@ private fun XiaohongshuRow() {
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
-                // 装了小红书会直接被它接管，没装就走浏览器，两条都到同一个主页
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(XHS_LINK))
-                context.startActivity(intent)
+                // 小红书在系统里认领的是 xhslink.com 和 www.xiaohongshu.com，
+                // 不认领分享出来这条 .cn —— 直接 ACTION_VIEW 只会被浏览器接走。
+                // 所以三层：① 原链接指名问小红书要不要；② 它不应就把域名换成 .com 再指名问一次；
+                // ③ 两回都不应（没装/版本不认）才交给系统默认浏览器。
+                if (!openInXiaohongshu(context, XHS_LINK)) {
+                    runCatching {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(XHS_LINK)))
+                    }
+                }
             }
             .padding(horizontal = 18.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
