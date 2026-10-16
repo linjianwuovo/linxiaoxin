@@ -52,7 +52,6 @@ data class ThemeSettings(
      * 点返回箭头、NavHost 的 pop 转场都不受它影响，那是正常转场不是预示。
      * 也管不到系统：贴屏幕最边起的滑动由 ROM 自己处理，应用拦不住。
      */
-    val previewBackGesture: Boolean = true,
 )
 
 private val Context.themeDataStore: DataStore<Preferences> by preferencesDataStore(name = "linxin_theme")
@@ -71,7 +70,6 @@ class ThemePrefs @Inject constructor(
         private val KEY_GLASS_REFRACTION = floatPreferencesKey("glass_refraction")
         private val KEY_GLASS_DISPERSION = floatPreferencesKey("glass_dispersion")
         private val KEY_GLASS_DISTORTION = floatPreferencesKey("glass_distortion")
-        private val KEY_PREVIEW_BACK = booleanPreferencesKey("preview_back_gesture")
     }
 
     val settings: Flow<ThemeSettings> = context.themeDataStore.data.map { prefs ->
@@ -89,12 +87,7 @@ class ThemePrefs @Inject constructor(
             glassRefraction = prefs[KEY_GLASS_REFRACTION] ?: 0.5f,
             glassDistortion = prefs[KEY_GLASS_DISTORTION] ?: 1f,
             glassDispersion = prefs[KEY_GLASS_DISPERSION] ?: 1f,
-            previewBackGesture = prefs[KEY_PREVIEW_BACK] ?: true,
         )
-    }
-
-    suspend fun setPreviewBackGesture(enabled: Boolean) {
-        context.themeDataStore.edit { it[KEY_PREVIEW_BACK] = enabled }
     }
 
     suspend fun setMode(mode: ThemeMode) {

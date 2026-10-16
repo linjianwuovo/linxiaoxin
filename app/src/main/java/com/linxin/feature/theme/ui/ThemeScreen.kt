@@ -206,26 +206,6 @@ fun ThemeScreen(
                 }
             }
 
-            Spacer(Modifier.height(22.dp))
-
-            SectionLabel(stringResource(R.string.section_motion))
-            LxCard {
-                SettingRow(
-                    icon = Icons.Filled.Swipe,
-                    title = stringResource(R.string.setting_preview_back),
-                    subtitle = stringResource(R.string.setting_preview_back_summary),
-                    trailing = {
-                        Switch(
-                            checked = settings.previewBackGesture,
-                            onCheckedChange = { viewModel.setPreviewBackGesture(it) },
-                            colors = SwitchDefaults.switchColors(
-                                uncheckedTrackColor = LxSandDeep,
-                            ),
-                        )
-                    },
-                )
-            }
-
             Spacer(Modifier.height(16.dp))
             Text(
                 text = stringResource(R.string.theme_footer),
