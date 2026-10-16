@@ -1,6 +1,7 @@
 package com.linxin.feature.about.ui
 
 import androidx.compose.ui.res.stringResource
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
@@ -56,6 +57,9 @@ import com.linxin.core.designsystem.theme.LxTerra
 
 private const val UNLOCK_TAPS = 10
 private const val UNLOCK_GAP_MS = 1500L
+
+// 小红书主页的分享短链：装了小红书 App 会直接跳到 App 里，没装就走浏览器
+private const val XHS_LINK = "https://xhslink.cn/o/2WLa4prWUT3"
 
 @Composable
 fun AboutScreen(
@@ -114,7 +118,11 @@ fun AboutScreen(
                 Spacer(modifier = Modifier.height(22.dp))
             }
             LxCard {
-                Column { GitHubRow() }
+                Column {
+                    GitHubRow()
+                    CardDivider()
+                    XiaohongshuRow()
+                }
             }
         }
     }
@@ -288,6 +296,55 @@ private fun GitHubRow() {
             fontWeight = FontWeight.Light,
             color = LxInkMuted,
         )
+    }
+}
+
+@Composable
+private fun XiaohongshuRow() {
+    val context = LocalContext.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                // 装了小红书会直接被它接管，没装就走浏览器，两条都到同一个主页
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(XHS_LINK))
+                context.startActivity(intent)
+            }
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = stringResource(R.string.about_xhs),
+            fontSize = 15.sp,
+            color = LxInk,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.about_xhs_copy),
+                fontSize = 13.sp,
+                color = LxSandDeep,
+                modifier = Modifier
+                    .clickable {
+                        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE)
+                            as android.content.ClipboardManager
+                        cm.setPrimaryClip(android.content.ClipData.newPlainText("xhs", XHS_LINK))
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(R.string.about_xhs_copied),
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "›",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Light,
+                color = LxInkMuted,
+            )
+        }
     }
 }
 
