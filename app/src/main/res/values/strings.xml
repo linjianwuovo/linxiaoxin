@@ -68,9 +68,6 @@
     <string name="setting_language_unavailable">需要 Android 13 及以上</string>
 
     <string name="section_bar_material">底栏材质</string>
-    <string name="section_motion">动效</string>
-    <string name="setting_preview_back">预测性返回手势</string>
-    <string name="setting_preview_back_summary">只管应用自己这一层：开着时侧滑返回当前页会跟着手指缩下去并模糊，关掉就完全没有。系统从屏幕最边那条自己接管的手势应用拦不住（米11 实测连 120px 起的手势都归它），所以那一下还是系统动画。切换立刻生效不用重启</string>
     <string name="bar_liquid">液态玻璃</string>
     <string name="bar_frosted">毛玻璃</string>
     <string name="bar_solid">纯色</string>

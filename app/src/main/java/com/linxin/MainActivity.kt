@@ -145,7 +145,6 @@ class MainActivity : ComponentActivity() {
                         pendingDormTaskId = pendingDormTaskId,
                         isDormShortcutResolved = dormShortcutResolved,
                         pendingNotificationRoute = pendingNotificationRoute,
-                        previewBackGesture = settings.previewBackGesture,
                         onShortcutConsumed = {
                             shortcutTarget = null
                             pendingDormTaskId = null
