@@ -6,7 +6,8 @@
 
 ## 长什么样
 
-38 秒竖屏宣传片，下面这张动图是它压出来的预览，原片点这里：[media/andaixin-promo-v2.mp4](media/andaixin-promo-v2.mp4)（894,650 字节）。
+38 秒竖屏宣传片，下面这张动图是它压出来的预览（4fps、330 宽，576,992 字节）。原片 894,650 字节跟安装包放在一条分支上（往 `main` 推 mp4 会被中途掐断）：
+https://github.com/linjianwuovo/linxiaoxin/raw/apk/andaixin-promo-v2.mp4
 
 ![安大信 38 秒宣传片预览](media/promo-preview.gif)
 
