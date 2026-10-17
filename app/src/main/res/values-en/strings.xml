@@ -109,6 +109,9 @@
     <string name="action_cancel">Cancel</string>
     <string name="about_tagline">A lighter campus life</string>
     <string name="about_github">GitHub repository</string>
+    <string name="about_xhs">Xiaohongshu · my profile</string>
+    <string name="about_xhs_copy">Copy link</string>
+    <string name="about_xhs_copied">Link copied — paste it in Xiaohongshu to open my profile</string>
     <string name="about_misans">This app uses the MiSans typeface
 Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="checkin_empty">No check-in tasks</string>

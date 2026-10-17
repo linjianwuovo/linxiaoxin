@@ -109,6 +109,9 @@
     <string name="action_cancel">取消</string>
     <string name="about_tagline">让安小信变大</string>
     <string name="about_github">GitHub 仓库</string>
+    <string name="about_xhs">小红书 · 我的主页</string>
+    <string name="about_xhs_copy">复制链接</string>
+    <string name="about_xhs_copied">链接已复制，打开小红书粘贴就能看</string>
     <string name="about_misans">本应用使用 MiSans 字体
 Copyright © 2020-2023 Beijing Xiaomi Mobile Software Co., Ltd.</string>
     <string name="checkin_empty">暂无签到任务</string>
