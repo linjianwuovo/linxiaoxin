@@ -4,6 +4,16 @@
 
 包名 `com.linxin`，仓库名还叫 `linxiaoxin`，应用显示名从 v1.3.7 起是「安大信」。
 
+## 长什么样
+
+38 秒竖屏宣传片，下面这张动图是它压出来的预览，原片点这里：[media/andaixin-promo-v2.mp4](media/andaixin-promo-v2.mp4)（894,650 字节）。
+
+![安大信 38 秒宣传片预览](media/promo-preview.gif)
+
+<img src="media/shot-home.jpg" width="176"> <img src="media/shot-schedule.jpg" width="176"> <img src="media/shot-dorm.jpg" width="176"> <img src="media/shot-card.jpg" width="176"> <img src="media/shot-more.jpg" width="176">
+
+图里和片里的界面全部出自免登录演示包 `com.linxin.demo`：姓名、学号、余额、记录都是编的，装上去不用登录，也带不出任何真实数据。
+
 ## 现在有什么
 
 账号与登录
@@ -57,10 +67,10 @@
 
 ## 安装
 
-正式版在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.4.1)：
-`linxiaoxin-1.4.1.apk`，正式签名，minSdk 26（Android 8.0+），arm64-v8a。
-直链 https://github.com/linjianwuovo/linxiaoxin/raw/apk/linxiaoxin-1.4.1.apk ，
-md5 `5f6afd9c5987c244ea897647e1ce5fec`。
+正式版在 [Releases](https://github.com/linjianwuovo/linxiaoxin/releases/tag/v1.4.3)：
+`linxiaoxin-1.4.3.apk`，正式签名，minSdk 26（Android 8.0+），arm64-v8a。
+直链 https://github.com/linjianwuovo/linxiaoxin/raw/apk/linxiaoxin-1.4.3.apk ，
+41,681,486 字节，md5 `29cb853f2531448fe79ee00bb104547d`。
 
 v1.3.7 及更早的包是 Android 调试 key 签的，1.3.8 起换成正式签名，两者不能互相覆盖安装：
 装 1.3.8 之后版本要先卸载旧包，登录态会丢。1.3.9 起各版都是同一把钥匙，直接覆盖安装就行。
@@ -98,7 +108,7 @@ osmdroid 6.1.20 做地图、Kyant0 Backdrop 做玻璃。Gradle 9.3.1，全部依
 
 ## 边界
 
-- 公开树里不放真实姓名、学号、账号 id、JWT、token、抓包文件和真机截图，测试夹具全部用合成数据
+- 公开树里不放真实姓名、学号、账号 id、JWT、token 和抓包文件，测试夹具全部用合成数据。README 上面那批界面图和宣传片是从免登录演示包 `com.linxin.demo` 里录的，带真实数据的那批真机截图不落进仓库
 - 不复制 GPL 组件的代码进这个 MIT 仓库。参考只看行为和数值，同样的能力从 Apache-2.0 的上游拿，并保留归属注释
 - 校方接口的字段名照原样保留，包括它拼错的那些，改了服务器不认
 
