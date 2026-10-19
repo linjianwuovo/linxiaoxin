@@ -36,12 +36,6 @@ object Routes {
     /** 考勤维护记录（官方 /attendRecord） */
     const val SPORT_MAINTAIN = "sport/maintain"
 
-    // Running - 大二俱乐部 / 锻炼考勤
-    const val RUNNING_CLUB_DETAIL = "running/club"
-    const val RUNNING_EXERCISE_CHECK = "running/exercise/{autoId}/{memberId}"
-    fun runningExerciseCheck(autoId: String, memberId: String) =
-        "running/exercise/${Uri.encode(autoId)}/${Uri.encode(memberId)}"
-
     // Labor
     const val LABOR_SUMMARY = "labor/summary"
 

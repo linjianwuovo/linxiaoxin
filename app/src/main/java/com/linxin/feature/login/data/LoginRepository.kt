@@ -1,6 +1,6 @@
 package com.linxin.feature.login.data
 
-import com.linxin.core.auth.RSAUtils
+import com.linxin.core.auth.Rsa
 import com.linxin.core.auth.TokenManager
 import com.linxin.core.auth.TokenRefresher
 import com.linxin.core.network.AuthRetrofit
@@ -19,7 +19,7 @@ class LoginRepository @Inject constructor(
 ) : TokenRefresher {
     suspend fun login(userCode: String, password: String): Result<Unit> {
         return try {
-            val encryptedPassword = RSAUtils.encryptPassword(password)
+            val encryptedPassword = Rsa.encryptPassword(password)
             val response = api.login(userCode, encryptedPassword)
             val token = response.data?.token
             val accessToken = token?.accessToken

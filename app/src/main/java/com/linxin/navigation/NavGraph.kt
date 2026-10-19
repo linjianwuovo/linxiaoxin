@@ -66,8 +66,6 @@ import com.linxin.feature.sports.ui.SportsDetailScreen
 import com.linxin.feature.sports.ui.SportsRecordsScreen
 import com.linxin.feature.sports.ui.SportsRunScreen
 import com.linxin.feature.sports.ui.SportsStartScreen
-import com.linxin.feature.running.exercise.ui.ClubDetailScreen
-import com.linxin.feature.running.exercise.ui.ExerciseCheckScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -321,28 +319,6 @@ fun LinXinNavHost(
         composable(Routes.SPORT_MAINTAIN) {
             SportsAppealsScreen(onBack = { navController.popBackStack() })
         }
-        composable(Routes.RUNNING_CLUB_DETAIL) {
-            ClubDetailScreen(
-                onBack = { navController.popBackStack() },
-                onStartCheck = { autoId, memberId ->
-                    navController.navigate(Routes.runningExerciseCheck(autoId, memberId)) {
-                        launchSingleTop = true
-                    }
-                },
-            )
-        }
-        composable(
-            route = Routes.RUNNING_EXERCISE_CHECK,
-            arguments = listOf(
-                navArgument("autoId") { type = NavType.StringType },
-                navArgument("memberId") { type = NavType.StringType },
-            ),
-        ) {
-            ExerciseCheckScreen(
-                onBack = { navController.popBackStack() },
-            )
-        }
-
         // Labor
         composable(Routes.LABOR_SUMMARY) {
             LaborSummaryScreen(

@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.linxin.core.location.CoordinateConverter
-import com.linxin.feature.running.domain.RunningCampus
+import com.linxin.core.location.Campus
 import com.linxin.feature.sports.SportsCoords
 import com.linxin.feature.sports.domain.WgsPoint
 import org.osmdroid.api.IGeoPoint
@@ -105,8 +105,8 @@ fun LiveTrackMap(
                 overlays.add(pickOverlay)
                 controller.setZoom(17.5)
                 val gcj = SportsCoords.wgsToGcj(
-                    RunningCampus.CENTER_LATITUDE,
-                    RunningCampus.CENTER_LONGITUDE,
+                    Campus.CENTER_LATITUDE,
+                    Campus.CENTER_LONGITUDE,
                 )
                 controller.setCenter(GeoPoint(gcj.latitude, gcj.longitude))
                 onResume()
