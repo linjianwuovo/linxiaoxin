@@ -49,7 +49,14 @@ class SportsRunService : android.app.Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
+        if (intent == null) {
+            // 这是"进程被杀之后系统自己把服务复活"那一路：复活发生在后台，而引擎是进程内的
+            // @Singleton、会话早跟着进程一起没了，这里没有任何可续的东西。
+            // Android 12+ 从后台起 location 类型的前台服务是直接抛，所以这一路只停、不去贴通知。
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        when (intent.action) {
             ACTION_STOP -> {
                 stopForeground(true)
                 notifier.cancel(KEY)
@@ -61,7 +68,10 @@ class SportsRunService : android.app.Service() {
                 observe()
             }
         }
-        return super.onStartCommand(intent, flags, startId)
+        // 原来这一行是 super.onStartCommand(...)，而 Service 的默认值是 START_STICKY ——
+        // 那正是上面那条后台复活的来源。这一场的数据不落盘，进程一死就没了，粘着重启续不出任何东西，
+        // 只会多一次崩，所以明写不粘。
+        return START_NOT_STICKY
     }
 
     private fun startOwnForeground() {

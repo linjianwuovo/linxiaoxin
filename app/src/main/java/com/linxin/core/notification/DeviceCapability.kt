@@ -62,10 +62,27 @@ object DeviceCapability {
         return canPostPromoted(context) || hasPromotedPermission(context)
     }
 
-    private fun canPostPromoted(context: Context): Boolean = try {
-        context.getSystemService(NotificationManager::class.java).canPostPromotedNotifications()
-    } catch (_: Exception) {
-        false
+    /**
+     * 问系统「这个 App 现在能不能发提升通知」。
+     *
+     * 两道闸门一道都不能省：
+     *
+     * ① **SDK 闸门必须在这个函数里面，不能只写在外面的 `isAndroid16Promoted()`**。
+     *    `canPostPromotedNotifications()` 是 Android 16 才进框架的方法，我们 compileSdk 37 编得过，
+     *    但老机器的 `/system/framework/framework.jar` 里就是没有它 —— 运行期抛的是
+     *    **`NoSuchMethodError`**。2026-10-19 别人一台 o 系手机上报的闪退就是这一下：
+     *    当时闸门只在 `isAndroid16Promoted()` 里，而 `resolve()` 末尾那行诊断日志无条件调了这个方法，
+     *    等于从闸门外头把手伸进去，于是凡是走实况通知门面的地方（跑步、课前提醒）一发通知就崩。
+     *
+     * ② **接的要 Throwable，不是 Exception**。`NoSuchMethodError` 是 `Error`，
+     *    `catch (_: Exception)` 接不住，所以这里用 `runCatching`（它接 Throwable）。
+     *    设置页那份 `canPostPromotedCompat()` 10-14 就是按这两条写的，当时只修了那一处，漏了这一处。
+     */
+    private fun canPostPromoted(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < 36) return false
+        return runCatching {
+            context.getSystemService(NotificationManager::class.java).canPostPromotedNotifications()
+        }.getOrDefault(false)
     }
 
     private fun hasPromotedPermission(context: Context): Boolean =
