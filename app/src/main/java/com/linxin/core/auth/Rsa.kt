@@ -10,7 +10,7 @@ import javax.crypto.Cipher
  *
  * 出处：2026-10-19 从安小信自己的 base.apk（4 个 dex）里扫出来的两把公钥之一，
  * 与它登录时实际发出去的 `password` 字段（128 字节块的 base64）对得上。
- * 之前这里用的是学长入库那份 RSAUtils，已删。
+ * 上面那两条就是全部依据，别在没有新报文的情况下换钥匙。
  */
 object Rsa {
 
