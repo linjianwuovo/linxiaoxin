@@ -1,8 +1,8 @@
 package com.linxin.core.location
 
 import android.location.Location
-import com.linxin.feature.running.domain.GeoDistance
-import com.linxin.feature.running.domain.TrackPoint
+import com.linxin.feature.sports.SportsCoords
+import com.linxin.feature.sports.domain.WgsPoint
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -41,15 +41,15 @@ class InternalGpsFeed @Inject constructor() {
     private val _isOn = MutableStateFlow(false)
     val isOn: StateFlow<Boolean> = _isOn.asStateFlow()
 
-    private val _point = MutableStateFlow<TrackPoint?>(null)
-    val point: StateFlow<TrackPoint?> = _point.asStateFlow()
+    private val _point = MutableStateFlow<WgsPoint?>(null)
+    val point: StateFlow<WgsPoint?> = _point.asStateFlow()
 
     private val _fedCount = MutableStateFlow(0)
     val fedCount: StateFlow<Int> = _fedCount.asStateFlow()
 
     /** 这一趟真发出去的点，界面拿去画"跑到哪儿了" */
-    private val _trail = MutableStateFlow<List<TrackPoint>>(emptyList())
-    val trail: StateFlow<List<TrackPoint>> = _trail.asStateFlow()
+    private val _trail = MutableStateFlow<List<WgsPoint>>(emptyList())
+    val trail: StateFlow<List<WgsPoint>> = _trail.asStateFlow()
 
     /** 跑步页按暂停时置位：暂停期间一个点都不发，位置也不往前挪 */
     @Volatile
@@ -65,7 +65,7 @@ class InternalGpsFeed @Inject constructor() {
      * 走到线尾就**倒着走回来**（像真人跑一段折返），绝不从终点瞬移回起点 ——
      * 那种一秒跳几百米的断点，服务器一眼就当轨迹异常。
      */
-    fun startRoute(points: List<TrackPoint>, paceKmh: Double) {
+    fun startRoute(points: List<WgsPoint>, paceKmh: Double) {
         stopJob()
         val sampler = LineSampler(points)
         if (sampler.totalMeters < 20.0) return
@@ -117,9 +117,9 @@ class InternalGpsFeed @Inject constructor() {
      * 按弧长在一条折线上取点：先累出每段长度，取的时候二分太浪费，直接线性找段。
      * 拐点稀疏也没关系 —— 我们是按"走了多少米"取位置，不是按第几个拐点跳。
      */
-    private class LineSampler(source: List<TrackPoint>) {
+    private class LineSampler(source: List<WgsPoint>) {
 
-        private val points: List<TrackPoint> = source
+        private val points: List<WgsPoint> = source
         private val cumulative: DoubleArray
         val totalMeters: Double
 
@@ -128,7 +128,7 @@ class InternalGpsFeed @Inject constructor() {
             cumulative = DoubleArray(list.size)
             var sum = 0.0
             for (i in 1 until list.size) {
-                sum += GeoDistance.metersBetween(
+                sum += SportsCoords.metersBetween(
                     list[i - 1].latitude, list[i - 1].longitude,
                     list[i].latitude, list[i].longitude,
                 )
@@ -137,9 +137,9 @@ class InternalGpsFeed @Inject constructor() {
             totalMeters = sum
         }
 
-        fun at(meters: Double): TrackPoint {
+        fun at(meters: Double): WgsPoint {
             val list = points
-            if (list.size < 2) return TrackPoint(0.0, 0.0)
+            if (list.size < 2) return WgsPoint(0.0, 0.0)
             val target = meters % totalMeters
             var index = 1
             while (index < list.size && cumulative[index] < target) index++
@@ -149,7 +149,7 @@ class InternalGpsFeed @Inject constructor() {
             val ratio = ((target - cumulative[from]) / segLength).coerceIn(0.0, 1.0)
             val a = list[from]
             val b = list[to]
-            return TrackPoint(
+            return WgsPoint(
                 a.latitude + (b.latitude - a.latitude) * ratio,
                 a.longitude + (b.longitude - a.longitude) * ratio,
             )
@@ -219,10 +219,10 @@ class InternalGpsFeed @Inject constructor() {
             elapsedRealtimeNanos = android.os.SystemClock.elapsedRealtimeNanos()
         }
         last = location
-        _point.value = TrackPoint(latitude = latitude, longitude = longitude, timestampMillis = System.currentTimeMillis())
+        _point.value = WgsPoint(latitude = latitude, longitude = longitude, atMillis = System.currentTimeMillis())
         _fedCount.value = _fedCount.value + 1
         // 最多留 1500 个点（约 25 分钟），够看一屏，也不至于把内存吃满
-        _trail.value = (_trail.value + TrackPoint(latitude, longitude)).takeLast(TRAIL_MAX_POINTS)
+        _trail.value = (_trail.value + WgsPoint(latitude, longitude)).takeLast(TRAIL_MAX_POINTS)
     }
 }
 

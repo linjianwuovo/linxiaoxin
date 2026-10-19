@@ -28,8 +28,6 @@ object Routes {
     // Running
     const val RUNNING_HOME = "running/home"
     const val RUNNING_ACTIVE = "running/active"
-    const val RUNNING_SIM = "running/sim"
-    const val RUNNING_RESULT = "running/result"
     /** 地图上点选规划路线那一页 */
     const val RUNNING_ROUTE_PLANNER = "running/route/planner"
     /** 运动记录（官方 /motionRecord） */
@@ -39,12 +37,6 @@ object Routes {
     fun sportRecordDetail(checkId: String) = "sport/record/${Uri.encode(checkId)}"
     /** 考勤维护记录（官方 /attendRecord） */
     const val SPORT_MAINTAIN = "sport/maintain"
-
-    // Running - 大二俱乐部 / 锻炼考勤
-    const val RUNNING_CLUB_DETAIL = "running/club"
-    const val RUNNING_EXERCISE_CHECK = "running/exercise/{autoId}/{memberId}"
-    fun runningExerciseCheck(autoId: String, memberId: String) =
-        "running/exercise/${Uri.encode(autoId)}/${Uri.encode(memberId)}"
 
     // Labor
     const val LABOR_SUMMARY = "labor/summary"
