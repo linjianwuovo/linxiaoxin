@@ -15,7 +15,7 @@ import javax.crypto.Cipher
  *
  *   body 单键 `list` = JSON 数组、1 个对象、10 个键，顺序固定
  *     exerciseId, memberId, runningType, startDate, endDate, mile, time, speed, runningRoute, sourceInfo
- *   10 个**键名全部** RSA 加密（`RSAUtils.publicEncrypt2`，密文 172 字符 base64 = RSA-1024）
+ *   10 个**键名全部** RSA 加密（`Rsa` 那一路（运动用的是 APK 里另一把公钥，尾号 xZC1gwIDAQAB），密文 172 字符 base64 = RSA-1024）
  *   值里 **9 个加密，唯独 runningRoute 是明文 JSON 数组**
  *   exerciseId 为空或字符串 "null" 时：put(加密后的键名, "")，值不加密
  *   `sourceInfo` = `Build.MODEL`
